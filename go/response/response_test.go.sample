@@ -1,0 +1,159 @@
+package response
+
+import (
+	"bytes"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"sertif/pkg/util/binding"
+	"testing"
+
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+)
+
+var resp *JSON
+
+func init() {
+	resp = NewJSON()
+}
+
+func TestJSON_SetMessage(t *testing.T) {
+	t.Run("Should be success set message", func(t *testing.T) {
+		actual := resp.SetMessage("pesan")
+		assert.Equal(t, resp.Message, actual.Message)
+	})
+}
+
+func TestJSON_SetData(t *testing.T) {
+	t.Run("Should be success set data", func(t *testing.T) {
+		actual := resp.SetData(1)
+		assert.Equal(t, resp.Data, actual.Data)
+		assert.Equal(t, 200, resp.Code)
+	})
+}
+
+func TestJSON_SetError(t *testing.T) {
+	t.Run("Should be success set error", func(t *testing.T) {
+		actual := resp.SetError(500, constants.ErrorPatch)
+		assert.Equal(t, resp.Code, actual.Code)
+		assert.Equal(t, constants.ErrorPatch, resp.Error)
+	})
+}
+
+func TestJSON_Export(t *testing.T) {
+	t.Run("Should be success export", func(t *testing.T) {
+		content := bytes.Buffer{}
+		exportResp := NewJSON()
+		actual := exportResp.Export("test", &content)
+		assert.Equal(t, exportResp.ExportFile.Content, actual.ExportFile.Content)
+	})
+}
+
+func TestJSON_SetRawMessage(t *testing.T) {
+	t.Run("Should be success set error", func(t *testing.T) {
+		actual := resp.SetRawMessage("test")
+		assert.Equal(t, resp.RawMessage, actual.RawMessage)
+	})
+}
+
+func TestJSON_Success(t *testing.T) {
+	t.Run("Should be success", func(t *testing.T) {
+		actual := resp.Success(&entity.ResultListCommon{})
+		assert.Equal(t, resp.Data, actual.Data)
+		assert.Equal(t, 200, resp.Code)
+		assert.Equal(t, constants.StrSuccessStatus, resp.Data.(*entity.ResultListCommon).StatusData)
+	})
+}
+
+func TestJSON_BadRequest(t *testing.T) {
+	t.Run("Should be success send Bad Request response", func(t *testing.T) {
+		actual := resp.BadRequest(constants.ErrorPatch)
+		assert.Equal(t, resp.Error, actual.Error)
+		assert.Equal(t, 400, resp.Code)
+		assert.Equal(t, constants.ErrorPatch.Error(), resp.RawMessage)
+	})
+}
+
+func TestJSON_ForbiddenResource(t *testing.T) {
+	t.Run("Should be success send Unauthorized response", func(t *testing.T) {
+		actual := resp.ForbiddenResource(constants.ErrorPatch)
+		expectedRawMessage := fmt.Sprintf(errMessageTemplate, constants.ForbiddenResource, errors.Cause(constants.ErrorPatch).Error())
+		assert.Equal(t, resp.Error, actual.Error)
+		assert.Equal(t, "Forbidden Resource", resp.Message)
+		assert.Equal(t, 403, resp.Code)
+		assert.Equal(t, expectedRawMessage, resp.RawMessage)
+	})
+}
+
+func TestJSON_Unauthorized(t *testing.T) {
+	t.Run("Should be success send Unauthorized response", func(t *testing.T) {
+		actual := resp.Unauthorized(constants.ErrorPatch)
+		expectedRawMessage := fmt.Sprintf(errMessageTemplate, constants.ForbiddenResource, errors.Cause(constants.ErrorPatch).Error())
+		assert.Equal(t, resp.Error, actual.Error)
+		assert.Equal(t, "Unauthorized", resp.Message)
+		assert.Equal(t, 401, resp.Code)
+		assert.Equal(t, expectedRawMessage, resp.RawMessage)
+	})
+}
+
+func TestJSON_InternalServerError(t *testing.T) {
+	t.Run("Should be success send InternalServerError response", func(t *testing.T) {
+		actual := resp.InternalServerError(constants.ErrorPatch)
+		expectedRawMessage := fmt.Sprintf(errMessageTemplate, constants.InternalServerError, errors.Cause(constants.ErrorPatch).Error())
+		assert.Equal(t, resp.Error, actual.Error)
+		assert.Equal(t, "Internal Server Error", resp.Message)
+		assert.Equal(t, 500, resp.Code)
+		assert.Equal(t, expectedRawMessage, resp.RawMessage)
+	})
+}
+
+func TestJSON_CheckAccessError(t *testing.T) {
+	t.Run("Should be success send CheckAccessError response", func(t *testing.T) {
+		elmID := "element-id"
+		actual := resp.CheckAccessError(constants.ErrorPatch, elmID)
+		expectedRawMessage := fmt.Sprintf(errMessageTemplate, constants.ForbiddenResource, errors.Cause(constants.ErrorPatch).Error())
+		assert.Equal(t, resp.Error, actual.Error)
+		assert.Equal(t, "Forbidden Resource", resp.Message)
+		assert.Equal(t, 403, resp.Code)
+		assert.Equal(t, expectedRawMessage, resp.RawMessage)
+		assert.Equal(t, elmID, resp.elementID)
+	})
+}
+
+func TestJSON_ErrorChecking(t *testing.T) {
+	mockRequest := httptest.NewRequest(http.MethodPatch, "http://tokopedia.com", nil)
+	t.Run(constants.SuccessCase+" without error", func(t *testing.T) {
+		resp.Code = 200
+		resp.Error = nil
+		actualResult := resp.ErrorChecking(mockRequest)
+		assert.Equal(t, false, actualResult)
+	})
+	t.Run("Should send slack notif send check access error", func(t *testing.T) {
+		resp.elementID = "element-id"
+		resp.Error = constants.ErrorPatch
+
+		actual := resp.ErrorChecking(mockRequest)
+		assert.Equal(t, true, actual)
+	})
+	t.Run("Should error send slack", func(t *testing.T) {
+		resp.elementID = ""
+		resp.Error = constants.ErrorPatch
+		actual := resp.ErrorChecking(mockRequest)
+		assert.Equal(t, true, actual)
+	})
+}
+
+func TestJSON_Send(t *testing.T) {
+	t.Run(constants.SuccessCase+" for export", func(t *testing.T) {
+		respWriter := httptest.NewRecorder()
+		exportResp := NewJSON().Export("test", &bytes.Buffer{})
+		exportResp.Send(respWriter)
+		assert.Equal(t, "", respWriter.Header().Get("Content-Type"))
+	})
+	t.Run(constants.SuccessCase, func(t *testing.T) {
+		respWriter := httptest.NewRecorder()
+		resp.Send(respWriter)
+		assert.Equal(t, binding.ContentJSON, respWriter.Header().Get("Content-Type"))
+	})
+}
