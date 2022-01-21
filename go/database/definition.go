@@ -157,3 +157,14 @@ type (
 		TimeCol
 	}
 )
+
+func (req *TableRequest) SetWhereCondition(condition string, value ...interface{}) {
+	req.InitiateWhere = append(req.InitiateWhere, condition)
+	if len(value) > 0 {
+		req.InitiateWhereValues = append(req.InitiateWhereValues, value...)
+	}
+}
+
+func (req *CUDConstructData) SetValues(value interface{}) {
+	req.Values = append(req.Values, value)
+}
