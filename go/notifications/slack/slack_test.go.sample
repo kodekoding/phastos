@@ -1,0 +1,136 @@
+package slack
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/dgrijalva/jwt-go"
+	"github.com/stretchr/testify/require"
+	common_constant "github.com/tokopedia/enterpriseapp-intools-uam/internal/v1/src/common/constant"
+
+	"github.com/ashwanthkumar/slack-go-webhook"
+	"github.com/tokopedia/enterpriseapp-intools-uam/internal/v2/entity/auth"
+
+	"github.com/tokopedia/enterpriseapp-intools-uam/internal/v2/constants"
+
+	"github.com/stretchr/testify/assert"
+)
+
+var slackPlatform *Platform
+
+func init() {
+	slackPlatform, _ = New("test")
+}
+
+func TestPlatform_SetMessage(t *testing.T) {
+	t.Run("Should be success set message", func(t *testing.T) {
+		actual := slackPlatform.SetMessage("pesan")
+		assert.Equal(t, slackPlatform.Message(), actual.Message())
+	})
+}
+
+func TestPlatform_SetRecipient(t *testing.T) {
+	t.Run("Should be success set message", func(t *testing.T) {
+		actual := slackPlatform.SetRecipient("pesan")
+		assert.Equal(t, slackPlatform.Recipient(), actual.Recipient())
+	})
+}
+
+func TestPlatform_SetSlackTraceID(t *testing.T) {
+	t.Run("Should be success set message", func(t *testing.T) {
+		actual := slackPlatform.SetSlackTraceID("pesan")
+		assert.Equal(t, slackPlatform.SlackTraceID(), actual.SlackTraceID())
+	})
+}
+
+func TestPlatform_SendCheckAccessError(t *testing.T) {
+	t.Run(constants.SuccessCase, func(t *testing.T) {
+		mockRequest := httptest.NewRequest(http.MethodGet, "http://tokopedia.com", nil)
+		sendSlack = func(webhookUrl string, proxy string, payload slack.Payload) []error {
+			return nil
+		}
+		actualErr := slackPlatform.SendCheckAccessError(context.Background(), "", "", mockRequest, &auth.JWTClaimData{
+			JWTMainData: &auth.JWTMainData{
+				ApiTribeName: "test",
+			},
+			UserIDIntools:    "test",
+			UserEmailIntools: "test",
+		})
+		assert.Equal(t, false, actualErr != nil)
+	})
+}
+
+func TestPlatform_SendReportFailedToStartApp(t *testing.T) {
+	t.Run(constants.SuccessCase, func(t *testing.T) {
+		sendSlack = func(webhookUrl string, proxy string, payload slack.Payload) []error {
+			return nil
+		}
+		actualErr := slackPlatform.SendReportFailedToStartApp("")
+		assert.Equal(t, false, actualErr != nil)
+	})
+}
+
+func TestPlatform_SendAPIErrorMessage(t *testing.T) {
+	t.Run(constants.SuccessCase, func(t *testing.T) {
+		mockRequest := httptest.NewRequest(http.MethodGet, "http://tokopedia.com", nil)
+		sendSlack = func(webhookUrl string, proxy string, payload slack.Payload) []error {
+			return nil
+		}
+		actualErr := slackPlatform.SendAPIErrorMessage(context.Background(), "", "", mockRequest)
+		assert.Equal(t, false, actualErr != nil)
+	})
+}
+
+func TestPlatform_Send(t *testing.T) {
+	t.Run(constants.SuccessCase, func(t *testing.T) {
+		sendSlack = func(webhookUrl string, proxy string, payload slack.Payload) []error {
+			return nil
+		}
+		slackPlatform.traceID = ""
+		actualErr := slackPlatform.Send(context.Background())
+		assert.Equal(t, false, actualErr != nil)
+	})
+	t.Run(constants.SuccessCase, func(t *testing.T) {
+		sendSlack = func(webhookUrl string, proxy string, payload slack.Payload) []error {
+			return []error{
+				constants.ErrorPatch,
+			}
+		}
+		actualErr := slackPlatform.Send(context.Background())
+		assert.Equal(t, true, actualErr != nil)
+	})
+}
+
+func TestPlatform_SendPanicAPI(t *testing.T) {
+	t.Run(constants.SuccessCase, func(t *testing.T) {
+		sendSlack = func(webhookUrl string, proxy string, payload slack.Payload) []error {
+			return nil
+		}
+		actualErr := slackPlatform.SendPanicAPI(context.Background(), []byte(`{"test": "test"}`))
+		assert.Equal(t, false, actualErr != nil)
+	})
+	t.Run("Should be error unmarshal data", func(t *testing.T) {
+		actualErr := slackPlatform.SendPanicAPI(context.Background(), []byte(`test`))
+		assert.Equal(t, true, actualErr != nil)
+	})
+}
+
+func TestPlatform_SendV1AccessLog(t *testing.T) {
+	t.Run(constants.SuccessCase, func(t *testing.T) {
+		sendSlack = func(webhookUrl string, proxy string, payload slack.Payload) []error {
+			return nil
+		}
+		requestParam := jwt.MapClaims{
+			common_constant.ConstTxtAPIID:            "",
+			common_constant.ConstTxtAPITribeName:     "",
+			common_constant.ConstTxtUserEmailIntools: "",
+			common_constant.ConstTxtUserIDIntools:    "",
+			"data":                                   "",
+		}
+		actualErr := slackPlatform.SendV1AccessLog(requestParam, "")
+		require.NoError(t, actualErr)
+	})
+
+}
