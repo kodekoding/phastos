@@ -1,0 +1,367 @@
+package database
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"reflect"
+	"strings"
+	"sync"
+	"time"
+
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
+
+	custerr "github.com/kodekoding/phastos/error"
+)
+
+func newSQL(master, follower *sqlx.DB) *SQL {
+	return &SQL{
+		Master:   master,
+		Follower: follower,
+		master:   master,
+		follower: follower,
+		timeout:  3 * time.Second,
+	}
+}
+
+func Connect(cfg *SQLConfig) (*SQL, error) {
+
+	strFormat := ""
+	switch cfg.Engine {
+	case "mysql":
+		if cfg.Port == "" {
+			cfg.Port = "3306"
+		}
+		strFormat = "%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=true&timeout=8s&readTimeout=8s&writeTimeout=8s"
+	case "postgres":
+		if cfg.Port == "" {
+			cfg.Port = "5432"
+		}
+		strFormat = "postgres://%s:%s@%s:%s/%s"
+	}
+	connString := fmt.Sprintf(
+		strFormat,
+		cfg.Username, cfg.Password, cfg.Host, cfg.DBName,
+	)
+	cfg.connString = connString
+	masterDB, err := connectDB(cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "phastos.database.ConnectMaster")
+	}
+
+	followerDB, err := connectDB(cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "phastos.database.ConnectFollower")
+	}
+
+	db := newSQL(masterDB, followerDB)
+	return db, nil
+}
+
+func connectDB(cfg *SQLConfig) (*sqlx.DB, error) {
+	db, err := sqlx.Connect(cfg.Engine, cfg.connString)
+	if err != nil {
+		return nil, errors.Wrap(err, "phastos.database.Connect")
+	}
+
+	maxLifetime := time.Duration(cfg.MaxConnLifetime) * time.Second
+	db.SetConnMaxLifetime(maxLifetime)
+	maxIddleTime := time.Duration(cfg.MaxIdleTime) * time.Second
+	db.SetConnMaxIdleTime(maxIddleTime)
+
+	db.SetMaxOpenConns(cfg.MaxOpenConn)
+	db.SetMaxIdleConns(cfg.MaxIdleConn)
+	return db, nil
+}
+
+func (this *SQL) GetMaster() *sqlx.DB {
+	return this.master
+}
+
+func (this *SQL) GetFollower() *sqlx.DB {
+	return this.follower
+}
+
+func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...interface{}) error {
+	if opts.ResultStruct == nil {
+		return errors.New("Result Struct must be assigned")
+	}
+
+	reflectVal := reflect.ValueOf(opts.ResultStruct)
+	if reflectVal.Kind() != reflect.Ptr {
+		return errors.New("Result Struct must be a pointer")
+	}
+
+	if opts.Conditions != nil {
+		opts.Conditions(ctx)
+	}
+
+	var (
+		addOnQuery string
+		params     = additionalParams
+		err        error
+		query      = opts.BaseQuery
+	)
+
+	if opts.SelectRequest != nil {
+		var addOnParams []interface{}
+		addOnQuery, addOnParams, err = this.generateAddOnQuery(ctx, opts.SelectRequest)
+		if err != nil {
+			_, err = this.sendNilResponse(err, "phastos.database.db.Read.GenerateAddOnQuery", opts)
+			return err
+		}
+
+		params = append(params, addOnParams...)
+	}
+
+	query += addOnQuery
+	query = this.Rebind(query)
+
+	if opts.IsList {
+		if err = this.Follower.SelectContext(ctx, opts.ResultStruct, query, params...); err != nil {
+			_, err = this.sendNilResponse(err, "phastos.database.Read.SelectContext", opts)
+			return err
+		}
+	} else {
+		if err = this.Follower.GetContext(ctx, opts.ResultStruct, query, params...); err != nil {
+			_, err = this.sendNilResponse(err, "phastos.database.Read.GetContext", opts)
+			return err
+		}
+	}
+	return nil
+}
+func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, error) {
+	if opts.CUDRequest == nil {
+		return nil, errors.New("CUD Request Struct must be assigned")
+	}
+	var (
+		exec sql.Result
+		err  error
+	)
+	// tracing
+	//trc, ctx := tracer.StartSQLSpanFromContext(ctx, "CommonRepo-ExecTransaction", query)
+	//defer trc.Finish()
+	//marshalParam, _ := json.Marshal(data.Values)
+	//trc.SetTag("sqlQuery.params", string(marshalParam))
+
+	data := opts.CUDRequest
+	cols := strings.Join(data.Cols, ",")
+	var query string
+	tableName := data.TableName
+	switch data.Action {
+	case "insert":
+		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s)`, tableName, cols, strings.Repeat(",?", len(data.Cols)-1))
+	case "upsert":
+		colsUpdate := strings.Join(data.Cols, ",")
+		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s) ON DUPLICATE KEY UPDATE %s`,
+			data.TableName,
+			data.ColsInsert,
+			strings.Repeat(",?", len(data.Cols)-1),
+			colsUpdate)
+	case "update":
+		query = fmt.Sprintf(`UPDATE %s SET %s WHERE id = ?`, tableName, cols)
+	case "delete":
+		query = fmt.Sprintf(`DELETE FROM %s WHERE id = ?`, tableName)
+	default:
+		return nil, errors.Wrap(errors.New("action exec is not defined"), "database.common.ExecTransaction.CheckAction")
+	}
+
+	trx := opts.Trx
+	if trx != nil {
+		stmt, err := trx.PrepareContext(ctx, query)
+		if err != nil {
+			_, err = this.sendNilResponse(err, "phastos.database.Write.PrepareContext", query, data.Values)
+			return nil, err
+		}
+		exec, err = stmt.ExecContext(ctx, data.Values...)
+		if err != nil {
+			_, err = this.sendNilResponse(err, "phastos.database.Write.ExecContext", query, data.Values)
+			return nil, err
+		}
+	} else {
+		exec, err = this.Master.ExecContext(ctx, query, data.Values...)
+		if err != nil {
+			_, err = this.sendNilResponse(err, "phastos.database.Write.WithoutTrx.ExecContext", query, data.Values)
+			return nil, err
+		}
+	}
+
+	result := new(CUDResponse)
+	lastInsertID, err := exec.LastInsertId()
+	if err == nil {
+		result.LastInsertID = lastInsertID
+	}
+
+	rowsAffected, err := exec.RowsAffected()
+	if err == nil {
+		result.RowsAffected = rowsAffected
+	}
+	result.Status = true
+	return result, nil
+}
+
+func (this *SQL) generateParamArgsForLike(data string) string {
+	return fmt.Sprintf("%%%s%%", data)
+}
+
+func (this *SQL) generateAddOnQuery(ctx context.Context, reqData *TableRequest) (string, []interface{}, error) {
+	// tracing
+	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-GenerateAddOnQuery")
+	//defer trc.Finish()
+	var addOnBuilder strings.Builder
+	var addOnParams []interface{}
+
+	this.checkInitiateWhere(ctx, reqData, &addOnBuilder, &addOnParams)
+	err := this.checkKeyword(ctx, reqData, &addOnBuilder, &addOnParams)
+	if err != nil {
+		return "", nil, err
+	}
+
+	this.checkCreatedDateParam(ctx, reqData, &addOnBuilder, &addOnParams)
+
+	if addOnBuilder.String() != "" {
+		whereString := fmt.Sprintf("WHERE %s", addOnBuilder.String())
+		addOnBuilder.Reset()
+		addOnBuilder.WriteString(whereString)
+	}
+	if reqData.GroupBy != "" {
+		addOnBuilder.WriteString(fmt.Sprintf(" GROUP BY %s", reqData.GroupBy))
+	}
+	this.checkSortParam(ctx, reqData, &addOnBuilder)
+
+	if reqData.Page > 0 && reqData.Limit > 0 {
+		offset := (reqData.Page - 1) * reqData.Limit
+
+		addOnBuilder.WriteString(" LIMIT ?,?")
+		addOnParams = append(addOnParams, offset, reqData.Limit)
+	}
+	whereResult := strings.Replace(addOnBuilder.String(), " OR )", ")", -1)
+	whereResult = " " + whereResult
+	return whereResult, addOnParams, nil
+}
+
+func (this *SQL) checkKeyword(_ context.Context, reqData *TableRequest, addOnBuilder *strings.Builder, addOnParams *[]interface{}) error {
+	// tracing
+	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-checkKeyword")
+	//defer trc.Finish()
+	if reqData.Keyword != "" {
+		if reqData.SearchColsStr == "" {
+			return errors.New("Keyword Cols is required when Keyword Field is filled")
+		}
+		reqData.SearchCols = strings.Split(reqData.SearchColsStr, ",")
+		if reqData.InitiateWhere != nil {
+			addOnBuilder.WriteString(" AND ")
+		}
+		addOnBuilder.WriteString("(")
+		mtx := new(sync.Mutex)
+		wg := new(sync.WaitGroup)
+		for _, col := range reqData.SearchCols {
+			wg.Add(1)
+			go func(column string, mutex *sync.Mutex, wait *sync.WaitGroup) {
+				mutex.Lock()
+				addOnBuilder.WriteString(fmt.Sprintf("%s LIKE ? OR ", column))
+				*addOnParams = append(*addOnParams, this.generateParamArgsForLike(reqData.Keyword))
+				mutex.Unlock()
+				wait.Done()
+			}(col, mtx, wg)
+		}
+		wg.Wait()
+		addOnBuilder.WriteString(")")
+	}
+	return nil
+}
+
+func (this *SQL) checkSortParam(_ context.Context, reqData *TableRequest, addOnBuilder *strings.Builder) {
+	// tracing
+	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-checkSortParam")
+	//defer trc.Finish()
+	if reqData.OrderBy != "" {
+		addOnBuilder.WriteString(fmt.Sprintf(" ORDER BY %s", reqData.OrderBy))
+	}
+}
+
+func (this *SQL) checkCreatedDateParam(_ context.Context, reqData *TableRequest, addOnBuilder *strings.Builder, addOnParams *[]interface{}) {
+	// tracing
+	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-checkCreatedDateParam")
+	//defer trc.Finish()
+	if reqData.CreatedStart != "" {
+		if addOnBuilder.String() != "" {
+			addOnBuilder.WriteString(" AND ")
+		}
+
+		col := "created_at"
+		if reqData.MainTableAlias != "" {
+			col = fmt.Sprintf("%s.%s", reqData.MainTableAlias, col)
+		}
+		startDate := fmt.Sprintf("%s 00:00:00", reqData.CreatedStart)
+
+		addOnBuilder.WriteString(fmt.Sprintf("DATE_FORMAT(%s, '%%Y-%%m-%%d %%H:%%i:%%s') >= STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s')", col))
+		*addOnParams = append(*addOnParams, startDate)
+	}
+
+	if reqData.CreatedEnd != "" {
+		if addOnBuilder.String() != "" {
+			addOnBuilder.WriteString(" AND ")
+		}
+
+		col := "created_at"
+		if reqData.MainTableAlias != "" {
+			col = fmt.Sprintf("%s.%s", reqData.MainTableAlias, col)
+		}
+		endDate := fmt.Sprintf("%s 23:59:59", reqData.CreatedEnd)
+
+		addOnBuilder.WriteString(fmt.Sprintf("DATE_FORMAT(%s, '%%Y-%%m-%%d %%H:%%i:%%s') <= STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s')", col))
+		*addOnParams = append(*addOnParams, endDate)
+	}
+
+	if reqData.NotContainsDeletedCol {
+		return
+	}
+	if !reqData.IncludeDeleted {
+		col := "deleted_at"
+		if reqData.MainTableAlias != "" {
+			col = fmt.Sprintf("%s.%s", reqData.MainTableAlias, col)
+		}
+
+		if addOnBuilder.String() != "" {
+			addOnBuilder.WriteString(" AND ")
+		}
+		if reqData.IsDeleted != "1" {
+			addOnBuilder.WriteString(fmt.Sprintf("(%s IS NULL OR CAST(%s AS CHAR(20)) = '0000-00-00 00:00:00') ", col, col))
+		} else {
+			addOnBuilder.WriteString(fmt.Sprintf("(%s IS NOT NULL) ", col))
+		}
+	}
+}
+
+func (this *SQL) checkInitiateWhere(_ context.Context, reqData *TableRequest, addOnBuilder *strings.Builder, addOnParams *[]interface{}) {
+	// tracing
+	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-checkInitiateWhere")
+	//defer trc.Finish()
+	if reqData.InitiateWhere != nil {
+		for _, condition := range reqData.InitiateWhere {
+			addOnBuilder.WriteString(fmt.Sprintf("%s AND ", condition))
+		}
+		initWhere := addOnBuilder.String()
+		initWhere = initWhere[:len(initWhere)-5]
+		*addOnParams = append(*addOnParams, reqData.InitiateWhereValues...)
+
+		addOnBuilder.Reset()
+		addOnBuilder.WriteString(initWhere)
+	}
+}
+
+func (this *SQL) sendNilResponse(err error, ctxMsg string, params ...interface{}) (interface{}, error) {
+	if strings.Contains(err.Error(), "no rows") {
+		// return nil for result struct if no rows
+		return nil, nil
+	}
+
+	marshalParam, _ := json.Marshal(params)
+	customErr := custerr.New(err).
+		AppendData("params", string(marshalParam))
+	return nil, errors.Wrap(customErr, ctxMsg)
+}
