@@ -23,7 +23,7 @@ We only need  `SetConfig` func to configure the log.
 The func is not thread safe, only call it when initializing the app.
 
 ```go
-import "github.com/kodekoding/phastos/log"
+import "github.com/kodekoding/phastos/go/log"
 
 func main() {
     err := log.SetConfig(&log.Config{
@@ -76,7 +76,7 @@ You can set log level using `SetLevel` or `SetLevelString`.
 Example of `SetLevel`:
 
 ```go
-import "github.com/kodekoding/phastos/log"
+import "github.com/kodekoding/phastos/go/log"
 
 func main() {
     log.SetLevel(log.InfoLevel)
@@ -86,7 +86,7 @@ func main() {
 
 Example of `SetLevelString` (use lowercase)
 ```go
-import "github.com/kodekoding/phastos/log"
+import "github.com/kodekoding/phastos/go/log"
 
 func main() {
     log.SetLevelString("info")
@@ -101,8 +101,8 @@ Note: your custom logger will be replaced if you call `SetConfig` after `SetLogg
 
 example: set separate output file for `errorLevel` and `fatalLevel` log
 ```go
-import "github.com/kodekoding/phastos/log"
-import "github.com/kodekoding/phastos/log/logger"
+import "github.com/kodekoding/phastos/go/log"
+import "github.com/kodekoding/phastos/go/log/logger"
 
 func main() {
     errLogger, err := log.NewLogger(log.Zerolog, &logger.Config{
@@ -203,7 +203,7 @@ Output example:
 TDK error package has a features called `errors.Fields`. This fields can be used to add more context into the error, and then we can print the fields when needed. TDK log will automatically print the fields if `error = tdkerrors.Error` by using `log.Errors`. For example:
 
 ```go
-import "github.com/kodekoding/phastos/log"
+import "github.com/kodekoding/phastos/go/log"
 import "github.com/tokopedia/tdk/x/go/errors"
 
 func main() {

@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"net/http"
 
-	"github.com/kodekoding/phastos/database"
-	"github.com/kodekoding/phastos/response"
+	"github.com/kodekoding/phastos/go/database"
+	"github.com/kodekoding/phastos/go/response"
 )
 
 type ReadRepo interface {

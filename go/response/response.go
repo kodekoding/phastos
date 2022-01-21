@@ -10,10 +10,10 @@ import (
 
 	"github.com/pkg/errors"
 
-	cutomerr "github.com/kodekoding/phastos/error"
-	"github.com/kodekoding/phastos/helper"
-	"github.com/kodekoding/phastos/log"
-	"github.com/kodekoding/phastos/notifications"
+	cutomerr "github.com/kodekoding/phastos/go/error"
+	"github.com/kodekoding/phastos/go/helper"
+	"github.com/kodekoding/phastos/go/log"
+	"github.com/kodekoding/phastos/go/notifications"
 )
 
 type JSON struct {

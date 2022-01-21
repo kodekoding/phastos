@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kodekoding/phastos/log/logger"
-	"github.com/kodekoding/phastos/log/logger/zerolog"
+	"github.com/kodekoding/phastos/go/log/logger"
+	"github.com/kodekoding/phastos/go/log/logger/zerolog"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/require"
 )

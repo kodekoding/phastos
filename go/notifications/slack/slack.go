@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
-	"github.com/kodekoding/phastos/helper"
+	"github.com/kodekoding/phastos/go/helper"
 )
 
 const strErrDesc = "Error Desciption"

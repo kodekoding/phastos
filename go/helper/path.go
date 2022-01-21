@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/kodekoding/phastos/env"
+	"github.com/kodekoding/phastos/go/env"
 )
 
 func GetFilePath() string {

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kodekoding/phastos/database"
+	"github.com/kodekoding/phastos/go/database"
 
 	"github.com/volatiletech/null"
 )

@@ -5,7 +5,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/kodekoding/phastos/env"
+	"github.com/kodekoding/phastos/go/env"
 	"github.com/stretchr/testify/require"
 )
 

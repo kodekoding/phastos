@@ -14,7 +14,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 
-	custerr "github.com/kodekoding/phastos/error"
+	custerr "github.com/kodekoding/phastos/go/error"
 )
 
 func newSQL(master, follower *sqlx.DB) *SQL {

@@ -4,9 +4,9 @@ import (
 	"context"
 	_log "log"
 
-	"github.com/kodekoding/phastos/log"
-	"github.com/kodekoding/phastos/notifications/slack"
-	"github.com/kodekoding/phastos/notifications/telegram"
+	"github.com/kodekoding/phastos/go/log"
+	"github.com/kodekoding/phastos/go/notifications/slack"
+	"github.com/kodekoding/phastos/go/notifications/telegram"
 )
 
 type (
