@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 	"sync"
@@ -44,7 +45,7 @@ func Connect(cfg *SQLConfig) (*SQL, error) {
 	}
 	connString := fmt.Sprintf(
 		strFormat,
-		cfg.Username, cfg.Password, cfg.Host, cfg.DBName,
+		cfg.Username, cfg.Password, cfg.Host, cfg.Port, cfg.DBName,
 	)
 	cfg.connString = connString
 	masterDB, err := connectDB(cfg)
@@ -62,6 +63,7 @@ func Connect(cfg *SQLConfig) (*SQL, error) {
 }
 
 func connectDB(cfg *SQLConfig) (*sqlx.DB, error) {
+	log.Println(cfg.connString)
 	db, err := sqlx.Connect(cfg.Engine, cfg.connString)
 	if err != nil {
 		return nil, errors.Wrap(err, "phastos.database.Connect")
@@ -120,6 +122,7 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	query += addOnQuery
 	query = this.Rebind(query)
 
+	log.Println(query)
 	if opts.IsList {
 		if err = this.Follower.SelectContext(ctx, opts.ResultStruct, query, params...); err != nil {
 			_, err = this.sendNilResponse(err, "phastos.database.Read.SelectContext", opts)
