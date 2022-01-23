@@ -29,11 +29,11 @@ func NewBaseWrite(db *database.SQL, tableName string, isSoftDelete ...bool) *Bas
 }
 
 func (b *BaseWrite) Insert(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
-	return b.cudProcess(ctx, "insert", data, trx...)
+	return b.cudProcess(ctx, "insert", data, 0, trx...)
 }
 
-func (b *BaseWrite) Update(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
-	return b.cudProcess(ctx, "update", data, trx...)
+func (b *BaseWrite) Update(ctx context.Context, data interface{}, id int, trx ...*sql.Tx) (*database.CUDResponse, error) {
+	return b.cudProcess(ctx, "update", data, id, trx...)
 }
 
 func (b *BaseWrite) Delete(ctx context.Context, id int, trx ...*sql.Tx) (*database.CUDResponse, error) {
@@ -54,26 +54,39 @@ func (b *BaseWrite) Delete(ctx context.Context, id int, trx ...*sql.Tx) (*databa
 	}
 
 	if b.isSoftDelete {
-		return b.Update(ctx, data, trx...)
+		return b.Update(ctx, data, id, trx...)
 	}
 	return b.db.Write(ctx, qOpts)
 }
 
 func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
-	return b.cudProcess(ctx, "upsert", data, trx...)
+	return b.cudProcess(ctx, "upsert", data, 0, trx...)
 }
 
-func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
-	cols, vals := helper.ConstructColNameAndValue(ctx, data)
-	if cols == nil && vals == nil {
-		return nil, errors.New("second parameter should be a pointer of struct")
+func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interface{}, id int, trx ...*sql.Tx) (*database.CUDResponse, error) {
+	var cudRequestData *database.CUDConstructData
+	switch action {
+	case "insert":
+		cols, vals := helper.ConstructColNameAndValue(ctx, data)
+		if cols == nil && vals == nil {
+			return nil, errors.New("second parameter should be a pointer of struct")
+		}
+		cudRequestData = &database.CUDConstructData{
+			Cols:      cols,
+			Values:    vals,
+			Action:    action,
+			TableName: b.tableName,
+		}
+	case "update":
+		cudRequestData = helper.ConstructColNameAndValueForUpdate(ctx, data, id)
+	case "upsert":
+		cudRequestData = helper.ConstructColNameAndValueForUpdate(ctx, data)
+	case "delete":
+		cudRequestData = data.(*database.CUDConstructData)
+	default:
+		return nil, errors.New("undefined action")
 	}
-	cudRequestData := &database.CUDConstructData{
-		Cols:      cols,
-		Values:    vals,
-		Action:    action,
-		TableName: b.tableName,
-	}
+
 	qOpts := &database.QueryOpts{
 		CUDRequest: cudRequestData,
 	}
