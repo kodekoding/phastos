@@ -6,9 +6,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kodekoding/phastos/go/database"
-
 	"github.com/volatiletech/null"
+
+	"github.com/kodekoding/phastos/go/database"
+	"github.com/kodekoding/phastos/go/log"
 )
 
 func ConstructColNameAndValue(_ context.Context, structName interface{}, isNullStruct ...bool) ([]string, []interface{}) {
@@ -18,6 +19,11 @@ func ConstructColNameAndValue(_ context.Context, structName interface{}, isNullS
 	reflectVal := reflect.ValueOf(structName)
 	if reflectVal.Kind() == reflect.Ptr {
 		reflectVal = reflectVal.Elem()
+	}
+
+	if reflectVal.Kind() != reflect.Struct {
+		log.Errorln("second parameter should be struct")
+		return nil, nil
 	}
 
 	refType := reflectVal.Type()
