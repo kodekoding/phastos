@@ -16,7 +16,7 @@ type ReadRepo interface {
 
 type WriteRepo interface {
 	Insert(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
-	Update(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
+	Update(ctx context.Context, data interface{}, id int, trx ...*sql.Tx) (*database.CUDResponse, error)
 	Delete(ctx context.Context, id int, trx ...*sql.Tx) (*database.CUDResponse, error)
 }
 
