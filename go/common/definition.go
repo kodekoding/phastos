@@ -10,13 +10,13 @@ import (
 )
 
 type ReadRepo interface {
-	GetList(ctx context.Context, requestData interface{}) (interface{}, error)
-	GetDetailById(ctx context.Context, id int) (interface{}, error)
+	GetList(ctx context.Context, opts *database.QueryOpts) error
+	GetDetailById(ctx context.Context, resultStruct interface{}, id int) error
 }
 
 type WriteRepo interface {
-	Insert(ctx context.Context, data *database.CUDConstructData, trx ...*sql.Tx) (*database.CUDResponse, error)
-	Update(ctx context.Context, data *database.CUDConstructData, trx ...*sql.Tx) (*database.CUDResponse, error)
+	Insert(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
+	Update(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
 	Delete(ctx context.Context, id int, trx ...*sql.Tx) (*database.CUDResponse, error)
 }
 

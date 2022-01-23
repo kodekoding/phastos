@@ -97,14 +97,14 @@ type (
 	}
 
 	QueryOpts struct {
-		BaseQuery     string
-		Type          string
-		Conditions    func(ctx context.Context)
-		SelectRequest *TableRequest
-		CUDRequest    *CUDConstructData
-		ResultStruct  interface{}
-		IsList        bool
-		Trx           *sqlx.Tx
+		BaseQuery         string
+		Conditions        func(ctx context.Context)
+		OptionalTableName string // for view name
+		SelectRequest     *TableRequest
+		CUDRequest        *CUDConstructData
+		ResultStruct      interface{}
+		IsList            bool
+		Trx               *sql.Tx
 	}
 
 	CUDResponse struct {
