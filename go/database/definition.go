@@ -82,6 +82,11 @@ type (
 		timeout  time.Duration
 	}
 
+	SQLs struct {
+		Master   SQLConfig `yaml:"master"`
+		Follower SQLConfig `yaml:"follower"`
+	}
+
 	SQLConfig struct {
 		Username        string `yaml:"username"`
 		Password        string `yaml:"password"`
@@ -93,7 +98,7 @@ type (
 		MaxIdleTime     int    `yaml:"max_idle_time"`
 		MaxOpenConn     int    `yaml:"max_open_conn"`
 		MaxIdleConn     int    `yaml:"max_idle_conn"`
-		connString      string
+		ConnString      string `yaml:"conn_string"`
 	}
 
 	QueryOpts struct {

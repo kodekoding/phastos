@@ -10,8 +10,9 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql" // import mysql driver
 	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq" // import postgre driver
 	"github.com/pkg/errors"
 
 	custerr "github.com/kodekoding/phastos/go/error"
@@ -27,32 +28,14 @@ func newSQL(master, follower *sqlx.DB) *SQL {
 	}
 }
 
-func Connect(cfg *SQLConfig) (*SQL, error) {
+func Connect(cfg *SQLs) (*SQL, error) {
 
-	strFormat := ""
-	switch cfg.Engine {
-	case "mysql":
-		if cfg.Port == "" {
-			cfg.Port = "3306"
-		}
-		strFormat = "%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=true&timeout=8s&readTimeout=8s&writeTimeout=8s"
-	case "postgres":
-		if cfg.Port == "" {
-			cfg.Port = "5432"
-		}
-		strFormat = "postgres://%s:%s@%s:%s/%s"
-	}
-	connString := fmt.Sprintf(
-		strFormat,
-		cfg.Username, cfg.Password, cfg.Host, cfg.Port, cfg.DBName,
-	)
-	cfg.connString = connString
-	masterDB, err := connectDB(cfg)
+	masterDB, err := connectDB(&cfg.Master)
 	if err != nil {
 		return nil, errors.Wrap(err, "phastos.database.ConnectMaster")
 	}
 
-	followerDB, err := connectDB(cfg)
+	followerDB, err := connectDB(&cfg.Follower)
 	if err != nil {
 		return nil, errors.Wrap(err, "phastos.database.ConnectFollower")
 	}
@@ -62,8 +45,28 @@ func Connect(cfg *SQLConfig) (*SQL, error) {
 }
 
 func connectDB(cfg *SQLConfig) (*sqlx.DB, error) {
-
-	db, err := sqlx.Connect(cfg.Engine, cfg.connString)
+	if cfg.ConnString == "" {
+		// if ConnString config is empty, then build the connection string manually
+		strFormat := ""
+		switch cfg.Engine {
+		case "mysql":
+			if cfg.Port == "" {
+				cfg.Port = "3306"
+			}
+			strFormat = "%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=true&timeout=8s&readTimeout=8s&writeTimeout=8s"
+		case "postgres":
+			if cfg.Port == "" {
+				cfg.Port = "5432"
+			}
+			strFormat = "postgres://%s:%s@%s:%s/%s"
+		}
+		connString := fmt.Sprintf(
+			strFormat,
+			cfg.Username, cfg.Password, cfg.Host, cfg.Port, cfg.DBName,
+		)
+		cfg.ConnString = connString
+	}
+	db, err := sqlx.Connect(cfg.Engine, cfg.ConnString)
 	if err != nil {
 		return nil, errors.Wrap(err, "phastos.database.Connect")
 	}
