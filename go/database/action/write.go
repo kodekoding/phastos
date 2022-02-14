@@ -87,6 +87,8 @@ func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interfac
 		return nil, errors.New("undefined action")
 	}
 
+	cudRequestData.Action = action
+
 	qOpts := &database.QueryOpts{
 		CUDRequest: cudRequestData,
 	}
