@@ -72,10 +72,8 @@ func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interfac
 			return nil, errors.New("second parameter should be a pointer of struct")
 		}
 		cudRequestData = &database.CUDConstructData{
-			Cols:      cols,
-			Values:    vals,
-			Action:    action,
-			TableName: b.tableName,
+			Cols:   cols,
+			Values: vals,
 		}
 	case "update":
 		cudRequestData = helper.ConstructColNameAndValueForUpdate(ctx, data, id)
@@ -88,6 +86,7 @@ func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interfac
 	}
 
 	cudRequestData.Action = action
+	cudRequestData.TableName = b.tableName
 
 	qOpts := &database.QueryOpts{
 		CUDRequest: cudRequestData,
