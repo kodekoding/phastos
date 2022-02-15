@@ -79,6 +79,7 @@ func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interfac
 		cudRequestData = helper.ConstructColNameAndValueForUpdate(ctx, data, id)
 	case "upsert":
 		cudRequestData = helper.ConstructColNameAndValueForUpdate(ctx, data)
+		cudRequestData.Values = append(cudRequestData.Values, cudRequestData.Values...)
 	case "delete":
 		cudRequestData = data.(*database.CUDConstructData)
 	default:
