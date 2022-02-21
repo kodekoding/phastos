@@ -11,7 +11,7 @@ import (
 
 type ReadRepo interface {
 	GetList(ctx context.Context, opts *database.QueryOpts) error
-	GetDetailById(ctx context.Context, resultStruct interface{}, id int) error
+	GetDetailById(ctx context.Context, resultStruct interface{}, id int, optionalTableName ...string) error
 }
 
 type WriteRepo interface {

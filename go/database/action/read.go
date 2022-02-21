@@ -34,20 +34,21 @@ func (b *BaseRead) GetList(ctx context.Context, opts *database.QueryOpts) error 
 	return b.db.Read(ctx, opts)
 }
 
-func (b *BaseRead) GetDetailById(ctx context.Context, resultStruct interface{}, id int) error {
+// GetDetailById - Generate Query "SELECT * FROM <table_name | optional_table_name> WHERE id = ?"
+func (b *BaseRead) GetDetailById(ctx context.Context, resultStruct interface{}, id int, optionalTableName ...string) error {
 	opts := &database.QueryOpts{
 		ResultStruct: resultStruct,
 	}
 
-	if opts.OptionalTableName != "" {
+	if optionalTableName != nil && len(optionalTableName) > 0 {
+		tableName := optionalTableName[0]
 		originalTableName := b.tableName
 		defer func() {
 			b.tableName = originalTableName
 		}()
-		b.tableName = opts.OptionalTableName
+		b.tableName = tableName
 	}
-	if opts.BaseQuery == "" {
-		opts.BaseQuery = fmt.Sprintf("SELECT * FROM %s WHERE id = ?", b.tableName)
-	}
+
+	opts.BaseQuery = fmt.Sprintf("SELECT * FROM %s WHERE id = ?", b.tableName)
 	return b.db.Read(ctx, opts, id)
 }
