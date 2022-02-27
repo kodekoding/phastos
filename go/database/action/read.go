@@ -52,3 +52,43 @@ func (b *BaseRead) GetDetailById(ctx context.Context, resultStruct interface{}, 
 	opts.BaseQuery = fmt.Sprintf("SELECT * FROM %s WHERE id = ?", b.tableName)
 	return b.db.Read(ctx, opts, id)
 }
+
+func (b *BaseRead) Count(ctx context.Context, tableName string, reqData *database.TableRequest) (totalData, totalFiltered int, err error) {
+	// TODO: ACTIVATE THIS WHEN USING TRACER
+	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-CountAll")
+	//defer trc.Finish()
+	queryTotal := fmt.Sprintf("SELECT COUNT(*) FROM %s ", tableName)
+	opts := &database.QueryOpts{
+		BaseQuery:    queryTotal,
+		ResultStruct: &totalData,
+		IsList:       false,
+	}
+
+	// get total data
+	// TODO: ACTIVATE THIS WHEN USING TRACER
+	//sqlTrace, ctx := tracer.StartSQLSpanFromContext(ctx, "DB-GetCountQuery", queryTotal)
+	//defer sqlTrace.Finish()
+	//marshalParam, _ := json.Marshal(params)
+	//sqlTrace.SetTag("sqlQuery.params", string(marshalParam))
+	if err = b.db.Read(ctx, opts); err != nil {
+		return 0, 0, err
+	}
+
+	// for get total filtered data
+	reqData.Page = 0
+	reqData.Limit = 0
+	opts.SelectRequest = reqData
+	opts.ResultStruct = &totalFiltered
+
+	// get total filtered data
+	// TODO: ACTIVATE THIS WHEN USING TRACER
+	//sqlTrace, ctx := tracer.StartSQLSpanFromContext(ctx, "DB-GetCountQuery", queryTotal)
+	//defer sqlTrace.Finish()
+	//marshalParam, _ := json.Marshal(params)
+	//sqlTrace.SetTag("sqlQuery.params", string(marshalParam))
+	if err = b.db.Read(ctx, opts); err != nil {
+		return 0, 0, err
+	}
+
+	return
+}
