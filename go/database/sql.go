@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -366,17 +365,8 @@ func (this *SQL) sendNilResponse(err error, ctxMsg string, params ...interface{}
 
 	customErr := custerr.New(err)
 	for i, paramValue := range params {
-		reflectVal := reflect.ValueOf(paramValue)
-		if reflectVal.Kind() == reflect.Ptr {
-			reflectVal = reflectVal.Elem()
-		}
-		dataValue := paramValue
-		if reflectVal.Kind() == reflect.Struct {
-			marshalParam, _ := json.Marshal(paramValue)
-			dataValue = string(marshalParam)
-		}
 		keyParam := fmt.Sprintf("param %d", i+1)
-		customErr.AppendData(keyParam, dataValue)
+		customErr.AppendData(keyParam, paramValue)
 	}
 	return nil, errors.Wrap(customErr, ctxMsg)
 }
