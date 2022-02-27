@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/kodekoding/phastos/go/env"
 	cutomerr "github.com/kodekoding/phastos/go/error"
 	"github.com/kodekoding/phastos/go/helper"
 	"github.com/kodekoding/phastos/go/log"
@@ -138,7 +139,8 @@ func (jr *JSON) ErrorChecking(r *http.Request, notif notifications.Platforms) bo
 		ctx := r.Context()
 		traceId := helper.GenerateUUIDV4()
 		jr.TraceId = traceId
-		errMsg := fmt.Sprintf("code %d - %s: %s", jr.Code, r.URL.Path, usingErr.Error())
+
+		errMsg := fmt.Sprintf("code %d (%s) - %s: %s", jr.Code, env.ServiceEnv(), r.URL.Path, usingErr.Error())
 		notifMsg := fmt.Sprintf(`%s
 			%s
 			traceID: %s`, errMsg, optionalData, traceId)
