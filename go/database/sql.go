@@ -366,9 +366,17 @@ func (this *SQL) sendNilResponse(err error, ctxMsg string, params ...interface{}
 
 	customErr := custerr.New(err)
 	for i, paramValue := range params {
-		marshalParam, _ := json.Marshal(paramValue)
-		keyParam := fmt.Sprintf("param %d", i)
-		customErr.AppendData(keyParam, marshalParam)
+		reflectVal := reflect.ValueOf(paramValue)
+		if reflectVal.Kind() == reflect.Ptr {
+			reflectVal = reflectVal.Elem()
+		}
+		dataValue := paramValue
+		if reflectVal.Kind() == reflect.Struct {
+			marshalParam, _ := json.Marshal(paramValue)
+			dataValue = string(marshalParam)
+		}
+		keyParam := fmt.Sprintf("param %d", i+1)
+		customErr.AppendData(keyParam, dataValue)
 	}
 	return nil, errors.Wrap(customErr, ctxMsg)
 }
