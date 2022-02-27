@@ -113,7 +113,7 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 		var addOnParams []interface{}
 		addOnQuery, addOnParams, err = this.generateAddOnQuery(ctx, opts.SelectRequest)
 		if err != nil {
-			_, err = this.sendNilResponse(err, "phastos.database.db.Read.GenerateAddOnQuery", opts)
+			_, err = this.sendNilResponse(err, "phastos.database.db.Read.GenerateAddOnQuery", opts.SelectRequest)
 			return err
 		}
 
@@ -125,12 +125,12 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 
 	if opts.IsList {
 		if err = this.Follower.SelectContext(ctx, opts.ResultStruct, query, params...); err != nil {
-			_, err = this.sendNilResponse(err, "phastos.database.Read.SelectContext", opts)
+			_, err = this.sendNilResponse(err, "phastos.database.Read.SelectContext", query, params)
 			return err
 		}
 	} else {
 		if err = this.Follower.GetContext(ctx, opts.ResultStruct, query, params...); err != nil {
-			_, err = this.sendNilResponse(err, "phastos.database.Read.GetContext", opts)
+			_, err = this.sendNilResponse(err, "phastos.database.Read.GetContext", query, params)
 			return err
 		}
 	}
@@ -363,7 +363,7 @@ func (this *SQL) sendNilResponse(err error, ctxMsg string, params ...interface{}
 		return nil, nil
 	}
 
-	customErr := custerr.New(err)
+	customErr := custerr.New(err).SetCode(500)
 	for i, paramValue := range params {
 		keyParam := fmt.Sprintf("param %d", i+1)
 		customErr.AppendData(keyParam, paramValue)
