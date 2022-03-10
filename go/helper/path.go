@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/kodekoding/phastos/go/env"
 )
 
@@ -40,4 +42,17 @@ func GetFolderAndFileName(path string) (folderPath string, fileName string) {
 func GetFolderNameWithoutTmp(path string) (folderName string) {
 	folderName = path[strings.Index(path, "tmp")+4 : len(path)-1]
 	return
+}
+
+func GetTmpFolderPath() (string, error) {
+	tmpFolderPath := fmt.Sprintf("%s/tmp", GetFilePath())
+
+	if _, err := os.Stat(tmpFolderPath); os.IsNotExist(err) {
+		errDir := os.Mkdir(tmpFolderPath, 0777)
+		if errDir != nil {
+			return "", errors.Wrap(errDir, "phastos.helper.path.CreateFolder")
+		}
+	}
+
+	return tmpFolderPath, nil
 }
