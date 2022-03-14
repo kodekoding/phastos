@@ -83,3 +83,17 @@ func (g *google) GetFile(ctx context.Context, imgPath string) (signedUrl string,
 
 	return
 }
+
+func (g *google) RollbackProcess(ctx context.Context, fileName string) error {
+	return g.DeleteFile(ctx, fileName)
+}
+
+func (g *google) DeleteFile(ctx context.Context, fileName string) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*60)
+	defer cancel()
+
+	if err := g.client.Object(fileName).Delete(ctx); err != nil {
+		return errors.Wrap(err, "phastos.go.storage.google.DeleteObject")
+	}
+	return nil
+}
