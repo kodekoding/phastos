@@ -6,10 +6,10 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/kodekoding/phastos/go/helper"
-
-	"github.com/SebastiaanKlippert/go-wkhtmltopdf"
+	wkhtmltopdf "github.com/SebastiaanKlippert/go-wkhtmltopdf"
 	"github.com/pkg/errors"
+
+	"github.com/kodekoding/phastos/go/helper"
 )
 
 type Converters interface {
