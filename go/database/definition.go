@@ -115,7 +115,7 @@ type (
 	CUDResponse struct {
 		Status       bool  `json:"status"`
 		RowsAffected int64 `json:"rows_affected"`
-		LastInsertID int64 `json:"-"`
+		LastInsertID int64 `json:"last_insert_id"`
 	}
 
 	SelectResponse struct {
