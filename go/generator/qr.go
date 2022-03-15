@@ -4,14 +4,10 @@ import (
 	"crypto/md5"
 	"fmt"
 
+	"github.com/yeqown/go-qrcode"
+
 	"github.com/kodekoding/phastos/go/helper"
-
 	"github.com/pkg/errors"
-
-	"github.com/yeqown/go-qrcode/v2"
-	"github.com/yeqown/go-qrcode/writer/standard"
-
-	"github.com/kodekoding/phastos/go/log"
 )
 
 type (
@@ -58,13 +54,13 @@ func (q *QR) Generate() error {
 		return errors.New("logoPath and fileName must be filled")
 	}
 
-	w, err := standard.New(q.fileName, standard.WithLogoImageFilePNG(q.logoPath), standard.WithQRWidth(15))
-	if err != nil {
-		log.Errorf("standard.New failed: %v", err)
-		return errors.Wrap(err, "phastos.go.generator.qr.NewQR")
-	}
+	//w, err := standard.New(q.fileName, standard.WithLogoImageFilePNG(q.logoPath), standard.WithQRWidth(15))
+	//if err != nil {
+	//	log.Errorf("standard.New failed: %v", err)
+	//	return errors.Wrap(err, "phastos.go.generator.qr.NewQR")
+	//}
 
-	if err = q.obj.Save(w); err != nil {
+	if err := q.obj.Save(q.fileName); err != nil {
 		return errors.Wrap(err, "phastos.generator.qr.SaveObj")
 	}
 	return nil
