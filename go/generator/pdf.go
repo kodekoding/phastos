@@ -1,4 +1,4 @@
-package pdf
+package generator
 
 import (
 	"bytes"
@@ -12,17 +12,19 @@ import (
 	"github.com/kodekoding/phastos/go/helper"
 )
 
-type Converters interface {
-	SetTemplate(templatePath string, data interface{}) Converters
-	SetFooterHTMLTemplate(footerHTMLPath string) Converters
-	Generate(fileName string) error
+type PDFs interface {
+	SetTemplate(templatePath string, data interface{}) PDFs
+	SetFooterHTMLTemplate(footerHTMLPath string) PDFs
+	SetFileName(fileName *string) PDFs
+	Generate() error
 	Error() error
 }
 
-type Converter struct {
+type PDF struct {
 	generator      *wkhtmltopdf.PDFGenerator
 	contents       *wkhtmltopdf.PageReader
 	footerHTMLPath string
+	fileName       string
 	err            error
 }
 
@@ -34,7 +36,7 @@ type ConverterOptions struct {
 	MarginRight  uint
 }
 
-func New(options ...*ConverterOptions) (*Converter, error) {
+func NewPDF(options ...*ConverterOptions) (*PDF, error) {
 	generator, err := wkhtmltopdf.NewPDFGenerator()
 	if err != nil {
 		return nil, errors.Wrap(err, "phastos.generator.pdf.New")
@@ -59,10 +61,10 @@ func New(options ...*ConverterOptions) (*Converter, error) {
 	generator.MarginTop.Set(marginTop)
 	generator.MarginBottom.Set(marginBottom)
 
-	return &Converter{generator: generator}, nil
+	return &PDF{generator: generator}, nil
 }
 
-func (c *Converter) SetTemplate(templatePath string, data interface{}) Converters {
+func (c *PDF) SetTemplate(templatePath string, data interface{}) PDFs {
 	if c.err != nil {
 		return c
 	}
@@ -83,7 +85,15 @@ func (c *Converter) SetTemplate(templatePath string, data interface{}) Converter
 	return c
 }
 
-func (c *Converter) Generate(fileName string) error {
+func (c *PDF) SetFileName(fileName *string) PDFs {
+	tmpFolderPath, _ := helper.GetTmpFolderPath()
+	*fileName = fmt.Sprintf("%s/pdf/%s", tmpFolderPath, *fileName)
+	helper.CheckFolder(*fileName)
+	c.fileName = *fileName
+	return c
+}
+
+func (c *PDF) Generate() error {
 	if c.Error() != nil {
 		return c.Error()
 	}
@@ -97,20 +107,18 @@ func (c *Converter) Generate(fileName string) error {
 		return errors.Wrap(err, "phastos.generator.pdf.Generate.Create")
 	}
 
-	tmpFolderPath, _ := helper.GetTmpFolderPath()
-	generatedFileName := fmt.Sprintf("%s/%s", tmpFolderPath, fileName)
-	if err := c.generator.WriteFile(generatedFileName); err != nil {
+	if err := c.generator.WriteFile(c.fileName); err != nil {
 		return errors.Wrap(err, "phastos.generator.pdf.Generate.Create")
 	}
 
 	return nil
 }
 
-func (c *Converter) SetFooterHTMLTemplate(footerHTMLPath string) Converters {
+func (c *PDF) SetFooterHTMLTemplate(footerHTMLPath string) PDFs {
 	c.footerHTMLPath = footerHTMLPath
 	return c
 }
 
-func (c *Converter) Error() error {
+func (c *PDF) Error() error {
 	return c.err
 }
