@@ -50,15 +50,9 @@ func (q *QR) SetFileName(fileName *string) QRs {
 
 func (q *QR) Generate() error {
 
-	if q.logoPath == "" || q.fileName == "" {
-		return errors.New("logoPath and fileName must be filled")
+	if q.fileName == "" {
+		return errors.New("fileName cannot be empty")
 	}
-
-	//w, err := standard.New(q.fileName, standard.WithLogoImageFilePNG(q.logoPath), standard.WithQRWidth(15))
-	//if err != nil {
-	//	log.Errorf("standard.New failed: %v", err)
-	//	return errors.Wrap(err, "phastos.go.generator.qr.NewQR")
-	//}
 
 	if err := q.obj.Save(q.fileName); err != nil {
 		return errors.Wrap(err, "phastos.generator.qr.SaveObj")
