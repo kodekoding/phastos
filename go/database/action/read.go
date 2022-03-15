@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/kodekoding/phastos/go/database"
+	"github.com/pkg/errors"
 )
 
 type BaseRead struct {
@@ -31,6 +32,24 @@ func (b *BaseRead) GetList(ctx context.Context, opts *database.QueryOpts) error 
 	if opts.BaseQuery == "" {
 		opts.BaseQuery = fmt.Sprintf("SELECT * FROM %s", b.tableName)
 	}
+	return b.db.Read(ctx, opts)
+}
+
+// GetDetail - Query Detail with specific Query and return single data
+func (b *BaseRead) GetDetail(ctx context.Context, opts *database.QueryOpts) error {
+	if opts.BaseQuery == "" {
+		return errors.New("base query is empty, please fill baseQuery")
+	}
+
+	if opts.OptionalTableName != "" {
+		tableName := opts.OptionalTableName
+		originalTableName := b.tableName
+		defer func() {
+			b.tableName = originalTableName
+		}()
+		b.tableName = tableName
+	}
+
 	return b.db.Read(ctx, opts)
 }
 
