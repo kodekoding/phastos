@@ -256,10 +256,8 @@ github.com/volatiletech/null v8.0.0+incompatible h1:7wP8m5d/gZ6kW/9GnrLtMCRre2dl
 github.com/volatiletech/null v8.0.0+incompatible/go.mod h1:0wD98JzdqB+rLyZ70fN05VDbXbafIb0KU0MdVhCzmOQ=
 github.com/volatiletech/sqlboiler v3.7.1+incompatible h1:dm9/NjDskQVwAarmpeZ2UqLn1NKE8M3WHSHBS4jw2x8=
 github.com/volatiletech/sqlboiler v3.7.1+incompatible/go.mod h1:jLfDkkHWPbS2cWRLkyC20vQWaIQsASEY7gM7zSo11Yw=
-github.com/yeqown/go-qrcode/v2 v2.2.0 h1:WHkztuzpDE0NHfWfE6dRW0emTrhAnjzqmSjxdjUzgZg=
-github.com/yeqown/go-qrcode/v2 v2.2.0/go.mod h1:2Qsk2APUCPne0TsRo40DIkI5MYnbzYKCnKGEFWrxd24=
-github.com/yeqown/go-qrcode/writer/standard v1.2.1 h1:FMRZiur5yApUIe4fqtqmcdl/XQTZAZWt2DhkPx4VIW0=
-github.com/yeqown/go-qrcode/writer/standard v1.2.1/go.mod h1:ZelyDFiVymrauRjUn454iF7bjsabmB1vixkDA5kq2bw=
+github.com/yeqown/go-qrcode v1.5.10 h1:87GCtypY9oOadB7yGRW4qlgAoDOop8G4JEdqOQwu1WI=
+github.com/yeqown/go-qrcode v1.5.10/go.mod h1:0FVyJ3MV9fF5lfAgTr0INcy+3rupmJhjp0mL3Z9eYXk=
 github.com/yeqown/reedsolomon v1.0.0 h1:x1h/Ej/uJnNu8jaX7GLHBWmZKCAWjEJTetkqaabr4B0=
 github.com/yeqown/reedsolomon v1.0.0/go.mod h1:P76zpcn2TCuL0ul1Fso373qHRc69LKwAw/Iy6g1WiiM=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

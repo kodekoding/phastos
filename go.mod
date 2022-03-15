@@ -19,7 +19,7 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	github.com/stretchr/testify v1.7.0
 	github.com/volatiletech/null v8.0.0+incompatible
-	github.com/yeqown/go-qrcode/writer/standard v1.2.1
+	github.com/yeqown/go-qrcode v1.5.10
 )
 
 require (
@@ -42,7 +42,6 @@ require (
 	github.com/smartystreets/goconvey v1.7.2 // indirect
 	github.com/volatiletech/inflect v0.0.1 // indirect
 	github.com/volatiletech/sqlboiler v3.7.1+incompatible // indirect
-	github.com/yeqown/go-qrcode/v2 v2.2.0 // indirect
 	github.com/yeqown/reedsolomon v1.0.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/image v0.0.0-20200927104501-e162460cd6b5 // indirect
