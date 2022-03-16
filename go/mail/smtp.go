@@ -21,16 +21,22 @@ type (
 		err error
 	}
 
-	SMTPConfig struct {
+	MailConfig struct {
 		Sender        string
 		EmailUsername string
 		EmailPassword string
+		SecretKey     string
 		EmailFrom     string
+		FromName      string
 		Host          string
 		Port          int
-		recipient     []string
-		message       string
-		address       string
+	}
+
+	SMTPConfig struct {
+		MailConfig
+		recipient []string
+		message   string
+		address   string
 	}
 )
 
