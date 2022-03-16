@@ -10,7 +10,7 @@ import (
 
 type (
 	SMTPs interface {
-		SetRecipient(recipient []string) SMTPs
+		AddRecipient(recipient string) SMTPs
 		SetContent(subject, message string) SMTPs
 		Send() error
 	}
@@ -28,7 +28,6 @@ type (
 		EmailFrom     string
 		Host          string
 		Port          int
-		subject       string
 		recipient     []string
 		message       string
 		address       string
@@ -44,12 +43,8 @@ func NewSMTP(cfg *SMTPConfig) SMTPs {
 	}
 }
 
-func (s *SMTP) SetRecipient(recipient []string) SMTPs {
-	if recipient == nil {
-		s.err = errors.New("recipient params cannot be null")
-		return s
-	}
-	s.recipient = recipient
+func (s *SMTP) AddRecipient(recipient string) SMTPs {
+	s.recipient = append(s.recipient, recipient)
 	return s
 }
 
