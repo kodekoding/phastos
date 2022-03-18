@@ -8,6 +8,7 @@ import (
 type (
 	Mandrills interface {
 		AddRecipient(recipientEmail, recipientName string) Mandrills
+		AddAttachment(attachment *mandrill.Attachment) Mandrills
 		SetHTMLContent(subject, htmlContent string) Mandrills
 		SetTextContent(subject, textContent string) Mandrills
 		Send() error
@@ -33,13 +34,17 @@ func (m *Mandrill) reset() {
 	msg := &mandrill.Message{}
 	msg.FromEmail = m.EmailFrom
 	msg.FromName = m.FromName
-
 	msg.To = nil
 	m.message = msg
 }
 
 func (m *Mandrill) AddRecipient(recipientEmail, recipientName string) Mandrills {
 	m.message.AddRecipient(recipientEmail, recipientName, "to")
+	return m
+}
+
+func (m *Mandrill) AddAttachment(attachment *mandrill.Attachment) Mandrills {
+	m.message.Attachments = append(m.message.Attachments, attachment)
 	return m
 }
 
