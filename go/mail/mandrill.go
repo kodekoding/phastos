@@ -15,9 +15,11 @@ type (
 	}
 
 	Mandrill struct {
-		client    *mandrill.Client
-		recipient []string
-		message   *mandrill.Message
+		client          *mandrill.Client
+		recipient       []string
+		message         *mandrill.Message
+		templateName    string
+		templateContent map[string]string
 		*MailConfig
 	}
 )
@@ -35,6 +37,8 @@ func (m *Mandrill) reset() {
 	msg.FromEmail = m.EmailFrom
 	msg.FromName = m.FromName
 	msg.To = nil
+	m.templateName = ""
+	m.templateContent = nil
 	m.message = msg
 }
 
@@ -54,6 +58,17 @@ func (m *Mandrill) SetHTMLContent(subject, htmlContent string) Mandrills {
 	return m
 }
 
+func (m *Mandrill) SetGlobalMergeVars(data map[string]interface{}) Mandrills {
+	m.message.GlobalMergeVars = mandrill.MapToVars(data)
+	return m
+}
+
+func (m *Mandrill) SetTemplate(templateName string, templateContent map[string]string) Mandrills {
+	m.templateContent = templateContent
+	m.templateName = templateName
+	return m
+}
+
 func (m *Mandrill) SetTextContent(subject, textContent string) Mandrills {
 	m.message.Subject = subject
 	m.message.Text = textContent
@@ -61,7 +76,13 @@ func (m *Mandrill) SetTextContent(subject, textContent string) Mandrills {
 }
 
 func (m *Mandrill) Send() error {
-	_, err := m.client.MessagesSend(m.message)
+	var err error
+	if m.templateName == "" {
+		_, err = m.client.MessagesSend(m.message)
+	} else {
+		_, err = m.client.MessagesSendTemplate(m.message, m.templateName, m.templateContent)
+	}
+
 	if err != nil {
 		return errors.Wrap(err, "phastos.go.mail.mandrill.SendEmail")
 	}
