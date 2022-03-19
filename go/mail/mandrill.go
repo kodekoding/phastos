@@ -11,6 +11,8 @@ type (
 		AddAttachment(attachment *mandrill.Attachment) Mandrills
 		SetHTMLContent(subject, htmlContent string) Mandrills
 		SetTextContent(subject, textContent string) Mandrills
+		SetGlobalMergeVars(data map[string]interface{}) Mandrills
+		SetTemplate(templateName string, templateContent map[string]string) Mandrills
 		Send() error
 	}
 
