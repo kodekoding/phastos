@@ -10,6 +10,8 @@ type Buckets interface {
 	UploadFile(ctx context.Context, file multipart.File, fileName *string) error
 
 	UploadImageFromLocalPath(ctx context.Context, filePath string, fileName *string) error
+	UploadFileFromLocalPath(ctx context.Context, filePath string, fileName *string) error
+
 	GetFile(ctx context.Context, imgPath string) (base64Result string, err error)
 
 	RollbackProcess(ctx context.Context, fileName string) error
