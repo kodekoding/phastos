@@ -47,6 +47,19 @@ func (g *google) UploadImageFromLocalPath(ctx context.Context, filePath string, 
 	return g.uploadProcess(ctx, file, fileName, "img")
 }
 
+func (g *google) UploadFileFromLocalPath(ctx context.Context, filePath string, fileName *string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return errors.Wrap(err, "phastos.go.storage.google.Upload.Copy")
+	}
+	defer func() {
+		_ = file.Close()
+		_ = os.Remove(filePath)
+	}()
+
+	return g.uploadProcess(ctx, file, fileName, "file")
+}
+
 func (g *google) uploadProcess(ctx context.Context, file multipart.File, fileName *string, fileType string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*60)
 	defer cancel()
