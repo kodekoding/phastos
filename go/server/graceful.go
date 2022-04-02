@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -30,6 +31,11 @@ func serveHTTPs(config *Config, secure bool) error {
 		MaxHeaderBytes: config.MaxHeaderByte,
 	}
 
+	listener, err := net.Listen("tcp4", listenPort)
+	if err != nil {
+		return err
+	}
+
 	shutdownSignal := WaitTermSig(func(ctx context.Context) error {
 		stopped := make(chan struct{})
 		ctx, cancel := context.WithTimeout(ctx, time.Duration(10)*time.Second)
@@ -51,11 +57,11 @@ func serveHTTPs(config *Config, secure bool) error {
 
 	go func() {
 		if secure {
-			if err := server.ListenAndServeTLS(config.CertFile, config.KeyFile); err != nil {
+			if err := server.ServeTLS(listener, config.CertFile, config.KeyFile); err != nil {
 				log.Fatalf("Cannot Listen and Serve: %s", err.Error())
 			}
 		} else {
-			if err := server.ListenAndServe(); err != nil {
+			if err := server.Serve(listener); err != nil {
 				log.Fatalf("Cannot Listen and Serve: %s", err.Error())
 			}
 		}
