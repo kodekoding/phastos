@@ -36,9 +36,12 @@ func serveHTTPs(config *Config, secure bool) error {
 		return err
 	}
 
-	shutdownSignal := WaitTermSig(func(ctx context.Context) error {
+	sign := WaitTermSig(func(ctx context.Context) error {
+
+		<-ctx.Done()
+
 		stopped := make(chan struct{})
-		ctx, cancel := context.WithTimeout(ctx, time.Duration(10)*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(10)*time.Second)
 		defer cancel()
 		go func() {
 			_ = server.Shutdown(ctx)
@@ -57,12 +60,12 @@ func serveHTTPs(config *Config, secure bool) error {
 
 	go func() {
 		if secure {
-			if err := server.ServeTLS(listener, config.CertFile, config.KeyFile); err != nil {
-				log.Fatalf("Cannot Listen and Serve: %s", err.Error())
+			if err = server.ServeTLS(listener, config.CertFile, config.KeyFile); err != nil {
+				log.Fatalf("Cannot serve HTTPS: %s", err.Error())
 			}
 		} else {
-			if err := server.Serve(listener); err != nil {
-				log.Fatalf("Cannot Listen and Serve: %s", err.Error())
+			if err = server.Serve(listener); err != nil {
+				log.Fatalf("Cannot serve HTTP: %s", err.Error())
 			}
 		}
 	}()
@@ -73,30 +76,32 @@ func serveHTTPs(config *Config, secure bool) error {
 	}
 	log.Printf("%s Server is running on %s", protocol, listenPort)
 
-	<-shutdownSignal
+	<-sign
 
 	log.Printf("%s Server stopped", protocol)
 	return nil
 }
 
 func WaitTermSig(handler func(context.Context) error) <-chan struct{} {
-	stoppedCh := make(chan struct{})
+	stopedChannel := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+
 	go func() {
-		signals := make(chan os.Signal, 1)
+		c := make(chan os.Signal, 1)
 
 		// wait for the sigterm
-		signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-		<-signals
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+		<-c
 
+		cancel()
 		// We received an os signal, shut down.
-		if err := handler(context.Background()); err != nil {
+		if err := handler(ctx); err != nil {
 			log.Printf("graceful shutdown  failed: %v", err)
 		} else {
 			log.Println("gracefull shutdown succeed")
 		}
 
-		close(stoppedCh)
-
+		close(stopedChannel)
 	}()
-	return stoppedCh
+	return stopedChannel
 }
