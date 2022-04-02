@@ -60,11 +60,11 @@ func serveHTTPs(config *Config, secure bool) error {
 
 	go func() {
 		if secure {
-			if err = server.ServeTLS(listener, config.CertFile, config.KeyFile); err != nil {
+			if err = server.ServeTLS(listener, config.CertFile, config.KeyFile); err != http.ErrServerClosed {
 				log.Fatalf("Cannot serve HTTPS: %s", err.Error())
 			}
 		} else {
-			if err = server.Serve(listener); err != nil {
+			if err = server.Serve(listener); err != http.ErrServerClosed {
 				log.Fatalf("Cannot serve HTTP: %s", err.Error())
 			}
 		}
