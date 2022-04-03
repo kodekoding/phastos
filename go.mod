@@ -30,6 +30,7 @@ require (
 	github.com/elazarl/goproxy v0.0.0-20220115173737-adb46da277ac // indirect
 	github.com/fogleman/gg v1.3.0 // indirect
 	github.com/friendsofgo/errors v0.9.2 // indirect
+	github.com/go-chi/chi v1.5.4 // indirect
 	github.com/gofrs/uuid v4.2.0+incompatible // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
