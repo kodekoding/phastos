@@ -8,13 +8,14 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/kodekoding/phastos/go/context"
+
 	"github.com/pkg/errors"
 
 	"github.com/kodekoding/phastos/go/env"
 	cutomerr "github.com/kodekoding/phastos/go/error"
 	"github.com/kodekoding/phastos/go/helper"
 	"github.com/kodekoding/phastos/go/log"
-	"github.com/kodekoding/phastos/go/notifications"
 )
 
 type JSON struct {
@@ -32,10 +33,6 @@ type ExportFile struct {
 	Name    string        `json:"name"`
 	Content *bytes.Buffer `json:"-"`
 }
-
-const (
-	errMessageTemplate = "%s : %s"
-)
 
 func NewJSON() *JSON {
 	return &JSON{}
@@ -113,7 +110,7 @@ func (jr *JSON) InternalServerError(err error) *JSON {
 	return jr
 }
 
-func (jr *JSON) ErrorChecking(r *http.Request, notif notifications.Platforms) bool {
+func (jr *JSON) ErrorChecking(r *http.Request) bool {
 	if jr.Error != nil {
 		// error occurred
 		var usingErr error
@@ -144,15 +141,17 @@ func (jr *JSON) ErrorChecking(r *http.Request, notif notifications.Platforms) bo
 		notifMsg := fmt.Sprintf(`%s
 			%s
 			traceID: %s`, errMsg, optionalData, traceId)
-		allNotifPlatform := notif.GetAllPlatform()
 		go func() {
-			for _, service := range allNotifPlatform {
-				if service.IsActive() {
-					if err := service.Send(ctx, notifMsg, nil); err != nil {
-						log.Error("error when send to notifications")
+			notif := context.GetNotif(r.Context())
+			if notif != nil {
+				allNotifPlatform := notif.GetAllPlatform()
+				for _, service := range allNotifPlatform {
+					if service.IsActive() {
+						if err := service.Send(ctx, notifMsg, nil); err != nil {
+							log.Error("error when send to notifications")
+						}
 					}
 				}
-
 			}
 		}()
 		// print log
