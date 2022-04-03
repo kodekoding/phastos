@@ -14,13 +14,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/cors"
+
 	context2 "github.com/kodekoding/phastos/go/context"
 	"github.com/kodekoding/phastos/go/helper"
-
 	"github.com/kodekoding/phastos/go/log"
 	"github.com/kodekoding/phastos/go/response"
-
-	"github.com/go-chi/chi"
 )
 
 type WrapperFunc func(http.ResponseWriter, *http.Request) *response.JSON
@@ -28,6 +29,7 @@ type WrapperFunc func(http.ResponseWriter, *http.Request) *response.JSON
 type RouteInterface interface {
 	chi.Routes
 	GetHandler() *chi.Mux
+	InitRoute(corsConfig ...cors.Options)
 	Handle(pattern string, handler http.Handler)
 	Group(prefix string, fn func(r RouteInterface)) RouteInterface
 	Get(pattern string, handler WrapperFunc)
@@ -57,6 +59,21 @@ func NewChiRouter(timeout ...int) *ChiRouter {
 
 func (cr *ChiRouter) GetHandler() *chi.Mux {
 	return cr.handle
+}
+
+func (cr *ChiRouter) InitRoute(corsConfig ...cors.Options) {
+	cr.Use(
+		middleware.Logger,
+		middleware.Recoverer,
+	)
+
+	if corsConfig != nil && len(corsConfig) > 0 {
+		cr.Use(cors.Handler(corsConfig[0]))
+	}
+
+	cr.Get("/ping", func(_ http.ResponseWriter, _ *http.Request) *response.JSON {
+		return response.NewJSON().Success("PONG")
+	})
 }
 
 func (cr *ChiRouter) Group(prefix string, fn func(r RouteInterface)) RouteInterface {
