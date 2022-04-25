@@ -11,7 +11,9 @@ import (
 
 type ReadRepo interface {
 	GetList(ctx context.Context, opts *database.QueryOpts) error
+	GetDetail(ctx context.Context, opts *database.QueryOpts) error
 	GetDetailById(ctx context.Context, resultStruct interface{}, id int, optionalTableName ...string) error
+	Count(ctx context.Context, tableName string, reqData *database.TableRequest) (totalData, totalFiltered int, err error)
 }
 
 type WriteRepo interface {
