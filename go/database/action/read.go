@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kodekoding/phastos/go/database"
 	"github.com/pkg/errors"
+
+	"github.com/kodekoding/phastos/go/database"
 )
 
 type BaseRead struct {
@@ -56,7 +57,7 @@ func (b *BaseRead) GetDetail(ctx context.Context, opts *database.QueryOpts) erro
 // GetDetailById - Generate Query "SELECT * FROM <table_name | optional_table_name> WHERE id = ?"
 func (b *BaseRead) GetDetailById(ctx context.Context, resultStruct interface{}, id int, optionalTableName ...string) error {
 	opts := &database.QueryOpts{
-		ResultStruct: resultStruct,
+		Result: resultStruct,
 	}
 
 	if optionalTableName != nil && len(optionalTableName) > 0 {
@@ -78,9 +79,9 @@ func (b *BaseRead) Count(ctx context.Context, tableName string, reqData *databas
 	//defer trc.Finish()
 	queryTotal := fmt.Sprintf("SELECT COUNT(*) FROM %s ", tableName)
 	opts := &database.QueryOpts{
-		BaseQuery:    queryTotal,
-		ResultStruct: &totalData,
-		IsList:       false,
+		BaseQuery: queryTotal,
+		Result:    &totalData,
+		IsList:    false,
 	}
 
 	// get total data
@@ -97,7 +98,7 @@ func (b *BaseRead) Count(ctx context.Context, tableName string, reqData *databas
 	reqData.Page = 0
 	reqData.Limit = 0
 	opts.SelectRequest = reqData
-	opts.ResultStruct = &totalFiltered
+	opts.Result = &totalFiltered
 
 	// get total filtered data
 	// TODO: ACTIVATE THIS WHEN USING TRACER
