@@ -2,6 +2,8 @@ package helper
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -12,7 +14,95 @@ import (
 	"github.com/kodekoding/phastos/go/log"
 )
 
-func ConstructColNameAndValue(_ context.Context, structName interface{}, isNullStruct ...bool) ([]string, []interface{}) {
+func ConstructColNameAndValueBulk(ctx context.Context, arrayOfData interface{}) (*database.CUDConstructData, error) {
+	reflectVal := reflect.ValueOf(arrayOfData)
+	if reflectVal.Kind() == reflect.Ptr {
+		reflectVal = reflectVal.Elem()
+	}
+
+	if reflectVal.Kind() != reflect.Slice {
+		return nil, errors.New("second parameter should be Slice/Array")
+	}
+
+	totalData := reflectVal.Len()
+
+	wg := new(sync.WaitGroup)
+	mtx := new(sync.Mutex)
+
+	maxLen := 0
+	counterMaxLen := 0
+	var columns []string
+	var columnValues []interface{}
+	var arrayOfValues [][]interface{}
+
+	mapBulkValues := make(map[string][]interface{})
+	for i := 0; i < totalData; i++ {
+		wg.Add(1)
+		data := reflect.Indirect(reflectVal.Index(i))
+		go func(field reflect.Value, idx int) {
+			defer func() {
+				mtx.Unlock()
+				wg.Done()
+			}()
+			cols, vals := readField(ctx, field)
+			mtx.Lock()
+			if counterMaxLen == 0 {
+				columns = cols
+			}
+			for x, column := range cols {
+				mapBulkValues[column] = append(mapBulkValues[column], vals[x])
+			}
+			totalCols := len(cols)
+			if totalCols > maxLen {
+				counterMaxLen++
+				maxLen = totalCols
+			}
+			arrayOfValues = append(arrayOfValues, vals)
+			columnValues = append(columnValues, vals...)
+		}(data, i)
+	}
+
+	wg.Wait()
+	if counterMaxLen > 1 {
+		return nil, errors.New("length of each element is different")
+	}
+
+	errChan := make(chan error)
+	go func(mapData map[string][]interface{}) {
+		maxLen := 0
+		counterMaxLen := 0
+		for _, data := range mapData {
+			jumlahData := len(data)
+			if jumlahData != maxLen {
+				counterMaxLen++
+				maxLen = jumlahData
+			}
+
+			if counterMaxLen > 1 {
+				errChan <- errors.New("length of each field is different")
+			}
+		}
+		errChan <- nil
+	}(mapBulkValues)
+
+	if gotErr := <-errChan; gotErr != nil {
+		return nil, fmt.Errorf("got error: %s", gotErr.Error())
+	}
+
+	var listOfBulkValues []string
+
+	for _, values := range arrayOfValues {
+		listOfBulkValues = append(listOfBulkValues, fmt.Sprintf("(?%s)", strings.Repeat(",?", len(values)-1)))
+	}
+
+	result := new(database.CUDConstructData)
+	result.ColsInsert = strings.Join(columns, ",")
+	result.BulkValuesInsert = strings.Join(listOfBulkValues, ",")
+	result.Values = columnValues
+	return result, nil
+}
+
+func ConstructColNameAndValue(ctx context.Context, structName interface{}, isNullStruct ...bool) ([]string, []interface{}) {
 	// tracing
 	//trc, ctx := tracer.StartSpanFromContext(ctx, "Helper-ConstructColNameAndValue")
 	//defer trc.Finish()
@@ -26,6 +116,11 @@ func ConstructColNameAndValue(_ context.Context, structName interface{}, isNullS
 		return nil, nil
 	}
 
+	cols, values := readField(ctx, reflectVal, isNullStruct...)
+	return cols, values
+}
+
+func readField(_ context.Context, reflectVal reflect.Value, isNullStruct ...bool) ([]string, []interface{}) {
 	refType := reflectVal.Type()
 	var values []interface{}
 	var cols []string
@@ -38,7 +133,8 @@ func ConstructColNameAndValue(_ context.Context, structName interface{}, isNullS
 	if isNullStruct != nil {
 		containsNullStruct = isNullStruct[0]
 	}
-	for i := 0; i < reflectVal.NumField(); i++ {
+	numField := reflectVal.NumField()
+	for i := 0; i < numField; i++ {
 		field := reflectVal.Field(i)
 
 		value := field.Interface()
