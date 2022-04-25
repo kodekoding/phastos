@@ -149,7 +149,9 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, erro
 	//defer trc.Finish()
 	//marshalParam, _ := json.Marshal(data.Values)
 	//trc.SetTag("sqlQuery.params", string(marshalParam))
-
+	var (
+		addOnQuery string
+	)
 	data := opts.CUDRequest
 	cols := strings.Join(data.Cols, ",")
 	var query string
@@ -157,6 +159,8 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, erro
 	switch data.Action {
 	case "insert":
 		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s)`, tableName, cols, strings.Repeat(",?", len(data.Cols)-1))
+	case "bulk_insert":
+		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES %s`, tableName, data.ColsInsert, data.BulkValuesInsert)
 	case "upsert":
 		colsUpdate := strings.Join(data.Cols, ",")
 		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s) ON DUPLICATE KEY UPDATE %s`,
@@ -164,13 +168,31 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, erro
 			data.ColsInsert,
 			strings.Repeat(",?", len(data.Cols)-1),
 			colsUpdate)
-	case "update":
+	case "update_by_id":
 		query = fmt.Sprintf(`UPDATE %s SET %s WHERE id = ?`, tableName, cols)
-	case "delete":
+	case "delete_by_id":
 		query = fmt.Sprintf(`DELETE FROM %s WHERE id = ?`, tableName)
+	case "update":
+		query = fmt.Sprintf(`UPDATE %s SET %s`, tableName, cols)
+	case "delete":
+		query = fmt.Sprintf(`DELETE FROM %s`, tableName)
 	default:
-		return nil, errors.Wrap(errors.New("action exec is not defined"), "database.common.ExecTransaction.CheckAction")
+		return nil, errors.Wrap(errors.New("action exec is not defined"), "phastos.database.sql.Write.CheckAction")
 	}
+
+	if opts.SelectRequest != nil {
+		var addOnParams []interface{}
+		addOnQuery, addOnParams, err = this.generateAddOnQuery(ctx, opts.SelectRequest)
+		if err != nil {
+			_, err = this.sendNilResponse(err, "phastos.database.db.Write.GenerateAddOnQuery", opts.SelectRequest)
+			return nil, errors.Wrap(err, "")
+		}
+
+		data.Values = append(data.Values, addOnParams...)
+	}
+
+	query += addOnQuery
+	query = this.Rebind(query)
 
 	trx := opts.Trx
 	if trx != nil {
