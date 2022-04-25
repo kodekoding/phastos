@@ -166,7 +166,7 @@ type (
 
 func (req *TableRequest) SetWhereCondition(condition string, value ...interface{}) {
 	req.InitiateWhere = append(req.InitiateWhere, condition)
-	if len(value) > 0 {
+	if len(value) > 0 && value[0] != nil {
 		req.InitiateWhereValues = append(req.InitiateWhereValues, value...)
 	}
 }
