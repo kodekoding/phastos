@@ -107,7 +107,7 @@ type (
 		OptionalTableName string // for view name
 		SelectRequest     *TableRequest
 		CUDRequest        *CUDConstructData
-		ResultStruct      interface{}
+		Result            interface{}
 		IsList            bool
 		Trx               *sql.Tx
 	}
