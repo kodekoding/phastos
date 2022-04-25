@@ -11,15 +11,16 @@ import (
 
 type ReadRepo interface {
 	GetList(ctx context.Context, opts *database.QueryOpts) error
-	GetDetail(ctx context.Context, opts *database.QueryOpts) error
 	GetDetailById(ctx context.Context, resultStruct interface{}, id int, optionalTableName ...string) error
-	Count(ctx context.Context, tableName string, reqData *database.TableRequest) (totalData, totalFiltered int, err error)
 }
 
 type WriteRepo interface {
 	Insert(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
-	Update(ctx context.Context, data interface{}, id int, trx ...*sql.Tx) (*database.CUDResponse, error)
-	Delete(ctx context.Context, id int, trx ...*sql.Tx) (*database.CUDResponse, error)
+	BulkInsert(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
+	Update(ctx context.Context, data interface{}, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
+	UpdateById(ctx context.Context, data interface{}, id int, trx ...*sql.Tx) (*database.CUDResponse, error)
+	Delete(ctx context.Context, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
+	DeleteById(ctx context.Context, id int, trx ...*sql.Tx) (*database.CUDResponse, error)
 }
 
 type ReadHandler interface {
