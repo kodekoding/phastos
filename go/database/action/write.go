@@ -29,18 +29,28 @@ func NewBaseWrite(db *database.SQL, tableName string, isSoftDelete ...bool) *Bas
 }
 
 func (b *BaseWrite) Insert(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
-	return b.cudProcess(ctx, "insert", data, 0, trx...)
+	return b.cudProcess(ctx, "insert", data, nil, trx...)
 }
 
-func (b *BaseWrite) Update(ctx context.Context, data interface{}, id int, trx ...*sql.Tx) (*database.CUDResponse, error) {
-	return b.cudProcess(ctx, "update", data, id, trx...)
+func (b *BaseWrite) BulkInsert(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
+	return b.cudProcess(ctx, "bulk_insert", data, nil, trx...)
 }
 
-func (b *BaseWrite) Delete(ctx context.Context, id int, trx ...*sql.Tx) (*database.CUDResponse, error) {
+func (b *BaseWrite) Update(ctx context.Context, data interface{}, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
+	return b.cudProcess(ctx, "update", data, condition, trx...)
+}
+
+func (b *BaseWrite) UpdateById(ctx context.Context, data interface{}, id int, trx ...*sql.Tx) (*database.CUDResponse, error) {
+	condition := map[string]interface{}{
+		"id = ?": id,
+	}
+	return b.cudProcess(ctx, "update_by_id", data, condition, trx...)
+}
+
+func (b *BaseWrite) Delete(ctx context.Context, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
 	// soft delete, just update the deleted_at to not null
 	data := &database.CUDConstructData{
-		Cols:   []string{"deleted_at = now()"},
-		Values: []interface{}{id},
+		Cols: []string{"deleted_at = now()"},
 	}
 	if !b.isSoftDelete {
 		data.Action = "delete"
@@ -54,17 +64,48 @@ func (b *BaseWrite) Delete(ctx context.Context, id int, trx ...*sql.Tx) (*databa
 	}
 
 	if b.isSoftDelete {
-		return b.Update(ctx, data, id, trx...)
+		return b.Update(ctx, data, condition, trx...)
+	}
+
+	tableRequest := new(database.TableRequest)
+	tableRequest.IncludeDeleted = true
+	for cond, value := range condition {
+		tableRequest.SetWhereCondition(cond, value)
+	}
+	qOpts.SelectRequest = tableRequest
+	return b.db.Write(ctx, qOpts)
+}
+
+func (b *BaseWrite) DeleteById(ctx context.Context, id int, trx ...*sql.Tx) (*database.CUDResponse, error) {
+	// soft delete, just update the deleted_at to not null
+	data := &database.CUDConstructData{
+		Cols:   []string{"deleted_at = now()"},
+		Values: []interface{}{id},
+	}
+	if !b.isSoftDelete {
+		data.Action = "delete_by_id"
+		data.TableName = b.tableName
+	}
+	qOpts := &database.QueryOpts{
+		CUDRequest: data,
+	}
+	if trx != nil && len(trx) > 0 {
+		qOpts.Trx = trx[0]
+	}
+
+	if b.isSoftDelete {
+		return b.UpdateById(ctx, data, id, trx...)
 	}
 	return b.db.Write(ctx, qOpts)
 }
 
 func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
-	return b.cudProcess(ctx, "upsert", data, 0, trx...)
+	return b.cudProcess(ctx, "upsert", data, nil, trx...)
 }
 
-func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interface{}, id int, trx ...*sql.Tx) (*database.CUDResponse, error) {
+func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interface{}, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
 	var cudRequestData *database.CUDConstructData
+	var err error
 	switch action {
 	case "insert":
 		cols, vals := helper.ConstructColNameAndValue(ctx, data)
@@ -75,8 +116,16 @@ func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interfac
 			Cols:   cols,
 			Values: vals,
 		}
+	case "bulk_insert":
+		cudRequestData, err = helper.ConstructColNameAndValueBulk(ctx, data)
+		if err != nil {
+			return nil, err
+		}
 	case "update":
-		cudRequestData = helper.ConstructColNameAndValueForUpdate(ctx, data, id)
+		cudRequestData = helper.ConstructColNameAndValueForUpdate(ctx, data)
+	case "update_by_id":
+		cudRequestData = helper.ConstructColNameAndValueForUpdate(ctx, data, condition["id = ?"])
+		condition = nil
 	case "upsert":
 		cudRequestData = helper.ConstructColNameAndValueForUpdate(ctx, data)
 		cudRequestData.Values = append(cudRequestData.Values, cudRequestData.Values...)
@@ -94,6 +143,15 @@ func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interfac
 	}
 	if trx != nil && len(trx) > 0 {
 		qOpts.Trx = trx[0]
+	}
+
+	if condition != nil {
+		tableRequest := new(database.TableRequest)
+		tableRequest.IncludeDeleted = true
+		for cond, value := range condition {
+			tableRequest.SetWhereCondition(cond, value)
+		}
+		qOpts.SelectRequest = tableRequest
 	}
 	result, err := b.db.Write(ctx, qOpts)
 	if err != nil {
