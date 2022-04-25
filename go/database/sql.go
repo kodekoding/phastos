@@ -89,13 +89,13 @@ func (this *SQL) GetFollower() *sqlx.DB {
 }
 
 func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...interface{}) error {
-	if opts.ResultStruct == nil {
-		return errors.New("Result Struct must be assigned")
+	if opts.Result == nil {
+		return errors.New("Result must be assigned")
 	}
 
-	reflectVal := reflect.ValueOf(opts.ResultStruct)
+	reflectVal := reflect.ValueOf(opts.Result)
 	if reflectVal.Kind() != reflect.Ptr {
-		return errors.New("Result Struct must be a pointer")
+		return errors.New("Result must be a pointer")
 	}
 
 	if opts.Conditions != nil {
@@ -124,12 +124,12 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	query = this.Rebind(query)
 
 	if opts.IsList {
-		if err = this.Follower.SelectContext(ctx, opts.ResultStruct, query, params...); err != nil {
+		if err = this.Follower.SelectContext(ctx, opts.Result, query, params...); err != nil {
 			_, err = this.sendNilResponse(err, "phastos.database.Read.SelectContext", query, params)
 			return err
 		}
 	} else {
-		if err = this.Follower.GetContext(ctx, opts.ResultStruct, query, params...); err != nil {
+		if err = this.Follower.GetContext(ctx, opts.Result, query, params...); err != nil {
 			_, err = this.sendNilResponse(err, "phastos.database.Read.GetContext", query, params)
 			return err
 		}
