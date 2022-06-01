@@ -85,6 +85,7 @@ type (
 	SQLs struct {
 		Master   SQLConfig `yaml:"master"`
 		Follower SQLConfig `yaml:"follower"`
+		Timeout  int       `yaml:"timeout"`
 	}
 
 	SQLConfig struct {
@@ -94,6 +95,7 @@ type (
 		Port            string `yaml:"port"`
 		DBName          string `yaml:"db_name"`
 		Engine          string `yaml:"engine"`
+		Timeout         int    `yaml:"timeout"`
 		MaxConnLifetime int    `yaml:"max_conn_lifetime"`
 		MaxIdleTime     int    `yaml:"max_idle_time"`
 		MaxOpenConn     int    `yaml:"max_open_conn"`
