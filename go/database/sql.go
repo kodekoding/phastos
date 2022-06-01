@@ -17,13 +17,17 @@ import (
 	custerr "github.com/kodekoding/phastos/go/error"
 )
 
-func newSQL(master, follower *sqlx.DB) *SQL {
+func newSQL(master, follower *sqlx.DB, timeout ...int) *SQL {
+	sqlTimeOut := 3
+	if timeout != nil && len(timeout) > 0 {
+		sqlTimeOut = timeout[0]
+	}
 	return &SQL{
 		Master:   master,
 		Follower: follower,
 		master:   master,
 		follower: follower,
-		timeout:  3 * time.Second,
+		timeout:  time.Duration(sqlTimeOut) * time.Second,
 	}
 }
 
@@ -39,7 +43,7 @@ func Connect(cfg *SQLs) (*SQL, error) {
 		return nil, errors.Wrap(err, "phastos.database.ConnectFollower")
 	}
 
-	db := newSQL(masterDB, followerDB)
+	db := newSQL(masterDB, followerDB, cfg.Timeout)
 	return db, nil
 }
 
@@ -52,7 +56,7 @@ func connectDB(cfg *SQLConfig) (*sqlx.DB, error) {
 			if cfg.Port == "" {
 				cfg.Port = "3306"
 			}
-			strFormat = "%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=true&timeout=8s&readTimeout=8s&writeTimeout=8s"
+			strFormat = "%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=true&timeout=30s&readTimeout=30s&writeTimeout=30s"
 		case "postgres":
 			if cfg.Port == "" {
 				cfg.Port = "5432"
