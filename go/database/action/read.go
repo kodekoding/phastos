@@ -77,7 +77,7 @@ func (b *BaseRead) Count(ctx context.Context, tableName string, reqData *databas
 	// TODO: ACTIVATE THIS WHEN USING TRACER
 	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-CountAll")
 	//defer trc.Finish()
-	queryTotal := fmt.Sprintf("SELECT COUNT(*) FROM %s ", tableName)
+	queryTotal := fmt.Sprintf("SELECT COUNT(1) FROM %s ", tableName)
 	opts := &database.QueryOpts{
 		BaseQuery: queryTotal,
 		Result:    &totalData,
