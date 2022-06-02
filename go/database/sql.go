@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql" // import mysql driver
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // import postgre driver
 	"github.com/pkg/errors"
+	_ "gorm.io/driver/mysql" // import mysql driver
 
 	custerr "github.com/kodekoding/phastos/go/error"
 )
@@ -48,6 +48,24 @@ func Connect(cfg *SQLs) (*SQL, error) {
 }
 
 func connectDB(cfg *SQLConfig) (*sqlx.DB, error) {
+	generateConnString(cfg)
+
+	db, err := sqlx.Connect(cfg.Engine, cfg.ConnString)
+	if err != nil {
+		return nil, errors.Wrap(err, "phastos.database.Connect")
+	}
+
+	maxLifetime := time.Duration(cfg.MaxConnLifetime) * time.Second
+	db.SetConnMaxLifetime(maxLifetime)
+	maxIddleTime := time.Duration(cfg.MaxIdleTime) * time.Second
+	db.SetConnMaxIdleTime(maxIddleTime)
+
+	db.SetMaxOpenConns(cfg.MaxOpenConn)
+	db.SetMaxIdleConns(cfg.MaxIdleConn)
+	return db, nil
+}
+
+func generateConnString(cfg *SQLConfig) {
 	if cfg.ConnString == "" {
 		// if ConnString config is empty, then build the connection string manually
 		strFormat := ""
@@ -69,19 +87,6 @@ func connectDB(cfg *SQLConfig) (*sqlx.DB, error) {
 		)
 		cfg.ConnString = connString
 	}
-	db, err := sqlx.Connect(cfg.Engine, cfg.ConnString)
-	if err != nil {
-		return nil, errors.Wrap(err, "phastos.database.Connect")
-	}
-
-	maxLifetime := time.Duration(cfg.MaxConnLifetime) * time.Second
-	db.SetConnMaxLifetime(maxLifetime)
-	maxIddleTime := time.Duration(cfg.MaxIdleTime) * time.Second
-	db.SetConnMaxIdleTime(maxIddleTime)
-
-	db.SetMaxOpenConns(cfg.MaxOpenConn)
-	db.SetMaxIdleConns(cfg.MaxIdleConn)
-	return db, nil
 }
 
 func (this *SQL) GetMaster() *sqlx.DB {
