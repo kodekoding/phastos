@@ -74,7 +74,7 @@ func generateConnString(cfg *SQLConfig) {
 			if cfg.Port == "" {
 				cfg.Port = "3306"
 			}
-			strFormat = "%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=true&timeout=30s&readTimeout=30s&writeTimeout=30s"
+			strFormat = "%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=true&timeout=60s&readTimeout=60s&writeTimeout=60s"
 		case "postgres":
 			if cfg.Port == "" {
 				cfg.Port = "5432"
