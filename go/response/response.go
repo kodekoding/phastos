@@ -147,6 +147,10 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 				allNotifPlatform := notif.GetAllPlatform()
 				for _, service := range allNotifPlatform {
 					if service.IsActive() {
+						notifMsg = fmt.Sprintf(`
+							Hi All there's an error: 
+							%s
+						`, notifMsg)
 						if err := service.Send(ctx, notifMsg, nil); err != nil {
 							log.Error("error when send to notifications")
 						}
