@@ -77,15 +77,17 @@ type (
 	SQL struct {
 		Master
 		Follower
-		master   *sqlx.DB
-		follower *sqlx.DB
-		timeout  time.Duration
+		master             *sqlx.DB
+		follower           *sqlx.DB
+		timeout            time.Duration
+		slowQueryThreshold float64
 	}
 
 	SQLs struct {
-		Master   SQLConfig `yaml:"master"`
-		Follower SQLConfig `yaml:"follower"`
-		Timeout  int       `yaml:"timeout"`
+		Master             SQLConfig `yaml:"master"`
+		Follower           SQLConfig `yaml:"follower"`
+		Timeout            int       `yaml:"timeout"`
+		SlowQueryThreshold float64   `yaml:"slow_query_threshold"`
 	}
 
 	SQLConfig struct {
