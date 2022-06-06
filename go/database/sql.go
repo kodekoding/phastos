@@ -23,10 +23,10 @@ import (
 func newSQL(master, follower *sqlx.DB, timeout int, slowThreshold float64) *SQL {
 	sqlTimeOut := 3
 	slowQueryThreshold := float64(1)
-	if timeout == 0 {
+	if timeout > 0 {
 		sqlTimeOut = timeout
 	}
-	if slowThreshold == 0 {
+	if slowThreshold > 0 {
 		slowQueryThreshold = slowThreshold
 	}
 	return &SQL{
@@ -261,7 +261,10 @@ func (this *SQL) checkSQLWarning(ctx context.Context, query string, start time.T
 
 	endSecond := end.Seconds()
 	if endSecond >= this.slowQueryThreshold {
-		warnMessage := fmt.Sprintf("[WARN] SLOW QUERY DETECTED (%.2f): %s", end.Seconds(), query)
+		warnMessage := fmt.Sprintf(`
+			[WARN] SLOW QUERY DETECTED: %s
+			Process Query: %.2fs`, query, end.Seconds(),
+		)
 		log.Printf(warnMessage)
 		notif := context2.GetNotif(ctx)
 		if notif != nil {
