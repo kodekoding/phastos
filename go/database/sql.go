@@ -4,10 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
+
+	context2 "github.com/kodekoding/phastos/go/context"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // import postgre driver
@@ -17,17 +20,22 @@ import (
 	custerr "github.com/kodekoding/phastos/go/error"
 )
 
-func newSQL(master, follower *sqlx.DB, timeout ...int) *SQL {
+func newSQL(master, follower *sqlx.DB, timeout int, slowThreshold float64) *SQL {
 	sqlTimeOut := 3
-	if timeout != nil && len(timeout) > 0 {
-		sqlTimeOut = timeout[0]
+	slowQueryThreshold := float64(1)
+	if timeout == 0 {
+		sqlTimeOut = timeout
+	}
+	if slowThreshold == 0 {
+		slowQueryThreshold = slowThreshold
 	}
 	return &SQL{
-		Master:   master,
-		Follower: follower,
-		master:   master,
-		follower: follower,
-		timeout:  time.Duration(sqlTimeOut) * time.Second,
+		Master:             master,
+		Follower:           follower,
+		master:             master,
+		follower:           follower,
+		timeout:            time.Duration(sqlTimeOut) * time.Second,
+		slowQueryThreshold: slowQueryThreshold,
 	}
 }
 
@@ -43,7 +51,7 @@ func Connect(cfg *SQLs) (*SQL, error) {
 		return nil, errors.Wrap(err, "phastos.database.ConnectFollower")
 	}
 
-	db := newSQL(masterDB, followerDB, cfg.Timeout)
+	db := newSQL(masterDB, followerDB, cfg.Timeout, cfg.SlowQueryThreshold)
 	return db, nil
 }
 
@@ -132,6 +140,7 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	query += addOnQuery
 	query = this.Rebind(query)
 
+	start := time.Now()
 	if opts.IsList {
 		if err = this.Follower.SelectContext(ctx, opts.Result, query, params...); err != nil {
 			_, err = this.sendNilResponse(err, "phastos.database.Read.SelectContext", query, params)
@@ -143,6 +152,9 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 			return err
 		}
 	}
+
+	this.checkSQLWarning(ctx, query, start)
+
 	return nil
 }
 func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, error) {
@@ -204,6 +216,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, erro
 	query = this.Rebind(query)
 
 	trx := opts.Trx
+	start := time.Now()
 	if trx != nil {
 		stmt, err := trx.PrepareContext(ctx, query)
 		if err != nil {
@@ -223,6 +236,8 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, erro
 		}
 	}
 
+	this.checkSQLWarning(ctx, query, start)
+
 	result := new(CUDResponse)
 	lastInsertID, err := exec.LastInsertId()
 	if err == nil {
@@ -239,6 +254,24 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, erro
 
 func (this *SQL) generateParamArgsForLike(data string) string {
 	return fmt.Sprintf("%%%s%%", data)
+}
+
+func (this *SQL) checkSQLWarning(ctx context.Context, query string, start time.Time) {
+	end := time.Since(start)
+
+	endSecond := end.Seconds()
+	if endSecond >= this.slowQueryThreshold {
+		warnMessage := fmt.Sprintf("[WARN] SLOW QUERY DETECTED (%.2f): %s", end.Seconds(), query)
+		log.Printf(warnMessage)
+		notif := context2.GetNotif(ctx)
+		if notif != nil {
+			for _, platform := range notif.GetAllPlatform() {
+				if platform.IsActive() {
+					_ = platform.Send(ctx, warnMessage, nil)
+				}
+			}
+		}
+	}
 }
 
 func (this *SQL) generateAddOnQuery(ctx context.Context, reqData *TableRequest) (string, []interface{}, error) {
