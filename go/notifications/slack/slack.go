@@ -5,13 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
-	"github.com/kodekoding/phastos/go/helper"
+	"github.com/pkg/errors"
+	satoriuuid "github.com/satori/go.uuid"
 )
-
-const strErrDesc = "Error Desciption"
 
 // Service structure
 type (
@@ -56,7 +53,7 @@ func (p *Service) Send(_ context.Context, text string, attachment interface{}) e
 	}
 
 	if p.traceID == "" {
-		p.traceID = helper.GenerateUUIDV4()
+		p.traceID = satoriuuid.NewV4().String()
 	}
 
 	if p.recipient != "" {
