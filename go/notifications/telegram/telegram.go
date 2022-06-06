@@ -2,7 +2,6 @@ package telegram
 
 import (
 	"context"
-	"fmt"
 
 	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/pkg/errors"
@@ -35,9 +34,6 @@ func New(cfg *TelegramConfig) (*Service, error) {
 }
 
 func (s *Service) Send(_ context.Context, text string, attachment interface{}) error {
-	text = fmt.Sprintf(
-		`Hai all, there is an error 
-				%s`, text)
 	newMessage := tbot.NewMessage(s.chatId, text)
 	if _, err := s.bot.Send(newMessage); err != nil {
 		return errors.Wrap(err, "pkg.notifications.telegram.Send")
