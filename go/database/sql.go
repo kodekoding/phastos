@@ -153,7 +153,7 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 		}
 	}
 
-	this.checkSQLWarning(ctx, query, start)
+	this.checkSQLWarning(ctx, query, start, params)
 
 	return nil
 }
@@ -236,7 +236,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, erro
 		}
 	}
 
-	this.checkSQLWarning(ctx, query, start)
+	this.checkSQLWarning(ctx, query, start, data.Values)
 
 	result := new(CUDResponse)
 	lastInsertID, err := exec.LastInsertId()
@@ -256,14 +256,14 @@ func (this *SQL) generateParamArgsForLike(data string) string {
 	return fmt.Sprintf("%%%s%%", data)
 }
 
-func (this *SQL) checkSQLWarning(ctx context.Context, query string, start time.Time) {
+func (this *SQL) checkSQLWarning(ctx context.Context, query string, start time.Time, params ...interface{}) {
 	end := time.Since(start)
 
 	endSecond := end.Seconds()
 	if endSecond >= this.slowQueryThreshold {
 		warnMessage := fmt.Sprintf(`
-			[WARN] SLOW QUERY DETECTED: %s
-			Process Query: %.2fs`, query, end.Seconds(),
+			[WARN] SLOW QUERY DETECTED: %s (%#v)
+			Process Query: %.2fs`, query, params, end.Seconds(),
 		)
 		log.Printf(warnMessage)
 		notif := context2.GetNotif(ctx)
