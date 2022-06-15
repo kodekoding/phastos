@@ -13,6 +13,7 @@ type (
 	Action interface {
 		Send(ctx context.Context, text string, attachment interface{}) error
 		IsActive() bool
+		Type() string
 	}
 
 	Platforms interface {

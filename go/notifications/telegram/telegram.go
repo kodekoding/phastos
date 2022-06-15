@@ -21,6 +21,10 @@ type (
 	}
 )
 
+func (s *Service) Type() string {
+	return "telegram"
+}
+
 func New(cfg *TelegramConfig) (*Service, error) {
 	bot, err := tbot.NewBotAPI(cfg.BotToken)
 	if err != nil {

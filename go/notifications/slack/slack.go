@@ -90,3 +90,7 @@ func (p *Service) Send(_ context.Context, text string, attachment interface{}) e
 func (s *Service) IsActive() bool {
 	return s.isActive
 }
+
+func (s *Service) Type() string {
+	return "slack"
+}
