@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"reflect"
@@ -10,13 +11,15 @@ import (
 	"sync"
 	"time"
 
-	context2 "github.com/kodekoding/phastos/go/context"
+	sgw "github.com/ashwanthkumar/slack-go-webhook"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // import postgre driver
 	"github.com/pkg/errors"
 	_ "gorm.io/driver/mysql" // import mysql driver
 
+	context2 "github.com/kodekoding/phastos/go/context"
+	"github.com/kodekoding/phastos/go/env"
 	custerr "github.com/kodekoding/phastos/go/error"
 )
 
@@ -261,16 +264,48 @@ func (this *SQL) checkSQLWarning(ctx context.Context, query string, start time.T
 
 	endSecond := end.Seconds()
 	if endSecond >= this.slowQueryThreshold {
-		warnMessage := fmt.Sprintf(`
-			[WARN] SLOW QUERY DETECTED: %s (%#v)
-			Process Query: %.2fs`, query, params, end.Seconds(),
+		defaultWarnMsg := fmt.Sprintf(`
+			[WARN] SLOW QUERY DETECTED (%s): %s (%#v)
+			Process Query: %.2fs`, env.ServiceEnv(), query, params, end.Seconds(),
 		)
-		log.Printf(warnMessage)
+		paramsString, _ := json.Marshal(params)
+		log.Printf(defaultWarnMsg)
 		notif := context2.GetNotif(ctx)
 		if notif != nil {
+			var attachment interface{}
+			color := "#e8dd0e"
 			for _, platform := range notif.GetAllPlatform() {
+				attachment = nil
+				newWarnMsg := defaultWarnMsg
+				if platform.Type() == "slack" {
+					slackAttachment := &sgw.Attachment{
+						Color: &color,
+					}
+					newWarnMsg = "SLOW QUERY DETECTED"
+					slackAttachment.
+						AddField(sgw.Field{
+							Title: "Query",
+							Value: query,
+						}).AddField(
+						sgw.Field{
+							Short: true,
+							Title: "Parameter",
+							Value: string(paramsString),
+						}).AddField(
+						sgw.Field{
+							Short: true,
+							Title: "Process Time",
+							Value: fmt.Sprintf("%.2f", endSecond),
+						}).AddField(
+						sgw.Field{
+							Short: true,
+							Title: "Environment",
+							Value: env.ServiceEnv(),
+						})
+					attachment = slackAttachment
+				}
 				if platform.IsActive() {
-					_ = platform.Send(ctx, warnMessage, nil)
+					_ = platform.Send(ctx, newWarnMsg, attachment)
 				}
 			}
 		}
