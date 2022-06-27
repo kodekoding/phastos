@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	"github.com/kodekoding/phastos/go/database"
 )
 
@@ -21,36 +19,30 @@ func NewBaseRead(db *database.SQL, tableName string, isSoftDelete ...bool) *Base
 	return &BaseRead{&baseAction{db, tableName, sofDelete}}
 }
 
-func (b *BaseRead) GetList(ctx context.Context, opts *database.QueryOpts) error {
-	opts.IsList = true
-	if opts.OptionalTableName != "" {
+func (b *BaseRead) getBaseQuery(optionalTableName, baseQuery string) string {
+	if optionalTableName != "" {
 		originalTableName := b.tableName
 		defer func() {
 			b.tableName = originalTableName
 		}()
-		b.tableName = opts.OptionalTableName
+		b.tableName = optionalTableName
 	}
-	if opts.BaseQuery == "" {
-		opts.BaseQuery = fmt.Sprintf("SELECT * FROM %s", b.tableName)
+	newBaseQuery := baseQuery
+	if newBaseQuery == "" {
+		newBaseQuery = fmt.Sprintf("SELECT * FROM %s", b.tableName)
 	}
+	return newBaseQuery
+}
+
+func (b *BaseRead) GetList(ctx context.Context, opts *database.QueryOpts) error {
+	opts.IsList = true
+	opts.BaseQuery = b.getBaseQuery(opts.OptionalTableName, opts.BaseQuery)
 	return b.db.Read(ctx, opts)
 }
 
 // GetDetail - Query Detail with specific Query and return single data
 func (b *BaseRead) GetDetail(ctx context.Context, opts *database.QueryOpts) error {
-	if opts.BaseQuery == "" {
-		return errors.New("base query is empty, please fill baseQuery")
-	}
-
-	if opts.OptionalTableName != "" {
-		tableName := opts.OptionalTableName
-		originalTableName := b.tableName
-		defer func() {
-			b.tableName = originalTableName
-		}()
-		b.tableName = tableName
-	}
-
+	opts.BaseQuery = b.getBaseQuery(opts.OptionalTableName, opts.BaseQuery)
 	return b.db.Read(ctx, opts)
 }
 
@@ -60,16 +52,12 @@ func (b *BaseRead) GetDetailById(ctx context.Context, resultStruct interface{}, 
 		Result: resultStruct,
 	}
 
+	viewName := ""
 	if optionalTableName != nil && len(optionalTableName) > 0 {
-		tableName := optionalTableName[0]
-		originalTableName := b.tableName
-		defer func() {
-			b.tableName = originalTableName
-		}()
-		b.tableName = tableName
+		viewName = optionalTableName[0]
 	}
 
-	opts.BaseQuery = fmt.Sprintf("SELECT * FROM %s WHERE id = ?", b.tableName)
+	opts.BaseQuery = fmt.Sprintf("%s WHERE id = ?", b.getBaseQuery(viewName, ""))
 	return b.db.Read(ctx, opts, id)
 }
 

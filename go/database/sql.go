@@ -109,6 +109,9 @@ func (this *SQL) GetFollower() *sqlx.DB {
 }
 
 func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...interface{}) error {
+	if opts.BaseQuery == "" {
+		return errors.New("Base Query cannot be empty, please defined the base query")
+	}
 	if opts.Result == nil {
 		return errors.New("Result must be assigned")
 	}
