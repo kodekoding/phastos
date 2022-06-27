@@ -39,11 +39,15 @@ func New(cfg *SlackConfig) (*Service, error) {
 
 // Send - Post to Slack
 func (p *Service) Send(_ context.Context, text string, attachment interface{}) error {
-	slackAttachment, valid := attachment.(*sgw.Attachment)
-	if !valid {
-		return errors.New("attachment must be slack-go-webhook attachment struct")
+	var slackAttachment *sgw.Attachment
+	if attachment != nil {
+		var valid bool
+		slackAttachment, valid = attachment.(*sgw.Attachment)
+		if !valid {
+			return errors.New("attachment must be slack-go-webhook attachment struct")
+		}
+		p.attachment = slackAttachment
 	}
-	p.attachment = slackAttachment
 
 	users := "<!here>"
 
