@@ -264,7 +264,7 @@ func panicRecover(r *http.Request, path string) {
 			for _, service := range allNotifPlatform {
 				if service.IsActive() {
 					if err := service.Send(ctx, notifMsg, nil); err != nil {
-						log.Error("error when send to notifications")
+						log.Error("error when send to notifications: %s", err.Error())
 					}
 				}
 
