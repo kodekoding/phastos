@@ -125,6 +125,10 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 				jr.Code = statusCode
 				jr.Message = customErr.Error()
 			}
+			custErrMsgDesc := customErr.GetMessage()
+			if custErrMsgDesc != "" {
+				jr.MessageDesc = custErrMsgDesc
+			}
 			errData, err := json.Marshal(customErr.GetData())
 			if err != nil {
 				log.Error("error when marshal optional data:", err.Error())

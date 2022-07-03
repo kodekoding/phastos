@@ -1,9 +1,10 @@
 package error
 
 type RequestError struct {
-	code int
-	data map[string]interface{}
-	err  error
+	code    int
+	data    map[string]interface{}
+	message string
+	err     error
 }
 
 func New(err error) *RequestError {
@@ -30,4 +31,13 @@ func (re *RequestError) SetCode(code int) *RequestError {
 
 func (re *RequestError) GetCode() int {
 	return re.code
+}
+
+func (re *RequestError) SetMessage(msg string) *RequestError {
+	re.message = msg
+	return re
+}
+
+func (re *RequestError) GetMessage() string {
+	return re.message
 }
