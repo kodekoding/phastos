@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	sgw "github.com/ashwanthkumar/slack-go-webhook"
+
 	"github.com/kodekoding/phastos/go/context"
 
 	"github.com/pkg/errors"
@@ -149,13 +151,43 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 			notif := context.GetNotif(r.Context())
 			if notif != nil {
 				allNotifPlatform := notif.GetAllPlatform()
+				var attachment interface{}
 				for _, service := range allNotifPlatform {
 					if service.IsActive() {
+						attachment = nil
+
 						notifMsg = fmt.Sprintf(`
 							Hi All there's an error: 
 							%s
 						`, notifMsg)
-						if err := service.Send(ctx, notifMsg, nil); err != nil {
+						if service.Type() == "slack" {
+							slackAttachment := new(sgw.Attachment)
+							slackAttachment.
+								AddField(sgw.Field{
+									Title: "Description",
+									Value: usingErr.Error(),
+								}).AddField(
+								sgw.Field{
+									Short: true,
+									Title: "Route Path",
+									Value: r.URL.Path,
+								}).AddField(
+								sgw.Field{
+									Short: true,
+									Title: "Environment",
+									Value: env.ServiceEnv(),
+								})
+
+							if optionalData != "" || optionalData != "{}" {
+								slackAttachment.AddField(sgw.Field{
+									Title: "Optional Data",
+									Value: optionalData,
+								})
+							}
+							attachment = slackAttachment
+							notifMsg = ""
+						}
+						if err := service.Send(ctx, notifMsg, attachment); err != nil {
 							log.Errorf("error when send %s notifications: %s", service.Type(), err.Error())
 						}
 					}
