@@ -36,6 +36,13 @@ type ExportFile struct {
 	Content *bytes.Buffer `json:"-"`
 }
 
+var mapDefaultErrMsg = map[int]string{
+	500: "Internal Server Error",
+	400: "Bad Request",
+	403: "Forbidden Access",
+	401: "Unauthorized",
+}
+
 func NewJSON() *JSON {
 	return &JSON{}
 }
@@ -162,7 +169,14 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 						`, notifMsg)
 						if service.Type() == "slack" {
 							slackAttachment := new(sgw.Attachment)
-							slackAttachment.
+							color := "#ff0e0a"
+							slackAttachment.Color = &color
+							slackAttachment.AddField(
+								sgw.Field{
+									Short: true,
+									Title: "Error Code",
+									Value: fmt.Sprintf("%d", jr.Code),
+								}).
 								AddField(sgw.Field{
 									Title: "Description",
 									Value: usingErr.Error(),
@@ -170,7 +184,7 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 								sgw.Field{
 									Short: true,
 									Title: "Route Path",
-									Value: r.URL.Path,
+									Value: fmt.Sprintf("%s - %s", r.Method, r.URL.Path),
 								}).AddField(
 								sgw.Field{
 									Short: true,
