@@ -37,6 +37,10 @@ func New(cfg *SlackConfig) (*Service, error) {
 	}, nil
 }
 
+func (p *Service) SetTraceId(traceId string) {
+	p.traceID = traceId
+}
+
 // Send - Post to Slack
 func (p *Service) Send(_ context.Context, text string, attachment interface{}) error {
 	var slackAttachment *sgw.Attachment
@@ -91,10 +95,10 @@ func (p *Service) Send(_ context.Context, text string, attachment interface{}) e
 	return nil
 }
 
-func (s *Service) IsActive() bool {
-	return s.isActive
+func (p *Service) IsActive() bool {
+	return p.isActive
 }
 
-func (s *Service) Type() string {
+func (p *Service) Type() string {
 	return "slack"
 }

@@ -12,6 +12,7 @@ type (
 		chatId   int64
 		bot      *tbot.BotAPI
 		isActive bool
+		traceId  string
 	}
 
 	TelegramConfig struct {
@@ -23,6 +24,10 @@ type (
 
 func (s *Service) Type() string {
 	return "telegram"
+}
+
+func (s *Service) SetTraceId(traceId string) {
+	s.traceId = traceId
 }
 
 func New(cfg *TelegramConfig) (*Service, error) {
