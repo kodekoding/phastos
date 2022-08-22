@@ -9,11 +9,10 @@ import (
 	"net/http"
 
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
-
-	"github.com/kodekoding/phastos/go/context"
-
 	"github.com/pkg/errors"
 
+	"github.com/kodekoding/phastos/go/binding"
+	"github.com/kodekoding/phastos/go/context"
 	"github.com/kodekoding/phastos/go/env"
 	cutomerr "github.com/kodekoding/phastos/go/error"
 	"github.com/kodekoding/phastos/go/helper"
@@ -150,10 +149,9 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 		traceId := helper.GenerateUUIDV4()
 		jr.TraceId = traceId
 
-		errMsg := fmt.Sprintf("code %d (%s) - %s: %s", jr.Code, env.ServiceEnv(), r.URL.Path, usingErr.Error())
+		errMsg := fmt.Sprintf(`[%s] code %d (%s) - %s: %s`, traceId, jr.Code, env.ServiceEnv(), r.URL.Path, usingErr.Error())
 		notifMsg := fmt.Sprintf(`%s
-			%s
-			traceID: %s`, errMsg, optionalData, traceId)
+			%s`, errMsg, optionalData)
 		go func() {
 			notif := context.GetNotif(r.Context())
 			if notif != nil {
@@ -168,6 +166,10 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 							%s
 						`, notifMsg)
 						if service.Type() == "slack" {
+							service.SetTraceId(traceId)
+							var bodyRequest map[string]interface{}
+							_ = binding.Bind(r, &bodyRequest)
+							bodyReq, _ := json.Marshal(bodyRequest)
 							slackAttachment := new(sgw.Attachment)
 							color := "#ff0e0a"
 							slackAttachment.Color = &color
@@ -176,8 +178,12 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 									Short: true,
 									Title: "Error Code",
 									Value: fmt.Sprintf("%d", jr.Code),
-								}).
-								AddField(sgw.Field{
+								}).AddField(
+								sgw.Field{
+									Title: "Body Request",
+									Value: string(bodyReq),
+								}).AddField(
+								sgw.Field{
 									Title: "Description",
 									Value: usingErr.Error(),
 								}).AddField(
@@ -192,7 +198,7 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 									Value: env.ServiceEnv(),
 								})
 
-							if optionalData != "" || optionalData != "{}" {
+							if optionalData != "" && optionalData != "{}" {
 								slackAttachment.AddField(sgw.Field{
 									Title: "Optional Data",
 									Value: optionalData,
