@@ -102,6 +102,14 @@ func (jr *JSON) ForbiddenResource(err error) *JSON {
 	return jr
 }
 
+func (jr *JSON) ExpiredToken(err error) *JSON {
+	jr.Message = "Token Expired"
+	jr.MessageDesc = err.Error()
+	jr.Code = 403
+	jr.Error = err
+	return jr
+}
+
 func (jr *JSON) Unauthorized(err error) *JSON {
 	jr.Message = "Unauthorized"
 	jr.MessageDesc = "you're not authorized to access this feature"
