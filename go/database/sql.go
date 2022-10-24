@@ -134,9 +134,9 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 
 	if opts.SelectRequest != nil {
 		var addOnParams []interface{}
-		addOnQuery, addOnParams, err = this.generateAddOnQuery(ctx, opts.SelectRequest)
+		addOnQuery, addOnParams, err = GenerateAddOnQuery(ctx, opts.SelectRequest)
 		if err != nil {
-			_, err = this.sendNilResponse(err, "phastos.database.db.Read.GenerateAddOnQuery", opts.SelectRequest)
+			_, err = sendNilResponse(err, "phastos.database.db.Read.GenerateAddOnQuery", opts.SelectRequest)
 			return err
 		}
 
@@ -149,12 +149,12 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	start := time.Now()
 	if opts.IsList {
 		if err = this.Follower.SelectContext(ctx, opts.Result, query, params...); err != nil {
-			_, err = this.sendNilResponse(err, "phastos.database.Read.SelectContext", query, params)
+			_, err = sendNilResponse(err, "phastos.database.Read.SelectContext", query, params)
 			return err
 		}
 	} else {
 		if err = this.Follower.GetContext(ctx, opts.Result, query, params...); err != nil {
-			_, err = this.sendNilResponse(err, "phastos.database.Read.GetContext", query, params)
+			_, err = sendNilResponse(err, "phastos.database.Read.GetContext", query, params)
 			return err
 		}
 	}
@@ -209,9 +209,9 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, erro
 
 	if opts.SelectRequest != nil {
 		var addOnParams []interface{}
-		addOnQuery, addOnParams, err = this.generateAddOnQuery(ctx, opts.SelectRequest)
+		addOnQuery, addOnParams, err = GenerateAddOnQuery(ctx, opts.SelectRequest)
 		if err != nil {
-			_, err = this.sendNilResponse(err, "phastos.database.db.Write.GenerateAddOnQuery", opts.SelectRequest)
+			_, err = sendNilResponse(err, "phastos.database.db.Write.GenerateAddOnQuery", opts.SelectRequest)
 			return nil, errors.Wrap(err, "")
 		}
 
@@ -226,18 +226,18 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, erro
 	if trx != nil {
 		stmt, err := trx.PrepareContext(ctx, query)
 		if err != nil {
-			_, err = this.sendNilResponse(err, "phastos.database.Write.PrepareContext", query, data.Values)
+			_, err = sendNilResponse(err, "phastos.database.Write.PrepareContext", query, data.Values)
 			return nil, err
 		}
 		exec, err = stmt.ExecContext(ctx, data.Values...)
 		if err != nil {
-			_, err = this.sendNilResponse(err, "phastos.database.Write.ExecContext", query, data.Values)
+			_, err = sendNilResponse(err, "phastos.database.Write.ExecContext", query, data.Values)
 			return nil, err
 		}
 	} else {
 		exec, err = this.Master.ExecContext(ctx, query, data.Values...)
 		if err != nil {
-			_, err = this.sendNilResponse(err, "phastos.database.Write.WithoutTrx.ExecContext", query, data.Values)
+			_, err = sendNilResponse(err, "phastos.database.Write.WithoutTrx.ExecContext", query, data.Values)
 			return nil, err
 		}
 	}
@@ -258,7 +258,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, erro
 	return result, nil
 }
 
-func (this *SQL) generateParamArgsForLike(data string) string {
+func generateParamArgsForLike(data string) string {
 	return fmt.Sprintf("%%%s%%", data)
 }
 
@@ -315,20 +315,20 @@ func (this *SQL) checkSQLWarning(ctx context.Context, query string, start time.T
 	}
 }
 
-func (this *SQL) generateAddOnQuery(ctx context.Context, reqData *TableRequest) (string, []interface{}, error) {
+func GenerateAddOnQuery(ctx context.Context, reqData *TableRequest) (string, []interface{}, error) {
 	// tracing
 	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-GenerateAddOnQuery")
 	//defer trc.Finish()
 	var addOnBuilder strings.Builder
 	var addOnParams []interface{}
 
-	this.checkInitiateWhere(ctx, reqData, &addOnBuilder, &addOnParams)
-	err := this.checkKeyword(ctx, reqData, &addOnBuilder, &addOnParams)
+	checkInitiateWhere(ctx, reqData, &addOnBuilder, &addOnParams)
+	err := checkKeyword(ctx, reqData, &addOnBuilder, &addOnParams)
 	if err != nil {
 		return "", nil, err
 	}
 
-	this.checkCreatedDateParam(ctx, reqData, &addOnBuilder, &addOnParams)
+	checkCreatedDateParam(ctx, reqData, &addOnBuilder, &addOnParams)
 
 	if addOnBuilder.String() != "" {
 		whereString := fmt.Sprintf("WHERE %s", addOnBuilder.String())
@@ -338,7 +338,7 @@ func (this *SQL) generateAddOnQuery(ctx context.Context, reqData *TableRequest) 
 	if reqData.GroupBy != "" {
 		addOnBuilder.WriteString(fmt.Sprintf(" GROUP BY %s", reqData.GroupBy))
 	}
-	this.checkSortParam(ctx, reqData, &addOnBuilder)
+	checkSortParam(ctx, reqData, &addOnBuilder)
 
 	if reqData.Page > 0 && reqData.Limit > 0 {
 		offset := (reqData.Page - 1) * reqData.Limit
@@ -351,7 +351,7 @@ func (this *SQL) generateAddOnQuery(ctx context.Context, reqData *TableRequest) 
 	return whereResult, addOnParams, nil
 }
 
-func (this *SQL) checkKeyword(_ context.Context, reqData *TableRequest, addOnBuilder *strings.Builder, addOnParams *[]interface{}) error {
+func checkKeyword(_ context.Context, reqData *TableRequest, addOnBuilder *strings.Builder, addOnParams *[]interface{}) error {
 	// tracing
 	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-checkKeyword")
 	//defer trc.Finish()
@@ -371,7 +371,7 @@ func (this *SQL) checkKeyword(_ context.Context, reqData *TableRequest, addOnBui
 			go func(column string, mutex *sync.Mutex, wait *sync.WaitGroup) {
 				mutex.Lock()
 				addOnBuilder.WriteString(fmt.Sprintf("%s LIKE ? OR ", column))
-				*addOnParams = append(*addOnParams, this.generateParamArgsForLike(reqData.Keyword))
+				*addOnParams = append(*addOnParams, generateParamArgsForLike(reqData.Keyword))
 				mutex.Unlock()
 				wait.Done()
 			}(col, mtx, wg)
@@ -382,7 +382,7 @@ func (this *SQL) checkKeyword(_ context.Context, reqData *TableRequest, addOnBui
 	return nil
 }
 
-func (this *SQL) checkSortParam(_ context.Context, reqData *TableRequest, addOnBuilder *strings.Builder) {
+func checkSortParam(_ context.Context, reqData *TableRequest, addOnBuilder *strings.Builder) {
 	// tracing
 	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-checkSortParam")
 	//defer trc.Finish()
@@ -391,7 +391,7 @@ func (this *SQL) checkSortParam(_ context.Context, reqData *TableRequest, addOnB
 	}
 }
 
-func (this *SQL) checkCreatedDateParam(_ context.Context, reqData *TableRequest, addOnBuilder *strings.Builder, addOnParams *[]interface{}) {
+func checkCreatedDateParam(_ context.Context, reqData *TableRequest, addOnBuilder *strings.Builder, addOnParams *[]interface{}) {
 	// tracing
 	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-checkCreatedDateParam")
 	//defer trc.Finish()
@@ -445,7 +445,7 @@ func (this *SQL) checkCreatedDateParam(_ context.Context, reqData *TableRequest,
 	}
 }
 
-func (this *SQL) checkInitiateWhere(_ context.Context, reqData *TableRequest, addOnBuilder *strings.Builder, addOnParams *[]interface{}) {
+func checkInitiateWhere(_ context.Context, reqData *TableRequest, addOnBuilder *strings.Builder, addOnParams *[]interface{}) {
 	// tracing
 	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-checkInitiateWhere")
 	//defer trc.Finish()
@@ -462,7 +462,7 @@ func (this *SQL) checkInitiateWhere(_ context.Context, reqData *TableRequest, ad
 	}
 }
 
-func (this *SQL) sendNilResponse(err error, ctxMsg string, params ...interface{}) (interface{}, error) {
+func sendNilResponse(err error, ctxMsg string, params ...interface{}) (interface{}, error) {
 	if strings.Contains(err.Error(), "no rows") {
 		// return nil for result struct if no rows
 		return nil, nil
