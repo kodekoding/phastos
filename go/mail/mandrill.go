@@ -13,21 +13,27 @@ type (
 		SetTextContent(subject, textContent string) Mandrills
 		SetGlobalMergeVars(data map[string]interface{}) Mandrills
 		SetTemplate(templateName string, templateContent map[string]string) Mandrills
+		SetEmailFrom(emailFrom string) Mandrills
+		SetFromName(fromName string) Mandrills
 		Send() error
 	}
 
 	Mandrill struct {
-		client          *mandrill.Client
-		recipient       []string
-		message         *mandrill.Message
-		templateName    string
-		templateContent map[string]string
+		client           *mandrill.Client
+		recipient        []string
+		message          *mandrill.Message
+		templateName     string
+		templateContent  map[string]string
+		defaultEmailFrom string
+		defaultFromName  string
 		*MailConfig
 	}
 )
 
 func NewMandrill(opts *MailConfig) Mandrills {
 	obj := &Mandrill{MailConfig: opts}
+	obj.defaultEmailFrom = opts.EmailFrom
+	obj.defaultFromName = opts.FromName
 	obj.reset()
 	return obj
 }
@@ -36,8 +42,8 @@ func (m *Mandrill) reset() {
 
 	m.client = mandrill.ClientWithKey(m.SecretKey)
 	msg := &mandrill.Message{}
-	msg.FromEmail = m.EmailFrom
-	msg.FromName = m.FromName
+	msg.FromEmail = m.defaultEmailFrom
+	msg.FromName = m.defaultFromName
 	msg.To = nil
 	m.templateName = ""
 	m.templateContent = nil
@@ -46,6 +52,16 @@ func (m *Mandrill) reset() {
 
 func (m *Mandrill) AddRecipient(recipientEmail, recipientName string) Mandrills {
 	m.message.AddRecipient(recipientEmail, recipientName, "to")
+	return m
+}
+
+func (m *Mandrill) SetEmailFrom(emailFrom string) Mandrills {
+	m.message.FromEmail = emailFrom
+	return m
+}
+
+func (m *Mandrill) SetFromName(fromName string) Mandrills {
+	m.message.FromName = fromName
 	return m
 }
 
