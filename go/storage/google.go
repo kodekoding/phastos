@@ -15,7 +15,13 @@ import (
 )
 
 type google struct {
-	client *storage.BucketHandle
+	client       *storage.BucketHandle
+	imageExpTime int
+}
+
+func (g *google) SetFileExpiredTime(minutes int) Buckets {
+	g.imageExpTime = minutes
+	return g
 }
 
 func NewGCS(ctx context.Context, bucketName string) (Buckets, error) {
@@ -41,7 +47,7 @@ func (g *google) UploadImageFromLocalPath(ctx context.Context, filePath string, 
 	}
 	defer func() {
 		_ = file.Close()
-		_ = os.Remove(filePath)
+		_ = os.RemoveAll(filePath)
 	}()
 
 	return g.uploadProcess(ctx, file, fileName, "img")
@@ -54,7 +60,7 @@ func (g *google) UploadFileFromLocalPath(ctx context.Context, filePath string, f
 	}
 	defer func() {
 		_ = file.Close()
-		_ = os.Remove(filePath)
+		_ = os.RemoveAll(filePath)
 	}()
 
 	return g.uploadProcess(ctx, file, fileName, "file")
@@ -82,10 +88,15 @@ func (g *google) GetFile(ctx context.Context, imgPath string) (signedUrl string,
 	ctx, cancel := context.WithTimeout(ctx, time.Second*60)
 	defer cancel()
 
+	imgExpiredTime := 60
+	if g.imageExpTime != 0 {
+		imgExpiredTime = g.imageExpTime
+	}
+
 	opts := &storage.SignedURLOptions{
 		Scheme:  storage.SigningSchemeV4,
 		Method:  "GET",
-		Expires: time.Now().Add(15 * time.Minute),
+		Expires: time.Now().Add(time.Duration(imgExpiredTime) * time.Minute),
 	}
 
 	signedUrl, err = g.client.SignedURL(imgPath, opts)
