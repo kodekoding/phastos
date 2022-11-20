@@ -8,8 +8,6 @@ import (
 
 type Transactions interface {
 	Begin() (*sql.Tx, error)
-	Commit(tx *sql.Tx)
-	Rollback(tx *sql.Tx)
 	Finish(tx *sql.Tx, errTransaction error)
 }
 
@@ -23,14 +21,6 @@ func NewTransaction(db *sqlx.DB) *Transaction {
 
 func (t *Transaction) Begin() (*sql.Tx, error) {
 	return t.db.Begin()
-}
-
-func (t *Transaction) Commit(tx *sql.Tx) {
-	_ = tx.Commit()
-}
-
-func (t *Transaction) Rollback(tx *sql.Tx) {
-	_ = tx.Rollback()
 }
 
 func (t *Transaction) Finish(tx *sql.Tx, errTransaction error) {
