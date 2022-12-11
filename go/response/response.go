@@ -174,6 +174,10 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 							%s
 						`, notifMsg)
 						if service.Type() == "slack" {
+							channelDestination := context.GetNotifDestination(r.Context())
+							if channelDestination != "" {
+								service.SetDestination(channelDestination)
+							}
 							service.SetTraceId(traceId)
 							var bodyRequest map[string]interface{}
 							_ = binding.Bind(r, &bodyRequest)

@@ -8,7 +8,8 @@ import (
 )
 
 type (
-	notifPlatformContext struct{}
+	notifPlatformContext    struct{}
+	notifDestinationContext struct{}
 )
 
 func SetNotif(req *http.Request, slack notifications.Platforms) {
@@ -20,6 +21,19 @@ func GetNotif(ctx context.Context) notifications.Platforms {
 	notifPlatform, valid := ctx.Value(notifPlatformContext{}).(notifications.Platforms)
 	if !valid {
 		return nil
+	}
+	return notifPlatform
+}
+
+func SetNotifDestination(req *http.Request, destination string) {
+	ctx := context.WithValue(req.Context(), notifDestinationContext{}, destination)
+	*req = *req.WithContext(ctx)
+}
+
+func GetNotifDestination(ctx context.Context) string {
+	notifPlatform, valid := ctx.Value(notifDestinationContext{}).(string)
+	if !valid {
+		return ""
 	}
 	return notifPlatform
 }
