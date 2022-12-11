@@ -21,7 +21,6 @@ require (
 	github.com/rs/xid v1.3.0
 	github.com/rs/zerolog v1.26.1
 	github.com/satori/go.uuid v1.2.0
-	github.com/slack-go/slack v0.11.4
 	github.com/stretchr/testify v1.7.0
 	github.com/volatiletech/null v8.0.0+incompatible
 	github.com/yeqown/go-qrcode v1.5.10
@@ -45,7 +44,6 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.7 // indirect
 	github.com/googleapis/gax-go/v2 v2.1.1 // indirect
-	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.4 // indirect
 	github.com/kr/text v0.2.0 // indirect
