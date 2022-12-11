@@ -3,6 +3,7 @@ package slack
 import (
 	"context"
 	"fmt"
+	"github.com/kodekoding/phastos/go/notifications"
 	"strings"
 
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
@@ -14,6 +15,7 @@ import (
 type (
 	Service struct {
 		url        string
+		defaultURL string
 		attachment *sgw.Attachment
 		message    string
 		traceID    string
@@ -27,22 +29,39 @@ type (
 	}
 )
 
+func (p *Service) SetDestination(destination interface{}) notifications.Action {
+	channelDestionation, valid := destination.(string)
+	if !valid {
+		return nil
+	}
+
+	p.url = channelDestionation
+	return p
+}
+
+func (p *Service) resetURL() {
+	p.url = p.defaultURL
+}
+
 var sendSlack = sgw.Send
 
 // New instance of Slack Service
 func New(cfg *SlackConfig) (*Service, error) {
 	return &Service{
-		url:      cfg.URL,
-		isActive: cfg.IsActive,
+		url:        cfg.URL,
+		defaultURL: cfg.URL,
+		isActive:   cfg.IsActive,
 	}, nil
 }
 
-func (p *Service) SetTraceId(traceId string) {
+func (p *Service) SetTraceId(traceId string) notifications.Action {
 	p.traceID = traceId
+	return p
 }
 
 // Send - Post to Slack
 func (p *Service) Send(_ context.Context, text string, attachment interface{}) error {
+	defer p.resetURL()
 	var slackAttachment *sgw.Attachment
 	if attachment != nil {
 		var valid bool
