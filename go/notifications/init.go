@@ -14,8 +14,8 @@ type (
 		Send(ctx context.Context, text string, attachment interface{}) error
 		IsActive() bool
 		Type() string
-		SetTraceId(traceId string) Action
-		SetDestination(destination interface{}) Action
+		SetTraceId(traceId string)
+		SetDestination(destination interface{})
 	}
 
 	Platforms interface {

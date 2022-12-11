@@ -46,7 +46,6 @@ func (g *google) UploadImageFromLocalPath(ctx context.Context, filePath string, 
 		return errors.Wrap(err, "phastos.go.storage.google.Upload.Copy")
 	}
 	defer func() {
-		_ = file.Close()
 		_ = os.RemoveAll(filePath)
 	}()
 
@@ -59,7 +58,6 @@ func (g *google) UploadFileFromLocalPath(ctx context.Context, filePath string, f
 		return errors.Wrap(err, "phastos.go.storage.google.Upload.Copy")
 	}
 	defer func() {
-		_ = file.Close()
 		_ = os.RemoveAll(filePath)
 	}()
 

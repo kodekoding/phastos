@@ -2,8 +2,6 @@ package telegram
 
 import (
 	"context"
-	"github.com/kodekoding/phastos/go/notifications"
-
 	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/pkg/errors"
 )
@@ -24,14 +22,8 @@ type (
 	}
 )
 
-func (s *Service) SetDestination(destination interface{}) notifications.Action {
-	newChatId, valid := destination.(int64)
-	if !valid {
-		return nil
-	}
-
-	s.chatId = newChatId
-	return s
+func (s *Service) SetDestination(destination interface{}) {
+	s.chatId = destination.(int64)
 }
 
 func (s *Service) resetChatId() {
@@ -42,9 +34,8 @@ func (s *Service) Type() string {
 	return "telegram"
 }
 
-func (s *Service) SetTraceId(traceId string) notifications.Action {
+func (s *Service) SetTraceId(traceId string) {
 	s.traceId = traceId
-	return s
 }
 
 func New(cfg *TelegramConfig) (*Service, error) {
