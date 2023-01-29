@@ -165,20 +165,20 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 			if notif != nil {
 				allNotifPlatform := notif.GetAllPlatform()
 				var attachment interface{}
-				for _, service := range allNotifPlatform {
-					if service.IsActive() {
+				for _, platform := range allNotifPlatform {
+					if platform.IsActive() {
 						attachment = nil
 
 						notifMsg = fmt.Sprintf(`
 							Hi All there's an error: 
 							%s
 						`, notifMsg)
-						if service.Type() == "slack" {
+						if platform.Type() == "slack" {
 							channelDestination := context.GetNotifDestination(r.Context())
-							if channelDestination != "" {
-								service.SetDestination(channelDestination)
+							if channelDestination != "" && env.IsProduction() {
+								platform.SetDestination(channelDestination)
 							}
-							service.SetTraceId(traceId)
+							platform.SetTraceId(traceId)
 							var bodyRequest map[string]interface{}
 							_ = binding.Bind(r, &bodyRequest)
 							bodyReq, _ := json.Marshal(bodyRequest)
@@ -219,8 +219,8 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 							attachment = slackAttachment
 							notifMsg = ""
 						}
-						if err := service.Send(ctx, notifMsg, attachment); err != nil {
-							log.Errorf("error when send %s notifications: %s", service.Type(), err.Error())
+						if err := platform.Send(ctx, notifMsg, attachment); err != nil {
+							log.Errorf("error when send %s notifications: %s", platform.Type(), err.Error())
 						}
 					}
 				}
