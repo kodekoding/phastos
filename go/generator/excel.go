@@ -13,6 +13,7 @@ import (
 type Excels interface {
 	SetFileName(fileName string) Excels
 	GetExcelFile() *excelize.File
+	Error() error
 	SetSheetName(sheetName string) Excels
 	AppendDataRow(data []string) Excels
 	SetHeader(data []string) Excels
@@ -153,6 +154,10 @@ func (c *excel) Generate() error {
 
 func (c *excel) GetMergeCell(sheetName string) ([]excelize.MergeCell, error) {
 	return c.excelFile.GetMergeCells(sheetName)
+}
+
+func (c *excel) Error() error {
+	return c.err
 }
 
 func (c *excel) ScanContentToStruct(sheetName string, destinationStruct interface{}) error {
