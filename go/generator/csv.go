@@ -1,7 +1,7 @@
 package generator
 
 import (
-	"encoding/csv"
+	csvpkg "encoding/csv"
 	"fmt"
 	"os"
 
@@ -15,7 +15,7 @@ type CSVs interface {
 	Generate() error
 }
 
-type CSV struct {
+type csv struct {
 	content  [][]string
 	fileName string
 	err      error
@@ -23,18 +23,18 @@ type CSV struct {
 
 // New - to initialize CSV struct object
 // fileName: by default should be "generated-csv.csv"
-func NewCSV() *CSV {
-	return &CSV{
+func NewCSV() *csv {
+	return &csv{
 		fileName: "generated-csv.csv",
 	}
 }
 
-func (c *CSV) SetFileName(fileName string) CSVs {
+func (c *csv) SetFileName(fileName string) CSVs {
 	c.fileName = fmt.Sprintf("%s.csv", fileName)
 	return c
 }
 
-func (c *CSV) AppendDataRow(data []string) CSVs {
+func (c *csv) AppendDataRow(data []string) CSVs {
 	if c.content != nil && len(c.content) > 0 {
 		totalColumnExisting := len(c.content[0])
 		totalColumnData := len(data)
@@ -46,7 +46,7 @@ func (c *CSV) AppendDataRow(data []string) CSVs {
 	return c
 }
 
-func (c *CSV) SetHeader(data []string) CSVs {
+func (c *csv) SetHeader(data []string) CSVs {
 	if c.content != nil && len(c.content) > 0 {
 		totalColumnExisting := len(c.content[0])
 		totalColumnData := len(data)
@@ -58,7 +58,7 @@ func (c *CSV) SetHeader(data []string) CSVs {
 	return c
 }
 
-func (c *CSV) Generate() error {
+func (c *csv) Generate() error {
 	if c.err != nil {
 		return c.err
 	}
@@ -67,7 +67,7 @@ func (c *CSV) Generate() error {
 		return errors.Wrap(err, "phastos.go.generator.csv.Generate.CreateCSVFile")
 	}
 
-	csvWriter := csv.NewWriter(csvNewFile)
+	csvWriter := csvpkg.NewWriter(csvNewFile)
 	defer csvWriter.Flush()
 	if err = csvWriter.WriteAll(c.content); err != nil {
 		return errors.Wrap(err, "phastos.go.generator.csv.Generate.WriteAllContent")
