@@ -19,4 +19,5 @@ type Buckets interface {
 	DeleteFile(ctx context.Context, fileName string) error
 
 	CopyFileToAnotherBucket(ctx context.Context, destBucket, fileName string) error
+	Close()
 }

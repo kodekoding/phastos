@@ -33,6 +33,10 @@ func NewGCS(ctx context.Context, bucketName string) (Buckets, error) {
 	return &google{client: gcsClient, bucket: gcsClient.Bucket(bucketName)}, nil
 }
 
+func (g *google) Close() {
+	_ = g.client.Close()
+}
+
 func (g *google) UploadImage(ctx context.Context, file multipart.File, fileName *string) error {
 	return g.uploadProcess(ctx, file, fileName, "img")
 }
