@@ -120,3 +120,16 @@ func (g *google) DeleteFile(ctx context.Context, fileName string) error {
 	}
 	return nil
 }
+
+func (g *google) CopyFileToAnotherBucket(ctx context.Context, destBucket, fileName string) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+
+	src := g.bucket.Object(fileName)
+	dst := g.client.Bucket(destBucket).Object(fileName).If(storage.Conditions{DoesNotExist: true})
+
+	if _, err := dst.CopierFrom(src).Run(ctx); err != nil {
+		return errors.Wrap(err, "phastos.go.storage.google.CopyFileToAnotherBucket")
+	}
+	return nil
+}
