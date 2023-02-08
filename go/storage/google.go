@@ -37,6 +37,12 @@ func (g *google) Close() {
 	_ = g.client.Close()
 }
 
+// SetBucketName - to update/change the initial bucket name
+func (g *google) SetBucketName(fileName string) Buckets {
+	g.bucket = g.client.Bucket(fileName)
+	return g
+}
+
 func (g *google) UploadImage(ctx context.Context, file multipart.File, fileName *string) error {
 	return g.uploadProcess(ctx, file, fileName, "img")
 }
