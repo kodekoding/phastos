@@ -15,7 +15,8 @@ import (
 )
 
 type google struct {
-	client       *storage.BucketHandle
+	client       *storage.Client
+	bucket       *storage.BucketHandle
 	imageExpTime int
 }
 
@@ -29,7 +30,7 @@ func NewGCS(ctx context.Context, bucketName string) (Buckets, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "phastos.go.storage.google.NewGCS.NewClient")
 	}
-	return &google{client: gcsClient.Bucket(bucketName)}, nil
+	return &google{client: gcsClient, bucket: gcsClient.Bucket(bucketName)}, nil
 }
 
 func (g *google) UploadImage(ctx context.Context, file multipart.File, fileName *string) error {
@@ -70,7 +71,7 @@ func (g *google) uploadProcess(ctx context.Context, file multipart.File, fileNam
 
 	currentEnv := env.ServiceEnv()
 	*fileName = fmt.Sprintf("%s/%s/%s", fileType, currentEnv, *fileName)
-	writer := g.client.Object(*fileName).NewWriter(ctx)
+	writer := g.bucket.Object(*fileName).NewWriter(ctx)
 	if _, err := io.Copy(writer, file); err != nil {
 		return errors.Wrap(err, "phastos.go.storage.google.Upload.Copy")
 	}
@@ -97,7 +98,7 @@ func (g *google) GetFile(ctx context.Context, imgPath string) (signedUrl string,
 		Expires: time.Now().Add(time.Duration(imgExpiredTime) * time.Minute),
 	}
 
-	signedUrl, err = g.client.SignedURL(imgPath, opts)
+	signedUrl, err = g.bucket.SignedURL(imgPath, opts)
 	if err != nil {
 		err = errors.Wrap(err, "pkg.uti.storage.google.GetFile.GetSignedURL")
 		return
@@ -114,7 +115,7 @@ func (g *google) DeleteFile(ctx context.Context, fileName string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*60)
 	defer cancel()
 
-	if err := g.client.Object(fileName).Delete(ctx); err != nil {
+	if err := g.bucket.Object(fileName).Delete(ctx); err != nil {
 		return errors.Wrap(err, "phastos.go.storage.google.DeleteObject")
 	}
 	return nil
