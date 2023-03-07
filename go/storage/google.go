@@ -18,6 +18,7 @@ type google struct {
 	client       *storage.Client
 	bucket       *storage.BucketHandle
 	imageExpTime int
+	contentType  string
 }
 
 func (g *google) SetFileExpiredTime(minutes int) Buckets {
@@ -35,6 +36,11 @@ func NewGCS(ctx context.Context, bucketName string) (Buckets, error) {
 
 func (g *google) Close() {
 	_ = g.client.Close()
+}
+
+func (g *google) SetContentType(contentType string) Buckets {
+	g.contentType = contentType
+	return g
 }
 
 // SetBucketName - to update/change the initial bucket name
@@ -82,6 +88,10 @@ func (g *google) uploadProcess(ctx context.Context, file multipart.File, fileNam
 	currentEnv := env.ServiceEnv()
 	*fileName = fmt.Sprintf("%s/%s/%s", fileType, currentEnv, *fileName)
 	writer := g.bucket.Object(*fileName).NewWriter(ctx)
+
+	if g.contentType != "" {
+		writer.ContentType = g.contentType
+	}
 	if _, err := io.Copy(writer, file); err != nil {
 		return errors.Wrap(err, "phastos.go.storage.google.Upload.Copy")
 	}

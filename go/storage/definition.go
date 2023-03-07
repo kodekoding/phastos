@@ -15,6 +15,7 @@ type Buckets interface {
 	GetFile(ctx context.Context, imgPath string) (base64Result string, err error)
 	SetFileExpiredTime(minutes int) Buckets
 	SetBucketName(fileName string) Buckets
+	SetContentType(contentType string) Buckets
 
 	RollbackProcess(ctx context.Context, fileName string) error
 	DeleteFile(ctx context.Context, fileName string) error
