@@ -10,5 +10,5 @@ var (
 )
 
 const (
-	APPS_ENV = "APPS_ENV"
+	AppsEnv = "APPS_ENV"
 )

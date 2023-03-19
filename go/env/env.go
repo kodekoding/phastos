@@ -22,7 +22,7 @@ const (
 
 // Env related var
 var (
-	envName   = common.APPS_ENV
+	envName   = common.AppsEnv
 	goVersion string
 )
 
