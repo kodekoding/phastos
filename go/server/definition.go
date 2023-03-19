@@ -22,10 +22,11 @@ type (
 	}
 
 	Config struct {
-		Port          int `yaml:"port"`
-		ReadTimeout   int `yaml:"read_timeout"`
-		WriteTimeout  int `yaml:"write_timeout"`
-		MaxHeaderByte int `yaml:"max_header_byte"`
+		Port          int    `yaml:"port"`
+		ReadTimeout   int    `yaml:"read_timeout"`
+		WriteTimeout  int    `yaml:"write_timeout"`
+		MaxHeaderByte int    `yaml:"max_header_byte"`
+		Environment   string `yaml:"environment"`
 		Handler       http.Handler
 		CertFile      string
 		KeyFile       string
