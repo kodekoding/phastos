@@ -44,28 +44,24 @@ func New(config *Config) *Platform {
 		listOfPlatform  []Action
 	)
 
-	if config.Telegram != nil {
+	if config.Telegram != nil && config.Telegram.IsActive {
 		telegramService, err = telegram.New(config.Telegram)
 		if err != nil {
 			log.Error("Telegram Cannot be up, because: ", err.Error())
 			return nil
 		}
 		listOfPlatform = append(listOfPlatform, telegramService)
-		if config.Telegram.IsActive {
-			_log.Println("Telegram is up")
-		}
+		_log.Println("Telegram is up")
 	}
 
-	if config.Slack != nil {
+	if config.Slack != nil && config.Slack.IsActive {
 		slackService, err = slack.New(config.Slack)
 		if err != nil {
 			log.Error("Slack Cannot be up, because: ", err.Error())
 			return nil
 		}
 		listOfPlatform = append(listOfPlatform, slackService)
-		if config.Slack.IsActive {
-			_log.Println("Slack is up")
-		}
+		_log.Println("Slack is up")
 	}
 	return &Platform{
 		telegram: telegramService,
