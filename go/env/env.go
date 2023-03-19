@@ -2,7 +2,6 @@ package env
 
 import (
 	"bufio"
-	"github.com/kodekoding/phastos/go/common"
 	"log"
 	"os"
 	"runtime"
@@ -22,7 +21,7 @@ const (
 
 // Env related var
 var (
-	envName   = common.AppsEnv
+	Name      = "APPS_ENV"
 	goVersion string
 )
 
@@ -65,7 +64,7 @@ func SetFromEnvFile(filepath string) error {
 
 // ServiceEnv return ServiceENV service environment
 func ServiceEnv() ServiceNameEnv {
-	e := os.Getenv(envName)
+	e := os.Getenv(Name)
 	if e == "" {
 		e = DevelopmentEnv
 	}
