@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/kodekoding/phastos/go/env"
 	"log"
 	"net"
 	"net/http"
@@ -75,7 +74,7 @@ func serveHTTPs(config *Config, secure bool) error {
 	if secure {
 		protocol += "s"
 	}
-	log.Printf("%s Server %s is running on %s", protocol, env.ServiceEnv(), listenPort)
+	log.Printf("%s Server %s is running on %s", protocol, config.Environment, listenPort)
 
 	<-sign
 
