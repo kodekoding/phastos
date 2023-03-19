@@ -196,6 +196,10 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 									Value: string(bodyReq),
 								}).AddField(
 								sgw.Field{
+									Title: "Referer",
+									Value: r.Referer(),
+								}).AddField(
+								sgw.Field{
 									Title: "Description",
 									Value: usingErr.Error(),
 								}).AddField(
@@ -219,8 +223,10 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 							attachment = slackAttachment
 							notifMsg = ""
 						}
-						if err := platform.Send(ctx, notifMsg, attachment); err != nil {
-							log.Errorf("error when send %s notifications: %s", platform.Type(), err.Error())
+						if jr.Code == 500 {
+							if err := platform.Send(ctx, notifMsg, attachment); err != nil {
+								log.Errorf("error when send %s notifications: %s", platform.Type(), err.Error())
+							}
 						}
 					}
 				}
