@@ -8,3 +8,7 @@ var (
 	ErrIdMustNumeric       = errors.New("ID must be defined as number")
 	ErrPatch               = errors.New("error patch")
 )
+
+const (
+	APPS_ENV = "APPS_ENV"
+)

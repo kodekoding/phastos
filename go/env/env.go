@@ -2,6 +2,7 @@ package env
 
 import (
 	"bufio"
+	"github.com/kodekoding/phastos/go/common"
 	"log"
 	"os"
 	"runtime"
@@ -21,12 +22,12 @@ const (
 
 // Env related var
 var (
-	envName   = "APPS_ENV"
+	envName   = common.APPS_ENV
 	goVersion string
 )
 
 func init() {
-	// env package will read .env file when applicatino is started
+	// env package will read .env file when application is started
 	err := SetFromEnvFile(".env")
 	if err != nil && !os.IsNotExist(err) {
 		log.Printf("failed to set env file: %v\n", err)
@@ -66,7 +67,7 @@ func SetFromEnvFile(filepath string) error {
 func ServiceEnv() ServiceNameEnv {
 	e := os.Getenv(envName)
 	if e == "" {
-		e = LocalEnv
+		e = DevelopmentEnv
 	}
 	return e
 }
