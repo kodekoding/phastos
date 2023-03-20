@@ -2,11 +2,15 @@ package generator
 
 import (
 	"github.com/golang/freetype"
+	"github.com/pkg/errors"
 	"image"
 	"image/color"
 	"image/draw"
+	"image/jpeg"
+	"image/png"
 	"log"
 	"os"
+	"strings"
 )
 
 type (
@@ -14,7 +18,7 @@ type (
 		SetBgColor(colorParam color.Color) Banners
 		AddImageLayer(img *ImageLayer) Banners
 		AddLabel(labelText *Label) Banners
-		Generate() (*image.RGBA, error)
+		Generate(savePath string) error
 	}
 
 	Banner struct {
@@ -74,7 +78,7 @@ func (b *Banner) AddLabel(labelText *Label) Banners {
 	return b
 }
 
-func (b *Banner) Generate() (*image.RGBA, error) {
+func (b *Banner) Generate(savePath string) error {
 	//create image's background
 	bgImg := image.NewRGBA(image.Rect(0, 0, b.Width, b.Length))
 
@@ -93,10 +97,33 @@ func (b *Banner) Generate() (*image.RGBA, error) {
 	//add label(s)
 	bgImg, err := b.addLabel(bgImg, b.label)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return bgImg, nil
+	newFile, err := os.Create(savePath)
+	if err != nil {
+		return errors.Wrap(err, "phastos.go.generator.banner.Generate.CreateNewFile")
+	}
+
+	splitSavePath := strings.Split(savePath, ".")
+	saveFileExt := splitSavePath[len(splitSavePath)-1]
+	switch saveFileExt {
+	case "png":
+		if err = png.Encode(newFile, bgImg); err != nil {
+			return errors.Wrap(err, "phastos.go.generator.banner.Generate.EncodeToPNG")
+		}
+	case "jpg", "jpeg":
+		var opt jpeg.Options
+		opt.Quality = 80
+
+		if err = jpeg.Encode(newFile, bgImg, &opt); err != nil {
+			return errors.Wrap(err, "phastos.go.generator.banner.Generate.EncodeToJPEG")
+		}
+	default:
+		return errors.Wrap(errors.New("file extensions isn't support yet"), "phastos.go.generator.banner.Generate.NewFileExtensionCheck")
+	}
+
+	return nil
 }
 
 func (b *Banner) addLabel(img *image.RGBA, labels []*Label) (*image.RGBA, error) {
