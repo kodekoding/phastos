@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go/storage v1.21.0
 	github.com/SebastiaanKlippert/go-wkhtmltopdf v1.7.2
 	github.com/ashwanthkumar/slack-go-webhook v0.0.0-20200209025033-430dd4e66960
+	github.com/disintegration/imaging v1.6.2
 	github.com/go-chi/chi v1.5.4
 	github.com/go-chi/cors v1.2.0
 	github.com/go-playground/validator v9.31.0+incompatible

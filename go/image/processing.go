@@ -1,7 +1,7 @@
 package image
 
 import (
-	"github.com/nfnt/resize"
+	"github.com/disintegration/imaging"
 	"github.com/pkg/errors"
 	imglib "image"
 	"io"
@@ -13,6 +13,7 @@ import (
 type (
 	Processing interface {
 		Resize(width, length uint) imglib.Image
+		Image() imglib.Image
 	}
 
 	processing struct {
@@ -66,6 +67,10 @@ func Load(path string) (*processing, error) {
 	}, nil
 }
 
-func (p *processing) Resize(width, length uint) imglib.Image {
-	return resize.Resize(width, length, p.img, resize.Bicubic)
+func (p *processing) Resize(width, length int) imglib.Image {
+	return imaging.Resize(p.img, width, length, imaging.Lanczos)
+}
+
+func (p *processing) Image() imglib.Image {
+	return p.img
 }
