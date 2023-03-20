@@ -10,6 +10,7 @@ require (
 	github.com/go-chi/cors v1.2.0
 	github.com/go-playground/validator v9.31.0+incompatible
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
+	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/schema v1.2.0
@@ -21,6 +22,7 @@ require (
 	github.com/rs/xid v1.3.0
 	github.com/rs/zerolog v1.26.1
 	github.com/satori/go.uuid v1.2.0
+	github.com/slack-go/slack v0.12.1
 	github.com/stretchr/testify v1.8.0
 	github.com/volatiletech/null v8.0.0+incompatible
 	github.com/xuri/excelize/v2 v2.7.0
@@ -40,7 +42,6 @@ require (
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/gofrs/uuid v4.2.0+incompatible // indirect
-	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.7 // indirect
@@ -56,7 +57,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.3 // indirect
-	github.com/slack-go/slack v0.12.1 // indirect
 	github.com/smartystreets/goconvey v1.7.2 // indirect
 	github.com/volatiletech/inflect v0.0.1 // indirect
 	github.com/volatiletech/sqlboiler v3.7.1+incompatible // indirect
