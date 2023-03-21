@@ -10,6 +10,7 @@ require (
 	github.com/go-chi/chi v1.5.4
 	github.com/go-chi/cors v1.2.0
 	github.com/go-playground/validator v9.31.0+incompatible
+	github.com/go-resty/resty/v2 v2.7.0
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0
 	github.com/golang/mock v1.6.0
@@ -19,12 +20,10 @@ require (
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/keighl/mandrill v0.0.0-20170605120353-1775dd4b3b41
 	github.com/lib/pq v1.10.2
-	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/pkg/errors v0.9.1
 	github.com/rs/xid v1.3.0
 	github.com/rs/zerolog v1.26.1
 	github.com/satori/go.uuid v1.2.0
-	github.com/slack-go/slack v0.12.1
 	github.com/stretchr/testify v1.8.0
 	github.com/volatiletech/null v8.0.0+incompatible
 	github.com/xuri/excelize/v2 v2.7.0
@@ -48,7 +47,6 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.7 // indirect
 	github.com/googleapis/gax-go/v2 v2.1.1 // indirect
-	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.4 // indirect
 	github.com/kr/text v0.2.0 // indirect
