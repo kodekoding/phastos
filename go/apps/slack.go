@@ -8,34 +8,59 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Slacks interface {
-	CreateNewChannel(ctx context.Context, name string, isPrivate ...bool) (*slackentity.Response[slackentity.Channel], error)
-	InviteUserToChannel(ctx context.Context, channelId string, users ...string) error
-	ArchiveChannel(ctx context.Context, channelId string) error
-	AddReminderToChannel(ctx context.Context, channelId, textReminder, time string) error
-	PostMessageText(ctx context.Context, destId string, text string) error
-	PostMessageBlocks(ctx context.Context, destId string, blocksString string) error
-}
+type (
+	Slacks interface {
+		channels
+		messages
+		oauths
+		users
+	}
 
-type slack struct {
-	client    *resty.Client
-	botToken  string
-	appToken  string
-	userToken string
-}
+	channels interface {
+		CreateNewChannel(ctx context.Context, name string, isPrivate ...bool) (*slackentity.Response[slackentity.Channel], error)
+		InviteUserToChannel(ctx context.Context, channelId string, users ...string) error
+		ArchiveChannel(ctx context.Context, channelId string) error
+		AddReminderToChannel(ctx context.Context, channelId, textReminder, time string) error
+	}
+
+	messages interface {
+		PostMessageText(ctx context.Context, destId string, text string) error
+		PostMessageBlocks(ctx context.Context, destId string, blocksString string) error
+	}
+
+	oauths interface {
+		GetOauthAccess(ctx context.Context, codeCallback string) (*slackentity.Response[slackentity.OauthAccess], error)
+	}
+
+	users interface {
+	}
+
+	slack struct {
+		client       *resty.Client
+		botToken     string
+		appToken     string
+		userToken    string
+		clientID     string
+		clientSecret string
+	}
+)
 
 const prefixURL = "https://slack.com/api"
 
-func NewSlack(botToken string) *slack {
+func NewSlack(botToken, clientId, clientSecret string) *slack {
 	client := resty.New()
-	return &slack{botToken: botToken, client: client}
+	return &slack{botToken: botToken, client: client, clientID: clientId, clientSecret: clientSecret}
 }
 
-func (s *slack) newCURL(ctx context.Context) *resty.Request {
+func (s *slack) newCURL(ctx context.Context, contentType ...string) *resty.Request {
+	cType := "application/json"
+	if len(contentType) > 1 && contentType != nil {
+		cType = contentType[0]
+	}
 	return s.client.R().
 		SetContext(ctx).
 		SetHeader("Authorization", fmt.Sprintf("Bearer %s", s.botToken)).
-		SetHeader("Content-Type", "application/json")
+		SetHeader("Content-Type", cType)
 }
 
 // CreateNewChannel - create new channel slack, with params:
@@ -118,4 +143,21 @@ func (s *slack) PostMessageBlocks(ctx context.Context, destId string, blocksStri
 		return errors.Wrap(err, "phastos.apps.slack.PostMessageText.Post")
 	}
 	return nil
+}
+
+// GetOauthAccess - Get Oauth Access Data
+func (s *slack) GetOauthAccess(ctx context.Context, codeCallback string) (*slackentity.Response[slackentity.OauthAccess], error) {
+	var result slackentity.Response[slackentity.OauthAccess]
+	if _, err := s.newCURL(ctx, "application/x-www-form-urlencoded").
+		SetContentLength(true).
+		SetHeader("Cache-Control", "no-cache").
+		SetResult(&result).
+		SetFormData(map[string]string{
+			"code":          codeCallback,
+			"client_id":     s.clientID,
+			"client_secret": s.clientSecret,
+		}).Post(fmt.Sprintf("%s/oauth.v2.access", prefixURL)); err != nil {
+		return nil, errors.Wrap(err, "phastos.apps.slack.GetOauthAccess.Post")
+	}
+	return &result, nil
 }
