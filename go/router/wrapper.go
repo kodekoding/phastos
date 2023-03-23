@@ -3,9 +3,8 @@ package router
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -185,7 +184,7 @@ func (cr *ChiRouter) Middlewares() chi.Middlewares {
 	return cr.handle.Middlewares()
 }
 
-//Match(rctx *Context, method, path string) bool
+// Match(rctx *Context, method, path string) bool
 func (cr *ChiRouter) Match(rctx *chi.Context, method, path string) bool {
 	return cr.handle.Match(rctx, method, path)
 }
@@ -219,10 +218,7 @@ func (cr *ChiRouter) wrapper(pattern string, handler WrapperFunc) http.HandlerFu
 				responseFunc.Latency = time.Since(t).Seconds() * 1000
 				responseFunc.Send(writer)
 			} else {
-				nilResponseErr := errors.New("handler doesn't send any response")
-
-				log.Error(request.URL.Path + ":" + nilResponseErr.Error())
-				response.NewJSON().InternalServerError(nilResponseErr).Send(writer)
+				log.Infoln(request.URL.Path + ": handler send nil response")
 			}
 		}
 	}
@@ -231,7 +227,7 @@ func (cr *ChiRouter) wrapper(pattern string, handler WrapperFunc) http.HandlerFu
 func panicRecover(r *http.Request, path string) {
 	if err := recover(); err != nil {
 		stackTrace := string(debug.Stack())
-		b, _ := ioutil.ReadAll(r.Body)
+		b, _ := io.ReadAll(r.Body)
 
 		fields := map[string]interface{}{
 			"Request.Body":  string(b),
