@@ -1,4 +1,4 @@
-package apps
+package third_party
 
 import (
 	"context"
@@ -81,7 +81,7 @@ func (s *slack) CreateNewChannel(ctx context.Context, name string, isPrivate ...
 			IsPrivate: isPrivateChannel,
 		}).
 		Post(fmt.Sprintf("%s/conversation.created", prefixURL)); err != nil {
-		return nil, errors.Wrap(err, "phastos.apps.slack.CreateNewChannel.Post")
+		return nil, errors.Wrap(err, "phastos.third_party.slack.CreateNewChannel.Post")
 	}
 	return &result, nil
 }
@@ -92,7 +92,7 @@ func (s *slack) InviteUserToChannel(ctx context.Context, channelId string, users
 			"channel": channelId,
 			"users":   users,
 		}).Post(fmt.Sprintf("%s/conversation.invite", prefixURL)); err != nil {
-		return errors.Wrap(err, "phastos.apps.slack.InviteUserToChannel.Post")
+		return errors.Wrap(err, "phastos.third_party.slack.InviteUserToChannel.Post")
 	}
 	return nil
 }
@@ -103,7 +103,7 @@ func (s *slack) ArchiveChannel(ctx context.Context, channelId string) error {
 		SetBody(map[string]interface{}{
 			"channel": channelId,
 		}).Post(fmt.Sprintf("%s/conversation.archive", prefixURL)); err != nil {
-		return errors.Wrap(err, "phastos.apps.slack.ArchiveChannel.Post")
+		return errors.Wrap(err, "phastos.third_party.slack.ArchiveChannel.Post")
 	}
 	return nil
 }
@@ -116,7 +116,7 @@ func (s *slack) AddReminderToChannel(ctx context.Context, channelId, textReminde
 			"time":    time,
 			"channel": channelId,
 		}).Post(fmt.Sprintf("%s/reminders.add", prefixURL)); err != nil {
-		return errors.Wrap(err, "phastos.apps.slack.AddReminderToChannel.Post")
+		return errors.Wrap(err, "phastos.third_party.slack.AddReminderToChannel.Post")
 	}
 	return nil
 }
@@ -128,7 +128,7 @@ func (s *slack) PostMessageText(ctx context.Context, destId string, text string)
 			"text":    text,
 			"channel": destId,
 		}).Post(fmt.Sprintf("%s/chat.postMessage", prefixURL)); err != nil {
-		return errors.Wrap(err, "phastos.apps.slack.PostMessageText.Post")
+		return errors.Wrap(err, "phastos.third_party.slack.PostMessageText.Post")
 	}
 	return nil
 }
@@ -140,7 +140,7 @@ func (s *slack) PostMessageBlocks(ctx context.Context, destId string, blocksStri
 			"blocks":  blocksString,
 			"channel": destId,
 		}).Post(fmt.Sprintf("%s/chat.postMessage", prefixURL)); err != nil {
-		return errors.Wrap(err, "phastos.apps.slack.PostMessageText.Post")
+		return errors.Wrap(err, "phastos.third_party.slack.PostMessageText.Post")
 	}
 	return nil
 }
@@ -157,7 +157,7 @@ func (s *slack) GetOauthAccess(ctx context.Context, codeCallback string) (*slack
 			"client_id":     s.clientID,
 			"client_secret": s.clientSecret,
 		}).Post(fmt.Sprintf("%s/oauth.v2.access", prefixURL)); err != nil {
-		return nil, errors.Wrap(err, "phastos.apps.slack.GetOauthAccess.Post")
+		return nil, errors.Wrap(err, "phastos.third_party.slack.GetOauthAccess.Post")
 	}
 	return &result, nil
 }
