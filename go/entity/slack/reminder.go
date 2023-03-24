@@ -8,4 +8,5 @@ type Reminder struct {
 	Recurring  bool   `json:"recurring"`
 	Time       int    `json:"time"`
 	CompleteTs int    `json:"complete_ts"`
+	Error      string `json:"error,omitempty"`
 }

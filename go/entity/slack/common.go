@@ -5,7 +5,7 @@ type ResponseType interface {
 }
 
 type Response[T ResponseType] struct {
-	Ok    bool   `json:"ok"`
+	Ok    bool `json:"ok"`
+	Data  T
 	Error string `json:"error,omitempty"`
-	T
 }

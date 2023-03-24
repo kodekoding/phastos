@@ -25,5 +25,6 @@ type (
 		Enterprise          BaseIdName `json:"enterprise"`
 		IsEnterpriseInstall bool       `json:"is_enterprise_install"`
 		AuthedUser          AuthedUser `json:"authed_user"`
+		Error               string     `json:"error,omitempty"`
 	}
 )

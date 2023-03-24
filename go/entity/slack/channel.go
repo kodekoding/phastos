@@ -61,6 +61,7 @@ type (
 		Priority           int           `json:"priority"`
 		Locale             string        `json:"locale"`
 		NumMembers         int           `json:"num_members"`
+		Error              string        `json:"error,omitempty"`
 		ChannelMemberResponse
 	}
 )
