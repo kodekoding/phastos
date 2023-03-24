@@ -150,7 +150,7 @@ func (app *app) AddHandler(socketHandler handler2.SocketHandler) {
 
 func (app *app) Start() {
 	go func() {
-		log.Println("Slack Socket running, served ", app.totalEvents, " event(app)")
+		log.Println("Slack Socket running, serving ", app.totalEvents, " event(s)")
 		if err := app.socketHandler.RunEventLoop(); err != nil {
 			log.Fatalln("cannot run socket socket: ", err.Error())
 		}
