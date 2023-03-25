@@ -1,24 +1,31 @@
 package app
 
 import (
+	contextpkg "context"
 	"encoding/json"
+	"fmt"
+	"github.com/pkg/errors"
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/gorilla/schema"
+	"github.com/kodekoding/phastos/go/server"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"net/http"
-	"os"
-	"strconv"
+	"github.com/unrolled/secure"
 )
 
 var decoder = schema.NewDecoder()
 
 type (
 	API struct {
-		Http           *chi.Mux
-		Port           string
+		Http *chi.Mux
+		*server.Config
 		TotalEndpoints int
+		apiTimeout     int
 	}
 
 	Options func(api *API)
@@ -26,9 +33,13 @@ type (
 
 func NewAPI(opts ...Options) *API {
 	apiApp := API{
-		Port:           "8000",
 		TotalEndpoints: 0,
 	}
+
+	apiApp.Port = 8000
+	apiApp.ReadTimeout = 3
+	apiApp.WriteTimeout = 3
+	apiApp.apiTimeout = 3
 
 	for _, opt := range opts {
 		opt(&apiApp)
@@ -36,9 +47,27 @@ func NewAPI(opts ...Options) *API {
 	return &apiApp
 }
 
-func WithAppPort(port string) Options {
+func WithAppPort(port int) Options {
 	return func(app *API) {
 		app.Port = port
+	}
+}
+
+func ReadTimeout(readTimeout int) Options {
+	return func(app *API) {
+		app.ReadTimeout = readTimeout
+	}
+}
+
+func WriteTimeout(writeTimeout int) Options {
+	return func(app *API) {
+		app.WriteTimeout = writeTimeout
+	}
+}
+
+func WithAPITimeout(apiTimeout int) Options {
+	return func(app *API) {
+		app.apiTimeout = apiTimeout
 	}
 }
 
@@ -112,16 +141,34 @@ func (app *API) wrapHandler(h Handler) http.HandlerFunc {
 				return app.requestValidator(i)
 			},
 		}
-		context := r.Context()
+		ctx, cancel := contextpkg.WithTimeout(r.Context(), time.Second*time.Duration(app.apiTimeout))
+		defer cancel()
 
-		if response, err = h(request, context); err != nil {
-			if httpError, ok := err.(*HttpError); ok {
-				httpError.Write(w)
+		respChan := make(chan *Response)
+		go func() {
+			respChan <- h(request, ctx)
+		}()
+
+		select {
+		case <-ctx.Done():
+			if ctx.Err() == contextpkg.DeadlineExceeded {
+				w.WriteHeader(http.StatusGatewayTimeout)
+				_, err = w.Write([]byte("timeout"))
+				if err != nil {
+
+					log.Log().Err(errors.New("context deadline exceed: " + err.Error()))
+				}
+			}
+		case responseFunc := <-respChan:
+			if responseFunc.Err != nil {
+				if httpError, ok := responseFunc.Err.(*HttpError); ok {
+					httpError.Write(w)
+					return
+				}
+				unknownError := NewErr(WithMessage(err.Error()))
+				unknownError.Write(w)
 				return
 			}
-			unknownError := NewErr(WithMessage(err.Error()))
-			unknownError.Write(w)
-			return
 		}
 
 		w.WriteHeader(http.StatusOK)
@@ -152,6 +199,13 @@ func (app *API) AddController(ctrl Controller) {
 }
 
 func (app *API) Start() error {
-	log.Info().Msg("server started on port " + app.Port + ", serving " + strconv.Itoa(app.TotalEndpoints) + " endpoint(s)")
-	return http.ListenAndServe(":"+app.Port, app.Http)
+	app.Handler = InitHandler(app.Http)
+	secureMiddleware := secure.New(secure.Options{
+		BrowserXssFilter:   true,
+		ContentTypeNosniff: true,
+	})
+	app.Handler = secureMiddleware.Handler(app.Handler)
+
+	log.Info().Msg(fmt.Sprintf("server started on port %d, serving %d endpoint(s)", app.Port, app.TotalEndpoints))
+	return server.ServeHTTP(app.Config)
 }
