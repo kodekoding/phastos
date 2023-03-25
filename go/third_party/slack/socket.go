@@ -69,9 +69,9 @@ func NewSlackApp(appToken, botToken string, opts ...AppOptions) (*app, error) {
 	return slackApp, nil
 }
 
-func WithHttp(port ...string) AppOptions {
+func WithHttp(port ...int) AppOptions {
 	return func(app *app) {
-		servedPort := "8000"
+		servedPort := 8000
 		if port != nil && len(port) > 0 {
 			servedPort = port[0]
 		}
