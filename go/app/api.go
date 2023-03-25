@@ -36,6 +36,8 @@ func NewAPI(opts ...Options) *API {
 		TotalEndpoints: 0,
 	}
 
+	apiApp.Config = new(server.Config)
+
 	apiApp.Port = 8000
 	apiApp.ReadTimeout = 3
 	apiApp.WriteTimeout = 3
