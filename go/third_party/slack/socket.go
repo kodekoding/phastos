@@ -2,16 +2,18 @@ package slack
 
 import (
 	"context"
-	apppkg "github.com/kodekoding/phastos/go/app"
-	log2 "github.com/kodekoding/phastos/go/log"
-	handler2 "github.com/kodekoding/phastos/go/third_party/slack/handler"
+	"log"
+	"os"
+	"strings"
+
 	"github.com/pkg/errors"
 	slackpkg "github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
-	"log"
-	"os"
-	"strings"
+
+	apppkg "github.com/kodekoding/phastos/go/app"
+	log2 "github.com/kodekoding/phastos/go/log"
+	handler2 "github.com/kodekoding/phastos/go/third_party/slack/handler"
 )
 
 type (
@@ -36,11 +38,11 @@ type (
 
 func NewSlackApp(appToken, botToken string, opts ...AppOptions) (*app, error) {
 	if !strings.HasPrefix(appToken, "xapp-") {
-		return nil, errors.Wrap(errors.New("SLACK_APP_TOKEN must have the prefix \"xapp-\"."), "github.com/kodekoding/phastos.lib.third_party.slack.NewSlackSocketMode.CheckAppToken")
+		return nil, errors.Wrap(errors.New("SLACK_APP_TOKEN must have the prefix \"xapp-\"."), "phastos.third_party.slack.NewSlackSocketMode.CheckAppToken")
 	}
 
 	if !strings.HasPrefix(botToken, "xoxb-") {
-		return nil, errors.Wrap(errors.New("SLACK_BOT_TOKEN must have the prefix \"xoxb-\"."), "github.com/kodekoding/phastos.lib.third_party.slack.NewSlackSocketMode.CheckBotToken")
+		return nil, errors.Wrap(errors.New("SLACK_BOT_TOKEN must have the prefix \"xoxb-\"."), "phastos.third_party.slack.NewSlackSocketMode.CheckBotToken")
 	}
 
 	api := slackpkg.New(
@@ -87,21 +89,21 @@ func (app *app) wrapHandler(handler handler2.EventHandler, shouldAck ...bool) so
 			GetInteractionData: func() (*slackpkg.InteractionCallback, error) {
 				data, valid := event.Data.(slackpkg.InteractionCallback)
 				if !valid {
-					return nil, errors.Wrap(errors.New(notValidData), "github.com/kodekoding/phastos.lib.third_party.slack.socket.wrapHandler.GetInteractionData")
+					return nil, errors.Wrap(errors.New(notValidData), "phastos.third_party.slack.socket.wrapHandler.GetInteractionData")
 				}
 				return &data, nil
 			},
 			GetEventData: func() (*slackevents.EventsAPIEvent, error) {
 				data, valid := event.Data.(slackevents.EventsAPIEvent)
 				if !valid {
-					return nil, errors.Wrap(errors.New(notValidData), "github.com/kodekoding/phastos.lib.third_party.slack.socket.wrapHandler.GetEventData")
+					return nil, errors.Wrap(errors.New(notValidData), "phastos.third_party.slack.socket.wrapHandler.GetEventData")
 				}
 				return &data, nil
 			},
 			GetSlashCommandData: func() (*slackpkg.SlashCommand, error) {
 				data, valid := event.Data.(slackpkg.SlashCommand)
 				if !valid {
-					return nil, errors.Wrap(errors.New(notValidData), "github.com/kodekoding/phastos.lib.third_party.slack.socket.wrapHandler.GetSlashCommandData")
+					return nil, errors.Wrap(errors.New(notValidData), "phastos.third_party.slack.socket.wrapHandler.GetSlashCommandData")
 				}
 				return &data, nil
 			},
@@ -131,7 +133,7 @@ func (app *app) AddHandler(socketHandler handler2.SocketHandler) {
 			if strings.HasPrefix(identifier, "/") {
 				app.socketHandler.HandleSlashCommand(identifier, app.wrapHandler(event.Handler))
 			} else if strings.HasPrefix(identifier, "action_") {
-				app.socketHandler.HandleInteractionBlockAction(event.Identifier, app.wrapHandler(event.Handler))
+				app.socketHandler.HandleInteractionBlockAction(identifier, app.wrapHandler(event.Handler))
 			} else if identifier == "" {
 				app.socketHandler.HandleDefault(app.wrapHandler(event.Handler, false))
 			}
