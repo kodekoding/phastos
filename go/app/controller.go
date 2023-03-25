@@ -20,9 +20,10 @@ type Request struct {
 type Response struct {
 	Message string      `json:"message"`
 	Data    interface{} `json:"data"`
+	Err     error       `json:"error"`
 }
 
-type Handler func(Request, context.Context) (*Response, error)
+type Handler func(Request, context.Context) *Response
 
 type Route struct {
 	Method      string
