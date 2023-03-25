@@ -27,6 +27,7 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	github.com/slack-go/slack v0.12.1
 	github.com/stretchr/testify v1.8.0
+	github.com/unrolled/secure v1.13.0
 	github.com/volatiletech/null v8.0.0+incompatible
 	github.com/xuri/excelize/v2 v2.7.0
 	github.com/yeqown/go-qrcode v1.5.10
