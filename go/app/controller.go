@@ -17,12 +17,6 @@ type Request struct {
 	GetHeaders func(interface{}) error
 }
 
-type Response struct {
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
-	Err     error       `json:"error"`
-}
-
 type Handler func(Request, context.Context) *Response
 
 type Route struct {
@@ -58,20 +52,6 @@ func WithVersion(version int) RouteOption {
 	return func(r *Route) {
 		r.Version = version
 	}
-}
-
-func NewResponse() *Response {
-	return &Response{}
-}
-
-func (resp *Response) SetMessage(msg string) *Response {
-	resp.Message = msg
-	return resp
-}
-
-func (resp *Response) SetData(data interface{}) *Response {
-	resp.Data = data
-	return resp
 }
 
 func WithMiddleware(handlers ...func(http.Handler) http.Handler) RouteOption {
