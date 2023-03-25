@@ -79,10 +79,11 @@ func (app *API) Init() {
 }
 
 func (app *API) initPlugins() {
-	app.Http.Use(middleware.CleanPath)
-	app.Http.Use(middleware.Logger)
-
-	app.Http.Use(PanicHandler)
+	app.Http.Use(
+		middleware.Logger,
+		middleware.Recoverer,
+		PanicHandler,
+	)
 	app.Http.NotFound(RouteNotFoundHandler)
 	app.Http.MethodNotAllowed(MethodNotAllowedHandler)
 
