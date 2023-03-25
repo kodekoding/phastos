@@ -9,28 +9,36 @@ import (
 	"io"
 )
 
-func GetTemplate(file string, args, destStruct interface{}) error {
+func GetTemplate(embedFS embed.FS, file string, args, destStruct interface{}) error {
 
-	var tpl bytes.Buffer
-	var embedFS embed.FS
+	var templateValue []byte
+	var err error
+	if args != nil {
 
-	// read the block-kit definition as a go template
-	t, err := template.ParseFS(embedFS, file)
-	if err != nil {
-		return errors.Wrap(err, "phastos.go.third_party.slack.templating.GetTemplate.ParseFS")
+		// read the block-kit definition as a go template
+		var tpl bytes.Buffer
+		t, err := template.ParseFS(embedFS, file)
+		if err != nil {
+			return errors.Wrap(err, "phastos.go.third_party.slack.templating.GetTemplate.ParseFS")
+		}
+
+		// we render the view
+		err = t.Execute(&tpl, args)
+		if err != nil {
+			return errors.Wrap(err, "phastos.go.third_party.slack.templating.GetTemplate.ExecuteTemplate")
+		}
+		templateValue, err = io.ReadAll(&tpl)
+		if err != nil {
+			return errors.Wrap(err, "phastos.go.third_party.slack.templating.GetTemplate.ReadAllTemplate")
+		}
+	} else {
+		if templateValue, err = embedFS.ReadFile(file); err != nil {
+			return errors.Wrap(err, "phastos.go.third_party.slack.templating.GetTemplate.ReadFile")
+		}
+
 	}
 
-	// we render the view
-	err = t.Execute(&tpl, args)
-	if err != nil {
-		return errors.Wrap(err, "phastos.go.third_party.slack.templating.GetTemplate.ExecuteTemplate")
-	}
-
-	value, err := io.ReadAll(&tpl)
-	if err != nil {
-		return errors.Wrap(err, "phastos.go.third_party.slack.templating.GetTemplate.ReadAllTemplate")
-	}
-	if err = json.Unmarshal(value, destStruct); err != nil {
+	if err = json.Unmarshal(templateValue, destStruct); err != nil {
 		return errors.Wrap(err, "phastos.go.third_party.slack.templating.GetTemplate.UnmarshalToStruct")
 	}
 
