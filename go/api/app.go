@@ -1,4 +1,4 @@
-package app
+package api
 
 import (
 	contextpkg "context"
@@ -21,18 +21,24 @@ import (
 var decoder = schema.NewDecoder()
 
 type (
-	API struct {
+	Apps interface {
+		LoadModules()
+	}
+
+	AppImplementor struct{}
+
+	App struct {
 		Http *chi.Mux
 		*server.Config
 		TotalEndpoints int
 		apiTimeout     int
 	}
 
-	Options func(api *API)
+	Options func(api *App)
 )
 
-func NewAPI(opts ...Options) *API {
-	apiApp := API{
+func NewApp(opts ...Options) *App {
+	apiApp := App{
 		TotalEndpoints: 0,
 	}
 
@@ -50,35 +56,35 @@ func NewAPI(opts ...Options) *API {
 }
 
 func WithAppPort(port int) Options {
-	return func(app *API) {
+	return func(app *App) {
 		app.Port = port
 	}
 }
 
 func ReadTimeout(readTimeout int) Options {
-	return func(app *API) {
+	return func(app *App) {
 		app.ReadTimeout = readTimeout
 	}
 }
 
 func WriteTimeout(writeTimeout int) Options {
-	return func(app *API) {
+	return func(app *App) {
 		app.WriteTimeout = writeTimeout
 	}
 }
 
 func WithAPITimeout(apiTimeout int) Options {
-	return func(app *API) {
+	return func(app *App) {
 		app.apiTimeout = apiTimeout
 	}
 }
 
-func (app *API) Init() {
+func (app *App) Init() {
 	app.Http = chi.NewRouter()
 	app.initPlugins()
 }
 
-func (app *API) initPlugins() {
+func (app *App) initPlugins() {
 	app.Http.Use(
 		middleware.Logger,
 		middleware.Recoverer,
@@ -97,7 +103,7 @@ func (app *API) initPlugins() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 }
 
-func (app *API) requestValidator(i interface{}) error {
+func (app *App) requestValidator(i interface{}) error {
 	errorResponse := ValidateStruct(i)
 	if errorResponse != nil {
 		return NewErr(
@@ -110,7 +116,7 @@ func (app *API) requestValidator(i interface{}) error {
 	return nil
 }
 
-func (app *API) wrapHandler(h Handler) http.HandlerFunc {
+func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var response *Response
 		var err error
@@ -179,7 +185,7 @@ func (app *API) wrapHandler(h Handler) http.HandlerFunc {
 	}
 }
 
-func (app *API) AddController(ctrl Controller) {
+func (app *App) AddController(ctrl Controller) {
 	config := ctrl.GetConfig()
 	for _, route := range config.Routes {
 		middlewares := []func(http.Handler) http.Handler{}
@@ -201,7 +207,7 @@ func (app *API) AddController(ctrl Controller) {
 	app.TotalEndpoints += len(config.Routes)
 }
 
-func (app *API) Start() error {
+func (app *App) Start() error {
 	app.Handler = InitHandler(app.Http)
 	secureMiddleware := secure.New(secure.Options{
 		BrowserXssFilter:   true,
