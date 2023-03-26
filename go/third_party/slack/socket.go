@@ -11,20 +11,15 @@ import (
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
 
-	apppkg "github.com/kodekoding/phastos/go/app"
+	"github.com/kodekoding/phastos/go/api"
 	log2 "github.com/kodekoding/phastos/go/log"
 	handler2 "github.com/kodekoding/phastos/go/third_party/slack/handler"
 )
 
 type (
-	Apps interface {
-		LoadModules()
-	}
-
 	AppImplementor struct{}
-
-	AppOptions func(*app)
-	app        struct {
+	AppOptions     func(*app)
+	app            struct {
 		Api           *slackpkg.Client
 		socket        *socketmode.Client
 		socketHandler *socketmode.SocketmodeHandler
@@ -32,7 +27,7 @@ type (
 		appToken      string
 		LoadModule    func()
 		totalEvents   int
-		*apppkg.API
+		*api.App
 	}
 )
 
@@ -45,7 +40,7 @@ func NewSlackApp(appToken, botToken string, opts ...AppOptions) (*app, error) {
 		return nil, errors.Wrap(errors.New("SLACK_BOT_TOKEN must have the prefix \"xoxb-\"."), "phastos.third_party.slack.NewSlackSocketMode.CheckBotToken")
 	}
 
-	api := slackpkg.New(
+	apiClient := slackpkg.New(
 		botToken,
 		slackpkg.OptionDebug(true),
 		slackpkg.OptionAppLevelToken(appToken),
@@ -53,7 +48,7 @@ func NewSlackApp(appToken, botToken string, opts ...AppOptions) (*app, error) {
 	)
 
 	socketClient := socketmode.New(
-		api,
+		apiClient,
 		socketmode.OptionDebug(true),
 		socketmode.OptionLog(log.New(os.Stdout, "socketmode: ", log.Lshortfile|log.LstdFlags)),
 	)
@@ -61,7 +56,7 @@ func NewSlackApp(appToken, botToken string, opts ...AppOptions) (*app, error) {
 	socketHandler := socketmode.NewSocketmodeHandler(socketClient)
 
 	slackApp := &app{
-		Api:           api,
+		Api:           apiClient,
 		socket:        socketClient,
 		socketHandler: socketHandler,
 	}
@@ -77,7 +72,7 @@ func WithHttp(port ...int) AppOptions {
 		if port != nil && len(port) > 0 {
 			servedPort = port[0]
 		}
-		app.API = apppkg.NewAPI(apppkg.WithAppPort(servedPort))
+		app.App = api.NewApp(api.WithAppPort(servedPort))
 		app.Init()
 	}
 }
@@ -157,7 +152,7 @@ func (app *app) Start() {
 		}
 	}()
 
-	if app.API != nil {
-		_ = app.API.Start()
+	if app.App != nil {
+		_ = app.App.Start()
 	}
 }
