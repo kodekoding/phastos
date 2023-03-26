@@ -138,7 +138,6 @@ func (app *app) AddHandler(socketHandler handler2.SocketHandler) {
 				app.socketHandler.HandleDefault(app.wrapHandler(event.Handler, false))
 			}
 		case slackpkg.InteractionType:
-
 			app.socketHandler.HandleInteraction(identifier, app.wrapHandler(event.Handler))
 		case socketmode.EventType:
 			app.socketHandler.Handle(identifier, app.wrapHandler(event.Handler))

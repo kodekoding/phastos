@@ -1,4 +1,4 @@
-package slack
+package helper
 
 import (
 	"bytes"
@@ -35,7 +35,6 @@ func GetTemplate(embedFS embed.FS, file string, args, destStruct interface{}) er
 		if templateValue, err = embedFS.ReadFile(file); err != nil {
 			return errors.Wrap(err, "phastos.go.third_party.slack.templating.GetTemplate.ReadFile")
 		}
-
 	}
 
 	if err = json.Unmarshal(templateValue, destStruct); err != nil {
