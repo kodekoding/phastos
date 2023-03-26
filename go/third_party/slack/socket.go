@@ -18,8 +18,8 @@ import (
 
 type (
 	AppImplementor struct{}
-	AppOptions     func(*app)
-	app            struct {
+	AppOptions     func(*App)
+	App            struct {
 		Api           *slackpkg.Client
 		socket        *socketmode.Client
 		socketHandler *socketmode.SocketmodeHandler
@@ -31,7 +31,7 @@ type (
 	}
 )
 
-func NewSlackApp(appToken, botToken string, opts ...AppOptions) (*app, error) {
+func NewSlackApp(appToken, botToken string, opts ...AppOptions) (*App, error) {
 	if !strings.HasPrefix(appToken, "xapp-") {
 		return nil, errors.Wrap(errors.New("SLACK_APP_TOKEN must have the prefix \"xapp-\"."), "phastos.third_party.slack.NewSlackSocketMode.CheckAppToken")
 	}
@@ -55,7 +55,7 @@ func NewSlackApp(appToken, botToken string, opts ...AppOptions) (*app, error) {
 
 	socketHandler := socketmode.NewSocketmodeHandler(socketClient)
 
-	slackApp := &app{
+	slackApp := &App{
 		Api:           apiClient,
 		socket:        socketClient,
 		socketHandler: socketHandler,
@@ -67,7 +67,7 @@ func NewSlackApp(appToken, botToken string, opts ...AppOptions) (*app, error) {
 }
 
 func WithHttp(port ...int) AppOptions {
-	return func(app *app) {
+	return func(app *App) {
 		servedPort := 8000
 		if port != nil && len(port) > 0 {
 			servedPort = port[0]
@@ -77,7 +77,7 @@ func WithHttp(port ...int) AppOptions {
 	}
 }
 
-func (app *app) wrapHandler(handler handler2.EventHandler, shouldAck ...bool) socketmode.SocketmodeHandlerFunc {
+func (app *App) wrapHandler(handler handler2.EventHandler, shouldAck ...bool) socketmode.SocketmodeHandlerFunc {
 	return func(event *socketmode.Event, client *socketmode.Client) {
 		const notValidData = "event data not valid"
 		request := handler2.SocketRequest{
@@ -120,7 +120,7 @@ func (app *app) wrapHandler(handler handler2.EventHandler, shouldAck ...bool) so
 	}
 }
 
-func (app *app) AddHandler(socketHandler handler2.SocketHandler) {
+func (app *App) AddHandler(socketHandler handler2.SocketHandler) {
 	config := socketHandler.GetConfig()
 	for _, event := range config.Handler {
 		switch identifier := event.Type.(type) {
@@ -144,7 +144,7 @@ func (app *app) AddHandler(socketHandler handler2.SocketHandler) {
 	app.totalEvents += len(config.Handler)
 }
 
-func (app *app) Start() {
+func (app *App) Start() {
 	go func() {
 		log.Println("Slack Socket running, serving ", app.totalEvents, " event(s)")
 		if err := app.socketHandler.RunEventLoop(); err != nil {
