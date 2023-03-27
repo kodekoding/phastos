@@ -110,12 +110,12 @@ func (app *App) wrapHandler(handler handler2.EventHandler, shouldAck ...bool) so
 		if shouldAck != nil && len(shouldAck) > 0 {
 			needAck = shouldAck[0]
 		}
-		if needAck {
-			client.Ack(*event.Request)
-		}
 
 		if err := handler(context.Background(), request); err != nil {
 			log2.Errorln("handler got error: ", err.Error())
+		} else if needAck {
+			// jika tidak error dan perlu di ack
+			client.Ack(*event.Request)
 		}
 	}
 }
