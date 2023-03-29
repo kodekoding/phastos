@@ -22,14 +22,14 @@ type (
 	}
 
 	Config struct {
-		Sender        string
-		EmailUsername string
-		EmailPassword string
-		SecretKey     string
-		EmailFrom     string
-		FromName      string
-		Host          string
-		Port          int
+		Sender        string `yaml:"sender"`
+		EmailUsername string `yaml:"username"`
+		EmailPassword string `yaml:"password"`
+		SecretKey     string `yaml:"secret_key"`
+		EmailFrom     string `yaml:"from"`
+		FromName      string `yaml:"from_name"`
+		Host          string `yaml:"host"`
+		Port          int    `yaml:"port"`
 	}
 
 	SMTPConfig struct {
