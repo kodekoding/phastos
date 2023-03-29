@@ -13,7 +13,7 @@ func GetTemplate(embedFS embed.FS, file string, args, destStruct interface{}) er
 		return errors.Wrap(err, "phastos.go.helper.slack.GetTemplate.ParseTemplate")
 	}
 
-	if err = json.Unmarshal(templateValue, destStruct); err != nil {
+	if err = json.Unmarshal(templateValue.Bytes(), destStruct); err != nil {
 		return errors.Wrap(err, "phastos.go.third_party.slack.templating.GetTemplate.UnmarshalToStruct")
 	}
 
