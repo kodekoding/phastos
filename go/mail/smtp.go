@@ -1,7 +1,10 @@
 package mail
 
 import (
+	"bytes"
+	"embed"
 	"fmt"
+	helper2 "github.com/kodekoding/phastos/go/helper"
 	"net/smtp"
 	"strings"
 
@@ -12,6 +15,7 @@ type (
 	SMTPs interface {
 		AddRecipient(recipient string) SMTPs
 		SetContent(subject, message string) SMTPs
+		SetHTMLTemplate(fs embed.FS, tplFile, subject string, args interface{}) SMTPs
 		Send() error
 	}
 
@@ -35,8 +39,8 @@ type (
 	SMTPConfig struct {
 		Config
 		recipient []string
-		message   string
 		address   string
+		body      bytes.Buffer
 	}
 )
 
@@ -59,7 +63,7 @@ func (s *SMTP) SetContent(subject, message string) SMTPs {
 		s.err = errors.New("sender name or recipient must be filled")
 		return s
 	}
-	s.message = fmt.Sprintf(`
+	s.body.Write([]byte(fmt.Sprintf(`
 		MIME-version: 1.0;
 		Content-Type: text/html; charset="UTF-8";
 		From: %s
@@ -67,7 +71,21 @@ func (s *SMTP) SetContent(subject, message string) SMTPs {
 		Subject: %s
 
 		%s
-	`, s.Sender, strings.Join(s.recipient, ","), subject, message)
+	`, s.Sender, strings.Join(s.recipient, ","), subject, message)))
+	return s
+}
+
+func (s *SMTP) SetHTMLTemplate(fs embed.FS, tplFile, subject string, args interface{}) SMTPs {
+	if s.Sender == "" || s.recipient == nil {
+		s.err = errors.New("sender name or recipient must be filled")
+		return s
+	}
+
+	mimeHeaders := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
+	additionalBody := fmt.Sprintf("From: %s\nTo:%s\nSubject:%s \n%s\n\n", s.Sender, strings.Join(s.recipient, ","), subject, mimeHeaders)
+
+	s.body, _ = helper2.ParseTemplate(fs, tplFile, args, additionalBody)
+
 	return s
 }
 
@@ -76,7 +94,7 @@ func (s *SMTP) Send() error {
 		return s.err
 	}
 
-	if err := smtp.SendMail(s.address, s.auth, s.EmailFrom, s.recipient, []byte(s.message)); err != nil {
+	if err := smtp.SendMail(s.address, s.auth, s.EmailFrom, s.recipient, s.body.Bytes()); err != nil {
 		return err
 	}
 
