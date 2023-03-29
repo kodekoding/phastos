@@ -21,7 +21,7 @@ type (
 		err error
 	}
 
-	MailConfig struct {
+	Config struct {
 		Sender        string
 		EmailUsername string
 		EmailPassword string
@@ -33,7 +33,7 @@ type (
 	}
 
 	SMTPConfig struct {
-		MailConfig
+		Config
 		recipient []string
 		message   string
 		address   string

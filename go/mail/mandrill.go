@@ -26,12 +26,12 @@ type (
 		templateContent  map[string]string
 		defaultEmailFrom string
 		defaultFromName  string
-		*MailConfig
+		*Config
 	}
 )
 
-func NewMandrill(opts *MailConfig) Mandrills {
-	obj := &Mandrill{MailConfig: opts}
+func NewMandrill(opts *Config) Mandrills {
+	obj := &Mandrill{Config: opts}
 	obj.defaultEmailFrom = opts.EmailFrom
 	obj.defaultFromName = opts.FromName
 	obj.reset()
