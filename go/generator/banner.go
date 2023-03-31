@@ -2,13 +2,14 @@ package generator
 
 import (
 	"github.com/golang/freetype"
+	"github.com/kodekoding/phastos/go/helper"
+	"github.com/kodekoding/phastos/go/log"
 	"github.com/pkg/errors"
 	"image"
 	"image/color"
 	"image/draw"
 	"image/jpeg"
 	"image/png"
-	"log"
 	"os"
 	"strings"
 )
@@ -16,6 +17,7 @@ import (
 type (
 	Banners interface {
 		SetBgColor(colorParam color.Color) Banners
+		SetBgHexColor(hexColor string) Banners
 		AddImageLayer(img *ImageLayer) Banners
 		AddLabel(labelText *Label) Banners
 		Generate(savePath string) error
@@ -65,6 +67,15 @@ func NewBanner(width int, length int) *Banner {
 
 func (b *Banner) SetBgColor(colorParam color.Color) Banners {
 	b.BgColor = colorParam
+	return b
+}
+
+func (b *Banner) SetBgHexColor(hexColor string) Banners {
+	rgba, err := helper.ParseHexColor(hexColor)
+	if err != nil {
+		log.Errorln("got error when parse hex string: ", err.Error())
+	}
+	b.BgColor = rgba
 	return b
 }
 
@@ -156,7 +167,7 @@ func (b *Banner) addLabel(img *image.RGBA, labels []*Label) (*image.RGBA, error)
 		//draw the label on image
 		_, err = c.DrawString(label.Text, pt)
 		if err != nil {
-			log.Println(err)
+			log.Errorln("got error when draw string", err)
 			return img, nil
 		}
 		pt.Y += c.PointToFixed(label.Size * label.Spacing)
