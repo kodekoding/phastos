@@ -2,6 +2,7 @@ package response
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/kodekoding/phastos/go/binding"
-	"github.com/kodekoding/phastos/go/context"
+	ctxlib "github.com/kodekoding/phastos/go/context"
 	"github.com/kodekoding/phastos/go/env"
 	cutomerr "github.com/kodekoding/phastos/go/error"
 	"github.com/kodekoding/phastos/go/helper"
@@ -160,78 +161,7 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 		errMsg := fmt.Sprintf(`[%s] code %d (%s) - %s: %s`, traceId, jr.Code, env.ServiceEnv(), r.URL.Path, usingErr.Error())
 		notifMsg := fmt.Sprintf(`%s
 			%s`, errMsg, optionalData)
-		go func() {
-			notif := context.GetNotif(r.Context())
-			if notif != nil {
-				allNotifPlatform := notif.GetAllPlatform()
-				var attachment interface{}
-				for _, platform := range allNotifPlatform {
-					if platform.IsActive() {
-						attachment = nil
-
-						notifMsg = fmt.Sprintf(`
-							Hi All there's an error: 
-							%s
-						`, notifMsg)
-						if platform.Type() == "slack" {
-							channelDestination := context.GetNotifDestination(r.Context())
-							if channelDestination != "" && env.IsProduction() {
-								platform.SetDestination(channelDestination)
-							}
-							platform.SetTraceId(traceId)
-							var bodyRequest map[string]interface{}
-							_ = binding.Bind(r, &bodyRequest)
-							bodyReq, _ := json.Marshal(bodyRequest)
-							slackAttachment := new(sgw.Attachment)
-							color := "#ff0e0a"
-							slackAttachment.Color = &color
-							slackAttachment.AddField(
-								sgw.Field{
-									Short: true,
-									Title: "Error Code",
-									Value: fmt.Sprintf("%d", jr.Code),
-								}).AddField(
-								sgw.Field{
-									Title: "Body Request",
-									Value: string(bodyReq),
-								}).AddField(
-								sgw.Field{
-									Title: "Referer",
-									Value: r.Referer(),
-								}).AddField(
-								sgw.Field{
-									Title: "Description",
-									Value: usingErr.Error(),
-								}).AddField(
-								sgw.Field{
-									Short: true,
-									Title: "Route Path",
-									Value: fmt.Sprintf("%s - %s", r.Method, r.URL.Path),
-								}).AddField(
-								sgw.Field{
-									Short: true,
-									Title: "Environment",
-									Value: env.ServiceEnv(),
-								})
-
-							if optionalData != "" && optionalData != "{}" {
-								slackAttachment.AddField(sgw.Field{
-									Title: "Optional Data",
-									Value: optionalData,
-								})
-							}
-							attachment = slackAttachment
-							notifMsg = ""
-						}
-						if jr.Code == 500 {
-							if err := platform.Send(ctx, notifMsg, attachment); err != nil {
-								log.Errorf("error when send %s notifications: %s", platform.Type(), err.Error())
-							}
-						}
-					}
-				}
-			}
-		}()
+		go jr.sendNotif(ctx, r, optionalData, notifMsg, usingErr.Error())
 		// print log
 		log.Error(errMsg)
 		return true
@@ -247,6 +177,80 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 	}
 
 	return false
+}
+
+func (jr *JSON) sendNotif(ctx context.Context, r *http.Request, notifMsg, optionalData, errStr string) {
+	notif := ctxlib.GetNotif(ctx)
+	if notif != nil {
+		allNotifPlatform := notif.GetAllPlatform()
+		var attachment interface{}
+		for _, platform := range allNotifPlatform {
+			if platform.IsActive() {
+				attachment = nil
+
+				notifMsg = fmt.Sprintf(`
+							Hi All there's an error: 
+							%s
+						`, notifMsg)
+				if platform.Type() == "slack" {
+					channelDestination := ctxlib.GetNotifDestination(ctx)
+					if channelDestination != "" && env.IsProduction() && jr.Code == 500 {
+						// if the code is 500, then send
+						platform.SetDestination(channelDestination)
+					}
+					platform.SetTraceId(jr.TraceId)
+					var bodyRequest map[string]interface{}
+					_ = binding.Bind(r, &bodyRequest)
+					bodyReq, _ := json.Marshal(bodyRequest)
+					slackAttachment := new(sgw.Attachment)
+					color := "#ff0e0a"
+					slackAttachment.Color = &color
+					slackAttachment.AddField(
+						sgw.Field{
+							Short: true,
+							Title: "Error Code",
+							Value: fmt.Sprintf("%d", jr.Code),
+						}).AddField(
+						sgw.Field{
+							Title: "Body Request",
+							Value: string(bodyReq),
+						}).AddField(
+						sgw.Field{
+							Title: "Referer",
+							Value: r.Referer(),
+						}).AddField(
+						sgw.Field{
+							Title: "Description",
+							Value: errStr,
+						}).AddField(
+						sgw.Field{
+							Short: true,
+							Title: "Route Path",
+							Value: fmt.Sprintf("%s - %s", r.Method, r.URL.Path),
+						}).AddField(
+						sgw.Field{
+							Short: true,
+							Title: "Environment",
+							Value: env.ServiceEnv(),
+						})
+
+					if optionalData != "" && optionalData != "{}" {
+						slackAttachment.AddField(sgw.Field{
+							Title: "Optional Data",
+							Value: optionalData,
+						})
+					}
+					attachment = slackAttachment
+					notifMsg = ""
+				}
+				if jr.Code == 500 {
+					if err := platform.Send(ctx, notifMsg, attachment); err != nil {
+						log.Errorf("error when send %s notifications: %s", platform.Type(), err.Error())
+					}
+				}
+			}
+		}
+	}
 }
 
 func (jr *JSON) Send(w http.ResponseWriter) {
