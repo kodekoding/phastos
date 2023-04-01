@@ -2,7 +2,10 @@ package helper
 
 import (
 	"fmt"
+	"image"
 	"image/color"
+
+	"github.com/kodekoding/phastos/go/log"
 )
 
 func ParseHexColor(s string) (c color.RGBA, err error) {
@@ -21,4 +24,12 @@ func ParseHexColor(s string) (c color.RGBA, err error) {
 
 	}
 	return
+}
+
+func GetColorUniform(hexColor string) *image.Uniform {
+	colorRGBA, err := ParseHexColor(hexColor)
+	if err != nil {
+		log.Errorln("got error when parse Hex: ", err.Error())
+	}
+	return &image.Uniform{C: colorRGBA}
 }
