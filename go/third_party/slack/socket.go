@@ -42,20 +42,20 @@ func NewSlackApp(appToken, botToken string, opts ...AppOptions) (*App, error) {
 
 	apiClient := slackpkg.New(
 		botToken,
-		slackpkg.OptionDebug(true),
 		slackpkg.OptionAppLevelToken(appToken),
 		slackpkg.OptionLog(log.New(os.Stdout, "api: ", log.Lshortfile|log.LstdFlags)),
 	)
 
 	socketClient := socketmode.New(
 		apiClient,
-		socketmode.OptionDebug(true),
 		socketmode.OptionLog(log.New(os.Stdout, "socketmode: ", log.Lshortfile|log.LstdFlags)),
 	)
 
 	socketHandler := socketmode.NewSocketmodeHandler(socketClient)
 
 	slackApp := &App{
+		appToken:      appToken,
+		botToken:      botToken,
 		Api:           apiClient,
 		socket:        socketClient,
 		socketHandler: socketHandler,
@@ -74,6 +74,32 @@ func WithHttp(port ...int) AppOptions {
 		}
 		app.App = api.NewApp(api.WithAppPort(servedPort))
 		app.Init()
+	}
+}
+
+func WithDebug(enabled bool) AppOptions {
+	return func(app *App) {
+		if enabled {
+			apiClient := slackpkg.New(
+				app.botToken,
+				slackpkg.OptionDebug(enabled),
+				slackpkg.OptionAppLevelToken(app.appToken),
+				slackpkg.OptionLog(log.New(os.Stdout, "api: ", log.Lshortfile|log.LstdFlags)),
+			)
+
+			socketClient := socketmode.New(
+				apiClient,
+				socketmode.OptionDebug(enabled),
+				socketmode.OptionLog(log.New(os.Stdout, "socketmode: ", log.Lshortfile|log.LstdFlags)),
+			)
+
+			socketHandler := socketmode.NewSocketmodeHandler(socketClient)
+
+			// re-assign the values
+			app.Api = apiClient
+			app.socket = socketClient
+			app.socketHandler = socketHandler
+		}
 	}
 }
 
