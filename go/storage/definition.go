@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"io/fs"
 	"mime/multipart"
 )
 
@@ -12,7 +13,9 @@ type Buckets interface {
 	UploadImageFromLocalPath(ctx context.Context, filePath string, fileName *string) error
 	UploadFileFromLocalPath(ctx context.Context, filePath string, fileName *string) error
 
-	GetFile(ctx context.Context, imgPath string) (base64Result string, err error)
+	GetSignedURLFile(ctx context.Context, imgPath string) (signedUrl string, err error)
+	GetFileFS(ctx context.Context, filePath string) (fs.File, error)
+
 	SetFileExpiredTime(minutes int) Buckets
 	SetBucketName(fileName string) Buckets
 	SetContentType(contentType string) Buckets

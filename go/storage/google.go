@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"mime/multipart"
 	"os"
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/mauri870/gcsfs"
 	"github.com/pkg/errors"
 
 	"github.com/kodekoding/phastos/go/env"
@@ -27,6 +29,9 @@ func (g *google) SetFileExpiredTime(minutes int) Buckets {
 }
 
 func NewGCS(ctx context.Context, bucketName string) (Buckets, error) {
+	if bucketName == "" {
+		return nil, errors.Wrap(errors.New("bucket name empty"), "phastos.go.storage.google.NewGCS.CheckBucketName")
+	}
 	gcsClient, err := storage.NewClient(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "phastos.go.storage.google.NewGCS.NewClient")
@@ -103,7 +108,25 @@ func (g *google) uploadProcess(ctx context.Context, file multipart.File, fileNam
 	return nil
 }
 
-func (g *google) GetFile(ctx context.Context, imgPath string) (signedUrl string, err error) {
+func (g *google) ReadFile(ctx context.Context, filePath string) ([]byte, error) {
+	reader, err := g.bucket.Object(filePath).NewReader(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "phastos.pkg.uti.storage.google.ReadFile.NewReader")
+	}
+	defer reader.Close()
+
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, errors.Wrap(err, "phastos.pkg.uti.storage.google.ReadFile.ReadContent")
+	}
+	return content, nil
+}
+
+func (g *google) GetFileFS(ctx context.Context, filePath string) (fs.File, error) {
+	return gcsfs.NewWithBucketHandle(g.bucket).WithContext(ctx).Open(filePath)
+}
+
+func (g *google) GetSignedURLFile(ctx context.Context, imgPath string) (signedUrl string, err error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*60)
 	defer cancel()
 
@@ -120,7 +143,7 @@ func (g *google) GetFile(ctx context.Context, imgPath string) (signedUrl string,
 
 	signedUrl, err = g.bucket.SignedURL(imgPath, opts)
 	if err != nil {
-		err = errors.Wrap(err, "pkg.uti.storage.google.GetFile.GetSignedURL")
+		err = errors.Wrap(err, "phastos.pkg.uti.storage.google.GetFile.GetSignedURL")
 		return
 	}
 
