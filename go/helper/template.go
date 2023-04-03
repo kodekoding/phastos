@@ -39,3 +39,20 @@ func ParseTemplate(embedFS embed.FS, file string, args interface{}, additionalBo
 
 	return tpl, nil
 }
+
+func ParseFileTemplate(filePath string, args interface{}, additionalBodyContent ...string) (bytes.Buffer, error) {
+	var err error
+	var tpl bytes.Buffer
+	t, err := template.ParseFiles(filePath)
+	if err != nil {
+		return tpl, errors.Wrap(err, "phastos.go.helper.template.ParseFileTemplate.ParseFiles")
+	}
+	for _, content := range additionalBodyContent {
+		tpl.Write([]byte(content))
+	}
+	if err = t.Execute(&tpl, args); err != nil {
+		return tpl, errors.Wrap(err, "phastos.go.helper.template.ParseFileTemplate.ExecuteTemplate")
+	}
+
+	return tpl, nil
+}
