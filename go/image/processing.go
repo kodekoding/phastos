@@ -33,10 +33,13 @@ func Load(path string) (*processing, error) {
 		// load image from URL, then download it first
 		splitPath := strings.Split(path, "/")
 		fileName := splitPath[len(splitPath)-1]
+		questionMarkIndex := strings.Index(fileName, "?")
+		fileName = fileName[:questionMarkIndex]
 		imgFile, err = os.Create(fileName)
 		if err != nil {
 			return nil, errors.Wrap(err, "phastos.go.image.processing.Load.CreateNewFile")
 		}
+		defer os.RemoveAll(fileName)
 		res, err := http.Get(path)
 
 		if err != nil {
@@ -50,11 +53,13 @@ func Load(path string) (*processing, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "phastos.go.image.processing.Load.CopyContentToNewFile")
 		}
-	} else {
-		imgFile, err = os.Open(path)
-		if err != nil {
-			return nil, errors.Wrap(err, "phastos.go.image.processing.Load.OpenFile")
-		}
+
+		path = fileName
+	}
+
+	imgFile, err = os.Open(path)
+	if err != nil {
+		return nil, errors.Wrap(err, "phastos.go.image.processing.Load.OpenFile")
 	}
 
 	img, _, err := imglib.Decode(imgFile)
