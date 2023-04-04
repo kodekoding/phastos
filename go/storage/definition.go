@@ -13,6 +13,11 @@ type Buckets interface {
 	UploadImageFromLocalPath(ctx context.Context, filePath string, fileName *string) error
 	UploadFileFromLocalPath(ctx context.Context, filePath string, fileName *string) error
 
+	UploadImagePublic(ctx context.Context, file multipart.File, fileName *string) error
+	UploadFilePublic(ctx context.Context, file multipart.File, fileName *string) error
+	UploadImageFromLocalPathPublic(ctx context.Context, filePath string, fileName *string) error
+	UploadFileFromLocalPathPublic(ctx context.Context, filePath string, fileName *string) error
+
 	GetSignedURLFile(ctx context.Context, imgPath string) (signedUrl string, err error)
 	GetFileFS(ctx context.Context, filePath string) (fs.File, error)
 

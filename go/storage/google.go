@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"mime/multipart"
 	"os"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -55,11 +56,11 @@ func (g *google) SetBucketName(fileName string) Buckets {
 }
 
 func (g *google) UploadImage(ctx context.Context, file multipart.File, fileName *string) error {
-	return g.uploadProcess(ctx, file, fileName, "img")
+	return g.uploadProcess(ctx, file, fileName, "private/img")
 }
 
 func (g *google) UploadFile(ctx context.Context, file multipart.File, fileName *string) error {
-	return g.uploadProcess(ctx, file, fileName, "file")
+	return g.uploadProcess(ctx, file, fileName, "private/file")
 }
 
 func (g *google) UploadImageFromLocalPath(ctx context.Context, filePath string, fileName *string) error {
@@ -71,7 +72,7 @@ func (g *google) UploadImageFromLocalPath(ctx context.Context, filePath string, 
 		_ = os.RemoveAll(filePath)
 	}()
 
-	return g.uploadProcess(ctx, file, fileName, "img")
+	return g.uploadProcess(ctx, file, fileName, "private/img")
 }
 
 func (g *google) UploadFileFromLocalPath(ctx context.Context, filePath string, fileName *string) error {
@@ -83,7 +84,39 @@ func (g *google) UploadFileFromLocalPath(ctx context.Context, filePath string, f
 		_ = os.RemoveAll(filePath)
 	}()
 
-	return g.uploadProcess(ctx, file, fileName, "file")
+	return g.uploadProcess(ctx, file, fileName, "private/file")
+}
+
+func (g *google) UploadImagePublic(ctx context.Context, file multipart.File, fileName *string) error {
+	return g.uploadProcess(ctx, file, fileName, "public/img")
+}
+
+func (g *google) UploadFilePublic(ctx context.Context, file multipart.File, fileName *string) error {
+	return g.uploadProcess(ctx, file, fileName, "public/file")
+}
+
+func (g *google) UploadImageFromLocalPathPublic(ctx context.Context, filePath string, fileName *string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return errors.Wrap(err, "phastos.go.storage.google.UploadImageFromLocalPathPublic.PublicCopy")
+	}
+	defer func() {
+		_ = os.RemoveAll(filePath)
+	}()
+
+	return g.uploadProcess(ctx, file, fileName, "public/img")
+}
+
+func (g *google) UploadFileFromLocalPathPublic(ctx context.Context, filePath string, fileName *string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return errors.Wrap(err, "phastos.go.storage.google.UploadImageFromLocalPathPublic.Copy")
+	}
+	defer func() {
+		_ = os.RemoveAll(filePath)
+	}()
+
+	return g.uploadProcess(ctx, file, fileName, "public/file")
 }
 
 func (g *google) uploadProcess(ctx context.Context, file multipart.File, fileName *string, fileType string) error {
@@ -91,18 +124,34 @@ func (g *google) uploadProcess(ctx context.Context, file multipart.File, fileNam
 	defer cancel()
 
 	currentEnv := env.ServiceEnv()
+	splitType := strings.Split(fileType, "/")
+	isPublic := false
+	if splitType[0] == "public" {
+		isPublic = true
+	}
 	*fileName = fmt.Sprintf("%s/%s/%s", fileType, currentEnv, *fileName)
-	writer := g.bucket.Object(*fileName).NewWriter(ctx)
+	obj := g.bucket.Object(*fileName).NewWriter(ctx)
 
 	if g.contentType != "" {
-		writer.ContentType = g.contentType
+		obj.ContentType = g.contentType
 	}
-	if _, err := io.Copy(writer, file); err != nil {
+	if _, err := io.Copy(obj, file); err != nil {
 		return errors.Wrap(err, "phastos.go.storage.google.Upload.Copy")
 	}
 
-	if err := writer.Close(); err != nil {
+	if err := obj.Close(); err != nil {
 		return errors.Wrap(err, "phastos.go.storage.google.Upload.Close")
+	}
+	if isPublic {
+		_ = g.makeObjectPublic(ctx, *fileName)
+	}
+
+	return nil
+}
+
+func (g *google) makeObjectPublic(ctx context.Context, filename string) error {
+	if err := g.bucket.Object(filename).ACL().Set(ctx, storage.AllUsers, storage.RoleReader); err != nil {
+		return err
 	}
 
 	return nil
