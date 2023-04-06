@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"google.golang.org/api/option"
 	"io"
 	"io/fs"
 	"mime/multipart"
@@ -33,7 +34,18 @@ func NewGCS(ctx context.Context, bucketName string) (Buckets, error) {
 	if bucketName == "" {
 		return nil, errors.Wrap(errors.New("bucket name empty"), "phastos.go.storage.google.NewGCS.CheckBucketName")
 	}
-	gcsClient, err := storage.NewClient(ctx)
+
+	storageCredentialsPath := os.Getenv("STORAGE_CREDENTIALS_PATH")
+	if storageCredentialsPath == "" {
+		// get default credential path
+		storageCredentialsPath = os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+	}
+
+	if storageCredentialsPath == "" {
+		// if credential path still empty, then throw error
+		return nil, errors.Wrap(errors.New("credential path isn't set !"), "phastos.go.storage.google.NewGCS.CheckCredentialPath")
+	}
+	gcsClient, err := storage.NewClient(ctx, option.WithCredentialsFile(storageCredentialsPath))
 	if err != nil {
 		return nil, errors.Wrap(err, "phastos.go.storage.google.NewGCS.NewClient")
 	}
