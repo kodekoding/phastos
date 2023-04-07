@@ -89,7 +89,6 @@ type (
 		Follower           SQLConfig `yaml:"follower"`
 		Timeout            int       `yaml:"timeout"`
 		SlowQueryThreshold float64   `yaml:"slow_query_threshold"`
-		Engine             string    `yaml:"engine"`
 	}
 
 	SQLConfig struct {
@@ -97,6 +96,7 @@ type (
 		Password        string `yaml:"password"`
 		Host            string `yaml:"host"`
 		Port            string `yaml:"port"`
+		Engine          string `yaml:"engine"`
 		DBName          string `yaml:"db_name"`
 		Timeout         int    `yaml:"timeout"`
 		MaxConnLifetime int    `yaml:"max_conn_lifetime"`
