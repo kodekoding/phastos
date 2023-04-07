@@ -81,6 +81,7 @@ type (
 		follower           *sqlx.DB
 		timeout            time.Duration
 		slowQueryThreshold float64
+		engine             string
 	}
 
 	SQLs struct {
@@ -88,6 +89,7 @@ type (
 		Follower           SQLConfig `yaml:"follower"`
 		Timeout            int       `yaml:"timeout"`
 		SlowQueryThreshold float64   `yaml:"slow_query_threshold"`
+		Engine             string    `yaml:"engine"`
 	}
 
 	SQLConfig struct {
@@ -96,7 +98,6 @@ type (
 		Host            string `yaml:"host"`
 		Port            string `yaml:"port"`
 		DBName          string `yaml:"db_name"`
-		Engine          string `yaml:"engine"`
 		Timeout         int    `yaml:"timeout"`
 		MaxConnLifetime int    `yaml:"max_conn_lifetime"`
 		MaxIdleTime     int    `yaml:"max_idle_time"`

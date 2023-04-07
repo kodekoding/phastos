@@ -3,6 +3,7 @@ package action
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/kodekoding/phastos/go/common"
 	"github.com/kodekoding/phastos/go/database"
@@ -13,7 +14,6 @@ import (
 
 type BaseWrites interface {
 	common.WriteRepo
-	Upsert(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
 }
 
 type BaseWrite struct {
@@ -99,8 +99,24 @@ func (b *BaseWrite) DeleteById(ctx context.Context, id int, trx ...*sql.Tx) (*da
 	return b.db.Write(ctx, qOpts)
 }
 
-func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
-	return b.cudProcess(ctx, "upsert", data, nil, trx...)
+func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
+	var totalData int
+	tableRequest := new(database.TableRequest)
+	for cond, val := range condition {
+		tableRequest.SetWhereCondition(cond, val)
+	}
+	if err := b.db.Read(ctx, &database.QueryOpts{
+		BaseQuery:     fmt.Sprintf("SELECT COUNT(1) FROM %s", b.tableName),
+		SelectRequest: tableRequest,
+		Result:        &totalData,
+	}); err != nil {
+		return nil, errors.Wrap(err, "phastos.go.database.action.write.Upsert.GetData")
+	}
+
+	if totalData > 0 {
+		return b.cudProcess(ctx, "update", data, condition, trx...)
+	}
+	return b.cudProcess(ctx, "insert", data, nil, trx...)
 }
 
 func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interface{}, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
