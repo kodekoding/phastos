@@ -1,9 +1,9 @@
 package api
 
 type Response struct {
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
-	Err     error       `json:"error"`
+	Message string      `json:"message,omitempty"`
+	Data    interface{} `json:"data,omitempty"`
+	Err     error       `json:"error,omitempty"`
 }
 
 func NewResponse() *Response {
