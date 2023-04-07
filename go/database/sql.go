@@ -44,12 +44,12 @@ func newSQL(master, follower *sqlx.DB, timeout int, slowThreshold float64) *SQL 
 
 func Connect(cfg *SQLs) (*SQL, error) {
 
-	masterDB, err := connectDB(&cfg.Master)
+	masterDB, err := connectDB(cfg.Engine, &cfg.Master)
 	if err != nil {
 		return nil, errors.Wrap(err, "phastos.database.ConnectMaster")
 	}
 
-	followerDB, err := connectDB(&cfg.Follower)
+	followerDB, err := connectDB(cfg.Engine, &cfg.Follower)
 	if err != nil {
 		return nil, errors.Wrap(err, "phastos.database.ConnectFollower")
 	}
@@ -58,10 +58,10 @@ func Connect(cfg *SQLs) (*SQL, error) {
 	return db, nil
 }
 
-func connectDB(cfg *SQLConfig) (*sqlx.DB, error) {
-	generateConnString(cfg)
+func connectDB(engine string, cfg *SQLConfig) (*sqlx.DB, error) {
+	generateConnString(engine, cfg)
 
-	db, err := sqlx.Connect(cfg.Engine, cfg.ConnString)
+	db, err := sqlx.Connect(engine, cfg.ConnString)
 	if err != nil {
 		return nil, errors.Wrap(err, "phastos.database.Connect")
 	}
@@ -76,11 +76,11 @@ func connectDB(cfg *SQLConfig) (*sqlx.DB, error) {
 	return db, nil
 }
 
-func generateConnString(cfg *SQLConfig) {
+func generateConnString(engine string, cfg *SQLConfig) {
 	if cfg.ConnString == "" {
 		// if ConnString config is empty, then build the connection string manually
 		strFormat := ""
-		switch cfg.Engine {
+		switch engine {
 		case "mysql":
 			if cfg.Port == "" {
 				cfg.Port = "3306"
