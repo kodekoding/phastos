@@ -168,9 +168,9 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 					log.Log().Err(errors.New("context deadline exceed: " + err.Error()))
 				}
 			}
-		case responseFunc := <-respChan:
-			if responseFunc.Err != nil {
-				if httpError, ok := responseFunc.Err.(*HttpError); ok {
+		case response = <-respChan:
+			if response.Err != nil {
+				if httpError, ok := response.Err.(*HttpError); ok {
 					httpError.Write(w)
 					return
 				}
