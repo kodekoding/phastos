@@ -145,7 +145,8 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 
 	query += addOnQuery
 	query = this.Rebind(query)
-
+	opts.query = query
+	opts.params = params
 	start := time.Now()
 	if opts.IsList {
 		if err = this.Follower.SelectContext(ctx, opts.Result, query, params...); err != nil {
@@ -160,9 +161,6 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	}
 
 	this.checkSQLWarning(ctx, query, start, params)
-
-	opts.query = query
-	opts.params = params
 	return nil
 }
 func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, error) {
@@ -222,31 +220,32 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, erro
 
 	query += addOnQuery
 	query = this.Rebind(query)
-
+	result := new(CUDResponse)
+	result.query = query
+	result.params = data.Values
 	trx := opts.Trx
 	start := time.Now()
 	if trx != nil {
 		stmt, err := trx.PrepareContext(ctx, query)
 		if err != nil {
 			_, err = sendNilResponse(err, "phastos.database.Write.PrepareContext", query, data.Values)
-			return nil, err
+			return result, err
 		}
 		exec, err = stmt.ExecContext(ctx, data.Values...)
 		if err != nil {
 			_, err = sendNilResponse(err, "phastos.database.Write.ExecContext", query, data.Values)
-			return nil, err
+			return result, err
 		}
 	} else {
 		exec, err = this.Master.ExecContext(ctx, query, data.Values...)
 		if err != nil {
 			_, err = sendNilResponse(err, "phastos.database.Write.WithoutTrx.ExecContext", query, data.Values)
-			return nil, err
+			return result, err
 		}
 	}
 
 	this.checkSQLWarning(ctx, query, start, data.Values)
 
-	result := new(CUDResponse)
 	lastInsertID, err := exec.LastInsertId()
 	if err == nil {
 		result.LastInsertID = lastInsertID
@@ -256,8 +255,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, erro
 	if err == nil {
 		result.RowsAffected = rowsAffected
 	}
-	result.query = query
-	result.params = data.Values
+
 	result.Status = true
 	return result, nil
 }
