@@ -232,7 +232,7 @@ func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}
 		values = append(values, anotherValues...)
 	}
 	if !haveUpdatedAtCol {
-		cols = append(cols, "updated_at")
+		cols = append(cols, "updated_at=?")
 		values = append(values, time.Now().Format(time.RFC3339))
 	}
 	return &database.CUDConstructData{

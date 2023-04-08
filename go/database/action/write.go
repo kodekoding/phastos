@@ -171,7 +171,7 @@ func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interfac
 	}
 	result, err := b.db.Write(ctx, qOpts)
 	if err != nil {
-		return nil, errors.Wrap(err, "phastos.database.action."+action+".ExecTransation")
+		return result, errors.Wrap(err, "phastos.database.action."+action+".ExecTransation")
 	}
 
 	return result, nil
