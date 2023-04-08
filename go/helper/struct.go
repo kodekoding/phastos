@@ -188,7 +188,7 @@ func readField(_ context.Context, reflectVal reflect.Value, isNullStruct ...bool
 
 		switch field.Kind() {
 		case reflect.String:
-			if str := value.(string); str == "null" {
+			if str, valid := value.(string); valid && str == "null" {
 				value = null.String{}
 			} else if str == "" {
 				continue
