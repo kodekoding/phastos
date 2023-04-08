@@ -163,8 +163,8 @@ type (
 		DeletedAt null.String `json:"deleted_at" db:"deleted_at"`
 	}
 
-	BaseColumn struct {
-		Id int `json:"id" db:"id"`
+	BaseColumn[T string | int | int64] struct {
+		Id T `json:"id" db:"id"`
 		TimeCol
 	}
 )

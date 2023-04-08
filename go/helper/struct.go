@@ -143,7 +143,11 @@ func readField(_ context.Context, reflectVal reflect.Value, isNullStruct ...bool
 		if colName == "-" {
 			continue
 		} else if colName == "id" {
-			if number := value.(int); number == 0 {
+			if number, valid := value.(int); valid && number == 0 {
+				continue
+			} else if number64, valid := value.(int64); valid && number64 == 0 {
+				continue
+			} else if strVal, valid := value.(string); valid && strVal == "" {
 				continue
 			}
 		}
