@@ -190,7 +190,7 @@ func readField(_ context.Context, reflectVal reflect.Value, isNullStruct ...bool
 		case reflect.String:
 			if str, valid := value.(string); valid && str == "null" {
 				value = null.String{}
-			} else if str == "" {
+			} else if field.String() == "" {
 				continue
 			}
 		}
