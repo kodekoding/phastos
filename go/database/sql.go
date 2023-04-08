@@ -161,6 +161,8 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 
 	this.checkSQLWarning(ctx, query, start, params)
 
+	opts.query = query
+	opts.params = params
 	return nil
 }
 func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, error) {
@@ -254,6 +256,8 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, erro
 	if err == nil {
 		result.RowsAffected = rowsAffected
 	}
+	result.query = query
+	result.params = data.Values
 	result.Status = true
 	return result, nil
 }

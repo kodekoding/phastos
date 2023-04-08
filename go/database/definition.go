@@ -115,12 +115,19 @@ type (
 		Result            interface{}
 		IsList            bool
 		Trx               *sql.Tx
+		executedQuery
 	}
 
 	CUDResponse struct {
 		Status       bool  `json:"status"`
 		RowsAffected int64 `json:"rows_affected"`
 		LastInsertID int64 `json:"last_insert_id"`
+		executedQuery
+	}
+
+	executedQuery struct {
+		query  string
+		params []interface{}
 	}
 
 	SelectResponse struct {
@@ -178,4 +185,11 @@ func (req *TableRequest) SetWhereCondition(condition string, value ...interface{
 
 func (req *CUDConstructData) SetValues(value interface{}) {
 	req.Values = append(req.Values, value)
+}
+
+// GetGeneratedQuery - return query + params with format map[<query>]<params>
+func (e *executedQuery) GetGeneratedQuery() map[string][]interface{} {
+	return map[string][]interface{}{
+		e.query: e.params,
+	}
 }
