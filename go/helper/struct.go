@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/volatiletech/null"
 
@@ -211,10 +212,14 @@ func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}
 	mutex := new(sync.Mutex)
 	wg := new(sync.WaitGroup)
 	colLength := len(cols)
+	haveUpdatedAtCol := false
 	for i := 0; i < colLength; i++ {
 		wg.Add(1)
 		go func(col *string, wg *sync.WaitGroup, mtx *sync.Mutex) {
 			mtx.Lock()
+			if *col == "updated_at" {
+				haveUpdatedAtCol = true
+			}
 			*col = *col + "=?"
 			mtx.Unlock()
 			wg.Done()
@@ -225,6 +230,10 @@ func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}
 
 	if anotherValues != nil {
 		values = append(values, anotherValues...)
+	}
+	if !haveUpdatedAtCol {
+		cols = append(cols, "updated_at")
+		values = append(values, time.Now().Format(time.RFC3339))
 	}
 	return &database.CUDConstructData{
 		Cols:       cols,
