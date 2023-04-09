@@ -109,6 +109,8 @@ type (
 	QueryOpts struct {
 		BaseQuery         string
 		Conditions        func(ctx context.Context)
+		ExcludeColumns    string
+		Columns           string
 		OptionalTableName string // for view name
 		SelectRequest     *TableRequest
 		CUDRequest        *CUDConstructData

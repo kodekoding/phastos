@@ -3,8 +3,11 @@ package action
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/kodekoding/phastos/go/database"
+	"github.com/kodekoding/phastos/go/helper"
+	"github.com/kodekoding/phastos/go/log"
 )
 
 type BaseRead struct {
@@ -19,30 +22,49 @@ func NewBaseRead(db *database.SQL, tableName string, isSoftDelete ...bool) *Base
 	return &BaseRead{&baseAction{db, tableName, sofDelete}}
 }
 
-func (b *BaseRead) getBaseQuery(optionalTableName, baseQuery string) string {
-	if optionalTableName != "" {
+func (b *BaseRead) getBaseQuery(ctx context.Context, opts *database.QueryOpts) string {
+	if opts.OptionalTableName != "" {
 		originalTableName := b.tableName
 		defer func() {
 			b.tableName = originalTableName
 		}()
-		b.tableName = optionalTableName
+		b.tableName = opts.OptionalTableName
 	}
-	newBaseQuery := baseQuery
+	newBaseQuery := opts.BaseQuery
 	if newBaseQuery == "" {
-		newBaseQuery = fmt.Sprintf("SELECT * FROM %s", b.tableName)
+		selectedCols := helper.GenerateSelectCols(ctx, opts.Result)
+		selectedColumnStr := "*"
+		if opts.Columns != "" && opts.ExcludeColumns == "" {
+			selectedColumnStr = opts.Columns
+		} else if opts.ExcludeColumns != "" && opts.Columns == "" {
+			excludedColList := strings.Split(opts.ExcludeColumns, ",")
+			var newSelectedCols []string
+			for _, col := range selectedCols {
+				for _, excludeCol := range excludedColList {
+					if excludeCol == col {
+						continue
+					}
+				}
+				newSelectedCols = append(newSelectedCols, col)
+			}
+			selectedColumnStr = strings.Join(newSelectedCols, ", ")
+		} else if opts.ExcludeColumns != "" && opts.Columns != "" {
+			log.Warnln("Selected Columns and Excluded Columns can only be filled in one of them, select column will be reset to '*'")
+		}
+		newBaseQuery = fmt.Sprintf("SELECT %s FROM %s", selectedColumnStr, b.tableName)
 	}
 	return newBaseQuery
 }
 
 func (b *BaseRead) GetList(ctx context.Context, opts *database.QueryOpts) error {
 	opts.IsList = true
-	opts.BaseQuery = b.getBaseQuery(opts.OptionalTableName, opts.BaseQuery)
+	opts.BaseQuery = b.getBaseQuery(ctx, opts)
 	return b.db.Read(ctx, opts)
 }
 
 // GetDetail - Query Detail with specific Query and return single data
 func (b *BaseRead) GetDetail(ctx context.Context, opts *database.QueryOpts) error {
-	opts.BaseQuery = b.getBaseQuery(opts.OptionalTableName, opts.BaseQuery)
+	opts.BaseQuery = b.getBaseQuery(ctx, opts)
 	return b.db.Read(ctx, opts)
 }
 
@@ -52,12 +74,11 @@ func (b *BaseRead) GetDetailById(ctx context.Context, resultStruct interface{}, 
 		Result: resultStruct,
 	}
 
-	viewName := ""
 	if optionalTableName != nil && len(optionalTableName) > 0 {
-		viewName = optionalTableName[0]
+		opts.OptionalTableName = optionalTableName[0]
 	}
 
-	opts.BaseQuery = fmt.Sprintf("%s WHERE id = ?", b.getBaseQuery(viewName, ""))
+	opts.BaseQuery = fmt.Sprintf("%s WHERE id = ?", b.getBaseQuery(ctx, opts))
 	return b.db.Read(ctx, opts, id)
 }
 
