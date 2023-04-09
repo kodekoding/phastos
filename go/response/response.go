@@ -12,7 +12,6 @@ import (
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
 	"github.com/pkg/errors"
 
-	"github.com/kodekoding/phastos/go/binding"
 	ctxlib "github.com/kodekoding/phastos/go/context"
 	"github.com/kodekoding/phastos/go/env"
 	cutomerr "github.com/kodekoding/phastos/go/error"
@@ -199,9 +198,8 @@ func (jr *JSON) sendNotif(ctx context.Context, r *http.Request, notifMsg, option
 						platform.SetDestination(channelDestination)
 					}
 					platform.SetTraceId(jr.TraceId)
-					var bodyRequest map[string]interface{}
-					_ = binding.Bind(r, &bodyRequest)
-					bodyReq, _ := json.Marshal(bodyRequest)
+					bodyReq, _ := io.ReadAll(r.Body)
+					r.Body = io.NopCloser(bytes.NewBuffer(bodyReq))
 					slackAttachment := new(sgw.Attachment)
 					color := "#ff0e0a"
 					slackAttachment.Color = &color
