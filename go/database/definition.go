@@ -156,12 +156,13 @@ type (
 	}
 
 	CUDConstructData struct {
-		Cols             []string      `json:"cols"`
-		Values           []interface{} `json:"values"`
-		ColsInsert       string
-		BulkValuesInsert string
-		Action           string
-		TableName        string
+		Cols       []string      `json:"cols"`
+		Values     []interface{} `json:"values"`
+		ColsInsert string
+		BulkValues string
+		BulkQuery  string
+		Action     string
+		TableName  string
 	}
 
 	TimeCol struct {

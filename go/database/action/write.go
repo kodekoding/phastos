@@ -36,6 +36,31 @@ func (b *BaseWrite) BulkInsert(ctx context.Context, data interface{}, trx ...*sq
 	return b.cudProcess(ctx, "bulk_insert", data, nil, trx...)
 }
 
+func (b *BaseWrite) BulkUpdate(ctx context.Context, data interface{}, condition map[string][]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
+	cudRequestData, err := helper.ConstructColNameAndValueBulk(ctx, data, condition)
+	if err != nil {
+		return nil, err
+	}
+
+	action := "bulk_update"
+	cudRequestData.Action = action
+	cudRequestData.TableName = b.tableName
+
+	qOpts := &database.QueryOpts{
+		CUDRequest: cudRequestData,
+	}
+	if trx != nil && len(trx) > 0 {
+		qOpts.Trx = trx[0]
+	}
+
+	result, err := b.db.Write(ctx, qOpts)
+	if err != nil {
+		return result, errors.Wrap(err, "phastos.database.action."+action+".Write")
+	}
+
+	return result, nil
+}
+
 func (b *BaseWrite) Update(ctx context.Context, data interface{}, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
 	return b.cudProcess(ctx, "update", data, condition, trx...)
 }

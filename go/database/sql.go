@@ -187,7 +187,9 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, erro
 	case "insert":
 		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s)`, tableName, cols, strings.Repeat(",?", len(data.Cols)-1))
 	case "bulk_insert":
-		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES %s`, tableName, data.ColsInsert, data.BulkValuesInsert)
+		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES %s`, tableName, data.ColsInsert, data.BulkValues)
+	case "bulk_update":
+		query = fmt.Sprintf(`UPDATE %s AS main_table JOIN (%s) AS join_table %s`, tableName, data.BulkValues, data.BulkQuery)
 	case "upsert":
 		colsUpdate := strings.Join(data.Cols, ",")
 		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s) ON DUPLICATE KEY UPDATE %s`,

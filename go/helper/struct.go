@@ -15,7 +15,7 @@ import (
 	"github.com/kodekoding/phastos/go/log"
 )
 
-func ConstructColNameAndValueBulk(ctx context.Context, arrayOfData interface{}) (*database.CUDConstructData, error) {
+func ConstructColNameAndValueBulk(ctx context.Context, arrayOfData interface{}, conditions ...map[string][]interface{}) (*database.CUDConstructData, error) {
 	reflectVal := reflect.ValueOf(arrayOfData)
 	if reflectVal.Kind() == reflect.Ptr {
 		reflectVal = reflectVal.Elem()
@@ -37,6 +37,10 @@ func ConstructColNameAndValueBulk(ctx context.Context, arrayOfData interface{}) 
 	var arrayOfValues [][]interface{}
 
 	mapBulkValues := make(map[string][]interface{})
+	conditionSend := false
+	if conditions != nil && len(conditions) > 0 {
+		conditionSend = true
+	}
 	for i := 0; i < totalData; i++ {
 		wg.Add(1)
 		data := reflect.Indirect(reflectVal.Index(i))
@@ -47,6 +51,11 @@ func ConstructColNameAndValueBulk(ctx context.Context, arrayOfData interface{}) 
 			}()
 			cols, vals := readField(ctx, field)
 			mtx.Lock()
+			if conditionSend {
+				for _, val := range conditions[0] {
+					vals = append(vals, val[idx])
+				}
+			}
 			if counterMaxLen == 0 {
 				columns = cols
 			}
@@ -58,8 +67,10 @@ func ConstructColNameAndValueBulk(ctx context.Context, arrayOfData interface{}) 
 				counterMaxLen++
 				maxLen = totalCols
 			}
+
 			arrayOfValues = append(arrayOfValues, vals)
 			columnValues = append(columnValues, vals...)
+
 		}(data, i)
 	}
 
@@ -90,17 +101,59 @@ func ConstructColNameAndValueBulk(ctx context.Context, arrayOfData interface{}) 
 		return nil, fmt.Errorf("got error: %s", gotErr.Error())
 	}
 
-	var listOfBulkValues []string
+	result := generateBulk(columns, columnValues, arrayOfValues, conditions...)
+	return result, nil
+}
 
-	for _, values := range arrayOfValues {
-		listOfBulkValues = append(listOfBulkValues, fmt.Sprintf("(?%s)", strings.Repeat(",?", len(values)-1)))
-	}
+func generateBulk(columns []string, columnValues []interface{}, arrayOfValues [][]interface{}, condition ...map[string][]interface{}) *database.CUDConstructData {
+	var listOfBulkValues []string
 
 	result := new(database.CUDConstructData)
 	result.ColsInsert = strings.Join(columns, ",")
-	result.BulkValuesInsert = strings.Join(listOfBulkValues, ",")
 	result.Values = columnValues
-	return result, nil
+	if condition == nil {
+		for _, values := range arrayOfValues {
+			listOfBulkValues = append(listOfBulkValues, fmt.Sprintf("(?%s)", strings.Repeat(",?", len(values)-1)))
+		}
+		result.BulkValues = strings.Join(listOfBulkValues, ",")
+	} else {
+		var initJoinQuery strings.Builder
+		var setAndWhereBulkQuery strings.Builder
+		initJoinQuery.WriteString("SELECT ")
+		setAndWhereBulkQuery.WriteString(" SET ")
+		lenCols := len(columns)
+		for x, colName := range columns {
+			initJoinQuery.WriteString(fmt.Sprintf("? AS %s, ", colName))
+			setAndWhereBulkQuery.WriteString(fmt.Sprintf("main_table.%s", colName))
+			if x < lenCols-1 {
+				setAndWhereBulkQuery.WriteString(", ")
+			}
+		}
+
+		conditionLength := len(condition[0])
+		setAndWhereBulkQuery.WriteString(" WHERE ")
+		condCounter := 0
+		for col := range condition[0] {
+			initJoinQuery.WriteString(fmt.Sprintf("? AS %s, ", col))
+			setAndWhereBulkQuery.WriteString(fmt.Sprintf("main_table.%s = join_table.%s", col, col))
+			if condCounter < conditionLength-1 {
+				setAndWhereBulkQuery.WriteString(" AND ")
+			}
+			condCounter++
+		}
+
+		initialBulkUpdateStr := initJoinQuery.String()
+		initialBulkUpdateStr = initialBulkUpdateStr[:len(initialBulkUpdateStr)-2]
+		listOfBulkValues = append(listOfBulkValues, initialBulkUpdateStr)
+		initJoinQuery.Reset()
+		for _, values := range arrayOfValues {
+			listOfBulkValues = append(listOfBulkValues, fmt.Sprintf("SELECT ?%s", strings.Repeat(",?", len(values)-1)))
+		}
+		result.BulkValues = strings.Join(listOfBulkValues, " UNION ALL ")
+		result.BulkQuery = setAndWhereBulkQuery.String()
+	}
+
+	return result
 }
 
 func ConstructColNameAndValue(ctx context.Context, structName interface{}, isNullStruct ...bool) ([]string, []interface{}) {

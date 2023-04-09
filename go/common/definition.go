@@ -19,6 +19,7 @@ type ReadRepo interface {
 type WriteRepo interface {
 	Insert(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
 	BulkInsert(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
+	BulkUpdate(ctx context.Context, data interface{}, condition map[string][]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
 	Update(ctx context.Context, data interface{}, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
 	Upsert(ctx context.Context, data interface{}, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
 	UpdateById(ctx context.Context, data interface{}, id int, trx ...*sql.Tx) (*database.CUDResponse, error)
