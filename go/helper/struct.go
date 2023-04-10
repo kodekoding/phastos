@@ -301,18 +301,27 @@ func GenerateSelectCols(ctx context.Context, source interface{}, isNullStruct ..
 		reflectVal = reflectVal.Elem()
 	}
 
-	if reflectVal.Kind() == reflect.Slice {
-		reflectVal = reflectVal.Index(0)
+	var elem reflect.Value
+
+	// val is the slice
+	typ := reflectVal.Type().Elem()
+	if typ.Kind() == reflect.Ptr {
+		elem = reflect.New(typ.Elem())
+	}
+	if typ.Kind() == reflect.Struct {
+		elem = reflect.New(typ).Elem()
 	}
 
-	refType := reflectVal.Type()
+	refType := elem.Type()
 	var cols []string
 
 	var containsNullStruct bool
 	if isNullStruct != nil {
 		containsNullStruct = isNullStruct[0]
 	}
-	for i := 0; i < reflectVal.NumField(); i++ {
+
+	elemNumField := elem.NumField()
+	for i := 0; i < elemNumField; i++ {
 		field := reflectVal.Field(i)
 
 		value := field.Interface()
