@@ -301,6 +301,10 @@ func GenerateSelectCols(ctx context.Context, source interface{}, isNullStruct ..
 		reflectVal = reflectVal.Elem()
 	}
 
+	if reflectVal.Kind() == reflect.Slice {
+		reflectVal = reflectVal.Index(0)
+	}
+
 	refType := reflectVal.Type()
 	var cols []string
 
