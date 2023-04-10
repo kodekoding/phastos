@@ -302,14 +302,16 @@ func GenerateSelectCols(ctx context.Context, source interface{}, isNullStruct ..
 	}
 
 	var elem reflect.Value
-
-	// val is the slice
-	typ := reflectVal.Type().Elem()
-	if typ.Kind() == reflect.Ptr {
-		elem = reflect.New(typ.Elem())
-	}
-	if typ.Kind() == reflect.Struct {
-		elem = reflect.New(typ).Elem()
+	elem = reflectVal
+	if elem.Kind() == reflect.Slice {
+		// val is the slice
+		typ := reflectVal.Type().Elem()
+		if typ.Kind() == reflect.Ptr {
+			elem = reflect.New(typ.Elem())
+		}
+		if typ.Kind() == reflect.Struct {
+			elem = reflect.New(typ).Elem()
+		}
 	}
 
 	refType := elem.Type()
@@ -322,7 +324,7 @@ func GenerateSelectCols(ctx context.Context, source interface{}, isNullStruct ..
 
 	elemNumField := elem.NumField()
 	for i := 0; i < elemNumField; i++ {
-		field := reflectVal.Field(i)
+		field := elem.Field(i)
 
 		value := field.Interface()
 		fieldType := refType.Field(i)
