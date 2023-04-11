@@ -17,7 +17,7 @@ type (
 		SetContent(subject, message string) *SMTP
 		SetHTMLTemplate(fs embed.FS, tplFile, subject string, args interface{}) *SMTP
 		SetSingleRecipient(recipient string) *SMTP
-		Send() error
+		Send(recipient ...string) error
 	}
 
 	SMTP struct {
@@ -95,12 +95,19 @@ func (s *SMTP) SetHTMLTemplate(fs embed.FS, tplFile, subject string, args interf
 	return s
 }
 
-func (s *SMTP) Send() error {
+func (s *SMTP) Send(recipient ...string) error {
 	if s.err != nil {
 		return s.err
 	}
 
-	if err := smtp.SendMail(s.address, s.auth, s.EmailFrom, s.recipient, s.body.Bytes()); err != nil {
+	var destination []string
+	destination = s.recipient
+
+	if recipient != nil {
+		destination = recipient
+	}
+
+	if err := smtp.SendMail(s.address, s.auth, s.EmailFrom, destination, s.body.Bytes()); err != nil {
 		return err
 	}
 
