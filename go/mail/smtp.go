@@ -13,9 +13,10 @@ import (
 
 type (
 	SMTPs interface {
-		AddRecipient(recipient string) SMTPs
-		SetContent(subject, message string) SMTPs
-		SetHTMLTemplate(fs embed.FS, tplFile, subject string, args interface{}) SMTPs
+		AddRecipient(recipient string) *SMTP
+		SetContent(subject, message string) *SMTP
+		SetHTMLTemplate(fs embed.FS, tplFile, subject string, args interface{}) *SMTP
+		SetSingleRecipient(recipient string) *SMTP
 		Send() error
 	}
 
@@ -44,7 +45,7 @@ type (
 	}
 )
 
-func NewSMTP(cfg *SMTPConfig) SMTPs {
+func NewSMTP(cfg *SMTPConfig) *SMTP {
 	auth := smtp.PlainAuth("", cfg.EmailUsername, cfg.EmailPassword, cfg.Host)
 	cfg.address = fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	return &SMTP{
@@ -53,12 +54,17 @@ func NewSMTP(cfg *SMTPConfig) SMTPs {
 	}
 }
 
-func (s *SMTP) AddRecipient(recipient string) SMTPs {
+func (s *SMTP) AddRecipient(recipient string) *SMTP {
 	s.recipient = append(s.recipient, recipient)
 	return s
 }
 
-func (s *SMTP) SetContent(subject, message string) SMTPs {
+func (s *SMTP) SetSingleRecipient(recipient string) *SMTP {
+	s.recipient = []string{recipient}
+	return s
+}
+
+func (s *SMTP) SetContent(subject, message string) *SMTP {
 	if s.Sender == "" || s.recipient == nil {
 		s.err = errors.New("sender name or recipient must be filled")
 		return s
@@ -75,7 +81,7 @@ func (s *SMTP) SetContent(subject, message string) SMTPs {
 	return s
 }
 
-func (s *SMTP) SetHTMLTemplate(fs embed.FS, tplFile, subject string, args interface{}) SMTPs {
+func (s *SMTP) SetHTMLTemplate(fs embed.FS, tplFile, subject string, args interface{}) *SMTP {
 	if s.Sender == "" || s.recipient == nil {
 		s.err = errors.New("sender name or recipient must be filled")
 		return s
