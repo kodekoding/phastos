@@ -69,7 +69,7 @@ func (b *BaseRead) GetDetail(ctx context.Context, opts *database.QueryOpts) erro
 }
 
 // GetDetailById - Generate Query "SELECT * FROM <table_name | optional_table_name> WHERE id = ?"
-func (b *BaseRead) GetDetailById(ctx context.Context, resultStruct interface{}, id int, optionalTableName ...string) error {
+func (b *BaseRead) GetDetailById(ctx context.Context, resultStruct interface{}, id interface{}, optionalTableName ...string) error {
 	opts := &database.QueryOpts{
 		Result: resultStruct,
 	}

@@ -12,7 +12,7 @@ import (
 type ReadRepo interface {
 	GetList(ctx context.Context, opts *database.QueryOpts) error
 	GetDetail(ctx context.Context, opts *database.QueryOpts) error
-	GetDetailById(ctx context.Context, resultStruct interface{}, id int, optionalTableName ...string) error
+	GetDetailById(ctx context.Context, resultStruct interface{}, id interface{}, optionalTableName ...string) error
 	Count(ctx context.Context, tableName string, reqData *database.TableRequest) (totalData, totalFiltered int, err error)
 }
 
@@ -22,9 +22,9 @@ type WriteRepo interface {
 	BulkUpdate(ctx context.Context, data interface{}, condition map[string][]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
 	Update(ctx context.Context, data interface{}, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
 	Upsert(ctx context.Context, data interface{}, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
-	UpdateById(ctx context.Context, data interface{}, id int, trx ...*sql.Tx) (*database.CUDResponse, error)
+	UpdateById(ctx context.Context, data interface{}, id interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
 	Delete(ctx context.Context, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
-	DeleteById(ctx context.Context, id int, trx ...*sql.Tx) (*database.CUDResponse, error)
+	DeleteById(ctx context.Context, id interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
 }
 
 type ReadHandler interface {
@@ -50,8 +50,8 @@ type RepoCRUD interface {
 
 type UsecaseCRUD interface {
 	GetList(ctx context.Context, requestData interface{}) (*database.SelectResponse, error)
-	GetDetailById(ctx context.Context, id int) (*database.SelectResponse, error)
+	GetDetailById(ctx context.Context, id interface{}) (*database.SelectResponse, error)
 	Insert(ctx context.Context, data interface{}) (*database.CUDResponse, error)
 	Update(ctx context.Context, data interface{}) (*database.CUDResponse, error)
-	Delete(ctx context.Context, id int) (*database.CUDResponse, error)
+	Delete(ctx context.Context, id interface{}) (*database.CUDResponse, error)
 }

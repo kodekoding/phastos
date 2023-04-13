@@ -65,7 +65,7 @@ func (b *BaseWrite) Update(ctx context.Context, data interface{}, condition map[
 	return b.cudProcess(ctx, "update", data, condition, trx...)
 }
 
-func (b *BaseWrite) UpdateById(ctx context.Context, data interface{}, id int, trx ...*sql.Tx) (*database.CUDResponse, error) {
+func (b *BaseWrite) UpdateById(ctx context.Context, data interface{}, id interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
 	condition := map[string]interface{}{
 		"id = ?": id,
 	}
@@ -101,7 +101,7 @@ func (b *BaseWrite) Delete(ctx context.Context, condition map[string]interface{}
 	return b.db.Write(ctx, qOpts)
 }
 
-func (b *BaseWrite) DeleteById(ctx context.Context, id int, trx ...*sql.Tx) (*database.CUDResponse, error) {
+func (b *BaseWrite) DeleteById(ctx context.Context, id interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
 	// soft delete, just update the deleted_at to not null
 	data := &database.CUDConstructData{
 		Cols:   []string{"deleted_at = now()"},
