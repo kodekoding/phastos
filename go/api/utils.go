@@ -16,6 +16,7 @@ var validate = validator.New()
 
 func WriteJson(w http.ResponseWriter, data interface{}) {
 	b, _ := json.Marshal(data)
+	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(b)
 }
 
