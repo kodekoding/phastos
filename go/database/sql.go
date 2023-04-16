@@ -163,7 +163,7 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	this.checkSQLWarning(ctx, query, start, params)
 	return nil
 }
-func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, error) {
+func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...bool) (*CUDResponse, error) {
 	if opts.CUDRequest == nil {
 		return nil, errors.New("CUD Request Struct must be assigned")
 	}
@@ -179,6 +179,11 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, erro
 	var (
 		addOnQuery string
 	)
+
+	softDelete := true
+	if isSoftDelete != nil && len(isSoftDelete) > 0 {
+		softDelete = isSoftDelete[0]
+	}
 	data := opts.CUDRequest
 	cols := strings.Join(data.Cols, ",")
 	var query string
@@ -201,10 +206,16 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts) (*CUDResponse, erro
 		query = fmt.Sprintf(`UPDATE %s SET %s WHERE id = ?`, tableName, cols)
 	case "delete_by_id":
 		query = fmt.Sprintf(`DELETE FROM %s WHERE id = ?`, tableName)
+		if softDelete {
+			query = fmt.Sprintf("UPDATE %s SET deleted_at = now() WHERE id = ?", tableName)
+		}
 	case "update":
 		query = fmt.Sprintf(`UPDATE %s SET %s`, tableName, cols)
 	case "delete":
 		query = fmt.Sprintf(`DELETE FROM %s`, tableName)
+		if softDelete {
+			query = fmt.Sprintf("UPDATE %s SET deleted_at = now()", tableName)
+		}
 	default:
 		return nil, errors.Wrap(errors.New("action exec is not defined"), "phastos.database.sql.Write.CheckAction")
 	}

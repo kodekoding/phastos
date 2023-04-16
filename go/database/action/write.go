@@ -75,21 +75,15 @@ func (b *BaseWrite) UpdateById(ctx context.Context, data interface{}, id interfa
 func (b *BaseWrite) Delete(ctx context.Context, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
 	// soft delete, just update the deleted_at to not null
 	data := &database.CUDConstructData{
-		Cols: []string{"deleted_at = now()"},
-	}
-	if !b.isSoftDelete {
-		data.Action = "delete"
-		data.TableName = b.tableName
+		Cols:      []string{"deleted_at = now()"},
+		Action:    "delete",
+		TableName: b.tableName,
 	}
 	qOpts := &database.QueryOpts{
 		CUDRequest: data,
 	}
 	if trx != nil && len(trx) > 0 {
 		qOpts.Trx = trx[0]
-	}
-
-	if b.isSoftDelete {
-		return b.Update(ctx, data, condition, trx...)
 	}
 
 	tableRequest := new(database.TableRequest)
@@ -98,18 +92,14 @@ func (b *BaseWrite) Delete(ctx context.Context, condition map[string]interface{}
 		tableRequest.SetWhereCondition(cond, value)
 	}
 	qOpts.SelectRequest = tableRequest
-	return b.db.Write(ctx, qOpts)
+	return b.db.Write(ctx, qOpts, b.isSoftDelete)
 }
 
 func (b *BaseWrite) DeleteById(ctx context.Context, id interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
 	// soft delete, just update the deleted_at to not null
 	data := &database.CUDConstructData{
-		Cols:   []string{"deleted_at = now()"},
-		Values: []interface{}{id},
-	}
-	if !b.isSoftDelete {
-		data.Action = "delete_by_id"
-		data.TableName = b.tableName
+		Action:    "delete_by_id",
+		TableName: b.tableName,
 	}
 	qOpts := &database.QueryOpts{
 		CUDRequest: data,
@@ -117,11 +107,7 @@ func (b *BaseWrite) DeleteById(ctx context.Context, id interface{}, trx ...*sql.
 	if trx != nil && len(trx) > 0 {
 		qOpts.Trx = trx[0]
 	}
-
-	if b.isSoftDelete {
-		return b.UpdateById(ctx, data, id, trx...)
-	}
-	return b.db.Write(ctx, qOpts)
+	return b.db.Write(ctx, qOpts, b.isSoftDelete)
 }
 
 func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
