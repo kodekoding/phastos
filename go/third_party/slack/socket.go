@@ -20,7 +20,7 @@ type (
 	AppImplementor struct{}
 	AppOptions     func(*App)
 	App            struct {
-		Api           *slackpkg.Client
+		api           *slackpkg.Client
 		socket        *socketmode.Client
 		socketHandler *socketmode.SocketmodeHandler
 		botToken      string
@@ -46,24 +46,28 @@ func NewSlackApp(appToken, botToken string, opts ...AppOptions) (*App, error) {
 		slackpkg.OptionLog(log.New(os.Stdout, "api: ", log.Lshortfile|log.LstdFlags)),
 	)
 
-	socketClient := socketmode.New(
-		apiClient,
-		socketmode.OptionLog(log.New(os.Stdout, "socketmode: ", log.Lshortfile|log.LstdFlags)),
-	)
-
-	socketHandler := socketmode.NewSocketmodeHandler(socketClient)
-
 	slackApp := &App{
-		appToken:      appToken,
-		botToken:      botToken,
-		Api:           apiClient,
-		socket:        socketClient,
-		socketHandler: socketHandler,
+		appToken: appToken,
+		botToken: botToken,
+		api:      apiClient,
 	}
 	for _, opt := range opts {
 		opt(slackApp)
 	}
 	return slackApp, nil
+}
+
+func WithSocketMode() AppOptions {
+	return func(app *App) {
+		socketClient := socketmode.New(
+			app.api,
+			socketmode.OptionLog(log.New(os.Stdout, "socketmode: ", log.Lshortfile|log.LstdFlags)),
+		)
+
+		socketHandler := socketmode.NewSocketmodeHandler(socketClient)
+		app.socket = socketClient
+		app.socketHandler = socketHandler
+	}
 }
 
 func WithHttp(port ...int) AppOptions {
@@ -86,21 +90,25 @@ func WithDebug(enabled bool) AppOptions {
 				slackpkg.OptionAppLevelToken(app.appToken),
 				slackpkg.OptionLog(log.New(os.Stdout, "api: ", log.Lshortfile|log.LstdFlags)),
 			)
+			app.api = apiClient
 
-			socketClient := socketmode.New(
-				apiClient,
-				socketmode.OptionDebug(enabled),
-				socketmode.OptionLog(log.New(os.Stdout, "socketmode: ", log.Lshortfile|log.LstdFlags)),
-			)
+			if app.socket != nil {
+				socketClient := socketmode.New(
+					apiClient,
+					socketmode.OptionDebug(enabled),
+					socketmode.OptionLog(log.New(os.Stdout, "socketmode: ", log.Lshortfile|log.LstdFlags)),
+				)
+				app.socket = socketClient
 
-			socketHandler := socketmode.NewSocketmodeHandler(socketClient)
-
-			// re-assign the values
-			app.Api = apiClient
-			app.socket = socketClient
-			app.socketHandler = socketHandler
+				socketHandler := socketmode.NewSocketmodeHandler(socketClient)
+				app.socketHandler = socketHandler
+			}
 		}
 	}
+}
+
+func (app *App) GetAPI() *slackpkg.Client {
+	return app.api
 }
 
 func (app *App) wrapHandler(handler handler2.EventHandler, shouldAck ...bool) socketmode.SocketmodeHandlerFunc {
@@ -140,7 +148,7 @@ func (app *App) wrapHandler(handler handler2.EventHandler, shouldAck ...bool) so
 		if err := handler(context.Background(), request); err != nil {
 			log2.Errorln("handler got error: ", err.Error())
 		} else if needAck {
-			// jika tidak error dan perlu di ack
+			// if not err then ack the request
 			client.Ack(*event.Request)
 		}
 	}
@@ -172,9 +180,11 @@ func (app *App) AddHandler(socketHandler handler2.SocketHandler) {
 
 func (app *App) Start() {
 	go func() {
-		log.Println("Slack Socket running, serving ", app.totalEvents, " event(s)")
-		if err := app.socketHandler.RunEventLoop(); err != nil {
-			log.Fatalln("cannot run socket socket: ", err.Error())
+		if app.socket != nil && app.socketHandler != nil {
+			log.Println("Slack Socket running, serving ", app.totalEvents, " event(s)")
+			if err := app.socketHandler.RunEventLoop(); err != nil {
+				log.Fatalln("cannot run socket socket: ", err.Error())
+			}
 		}
 	}()
 
