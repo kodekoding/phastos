@@ -310,8 +310,10 @@ func GenerateSelectCols(ctx context.Context, source interface{}, isNullStruct ..
 			elem = reflect.New(typ.Elem())
 		}
 		if typ.Kind() == reflect.Struct {
-			elem = reflect.New(typ).Elem()
+			elem = reflect.New(typ)
 		}
+
+		elem = elem.Elem()
 	}
 
 	refType := elem.Type()
