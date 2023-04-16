@@ -155,6 +155,9 @@ func (app *App) wrapHandler(handler handler2.EventHandler, shouldAck ...bool) so
 }
 
 func (app *App) AddHandler(socketHandler handler2.SocketHandler) {
+	if app.socket == nil && app.socketHandler == nil {
+		return
+	}
 	config := socketHandler.GetConfig()
 	for _, event := range config.Handler {
 		switch identifier := event.Type.(type) {
