@@ -100,6 +100,7 @@ func (b *BaseWrite) DeleteById(ctx context.Context, id interface{}, trx ...*sql.
 	data := &database.CUDConstructData{
 		Action:    "delete_by_id",
 		TableName: b.tableName,
+		Values:    []interface{}{id},
 	}
 	qOpts := &database.QueryOpts{
 		CUDRequest: data,
