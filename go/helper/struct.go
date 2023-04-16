@@ -280,14 +280,14 @@ func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}
 	}
 
 	wg.Wait()
-
-	if anotherValues != nil {
-		values = append(values, anotherValues...)
-	}
 	if !haveUpdatedAtCol {
 		cols = append(cols, "updated_at=?")
 		values = append(values, time.Now().Format("2006-01-02 15:04:05"))
 	}
+	if anotherValues != nil {
+		values = append(values, anotherValues...)
+	}
+
 	return &database.CUDConstructData{
 		Cols:       cols,
 		ColsInsert: columns,
