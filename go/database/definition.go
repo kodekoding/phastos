@@ -140,15 +140,15 @@ type (
 	}
 
 	TableRequest struct {
-		Keyword               string        `json:"keyword" schema:"keyword"`
-		SearchColsStr         string        `json:"search_cols" schema:"search_cols"`
+		Keyword               string        `json:"keyword,omitempty" schema:"keyword"`
+		SearchColsStr         string        `json:"search_cols,omitempty" schema:"search_cols"`
 		SearchCols            []string      `json:"-"`
-		Page                  int           `json:"page" schema:"page"`
-		Limit                 int           `json:"limit" schema:"limit"`
-		OrderBy               string        `json:"order_by" schema:"order_by"`
-		GroupBy               string        `json:"group_by,omitempty" schema:"group_by"`
-		CreatedStart          string        `json:"created_start" schema:"created_start"`
-		CreatedEnd            string        `json:"created_end" schema:"created_end"`
+		Page                  int           `json:"page,omitempty" schema:"page"`
+		Limit                 int           `json:"limit,omitempty" schema:"limit"`
+		OrderBy               string        `json:"order_by,omitempty" schema:"order_by"`
+		GroupBy               string        `json:"group_by,omitempty,omitempty" schema:"group_by"`
+		CreatedStart          string        `json:"date_start,omitempty" schema:"date_start"`
+		CreatedEnd            string        `json:"date_end,omitempty" schema:"date_end"`
 		InitiateWhere         []string      `json:"-"` // will be defined manually at each of usecase services
 		InitiateWhereValues   []interface{} `json:"-"` // will be defined manually at each of usecase services
 		IncludeDeleted        bool          `json:"-"`
