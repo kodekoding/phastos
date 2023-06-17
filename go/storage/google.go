@@ -75,25 +75,29 @@ func (g *google) UploadFile(ctx context.Context, file multipart.File, fileName *
 	return g.uploadProcess(ctx, file, fileName, "private/file")
 }
 
-func (g *google) UploadImageFromLocalPath(ctx context.Context, filePath string, fileName *string) error {
+func (g *google) UploadImageFromLocalPath(ctx context.Context, filePath string, fileName *string, deleteAfterSuccess ...bool) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return errors.Wrap(err, "phastos.go.storage.google.Upload.Copy")
 	}
 	defer func() {
-		_ = os.RemoveAll(filePath)
+		if deleteAfterSuccess != nil && len(deleteAfterSuccess) > 0 && deleteAfterSuccess[0] {
+			_ = os.RemoveAll(filePath)
+		}
 	}()
 
 	return g.uploadProcess(ctx, file, fileName, "private/img")
 }
 
-func (g *google) UploadFileFromLocalPath(ctx context.Context, filePath string, fileName *string) error {
+func (g *google) UploadFileFromLocalPath(ctx context.Context, filePath string, fileName *string, deleteAfterSuccess ...bool) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return errors.Wrap(err, "phastos.go.storage.google.Upload.Copy")
 	}
 	defer func() {
-		_ = os.RemoveAll(filePath)
+		if deleteAfterSuccess != nil && len(deleteAfterSuccess) > 0 && deleteAfterSuccess[0] {
+			_ = os.RemoveAll(filePath)
+		}
 	}()
 
 	return g.uploadProcess(ctx, file, fileName, "private/file")
@@ -107,25 +111,29 @@ func (g *google) UploadFilePublic(ctx context.Context, file multipart.File, file
 	return g.uploadProcess(ctx, file, fileName, "public/file")
 }
 
-func (g *google) UploadImageFromLocalPathPublic(ctx context.Context, filePath string, fileName *string) error {
+func (g *google) UploadImageFromLocalPathPublic(ctx context.Context, filePath string, fileName *string, deleteAfterSuccess ...bool) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return errors.Wrap(err, "phastos.go.storage.google.UploadImageFromLocalPathPublic.PublicCopy")
 	}
 	defer func() {
-		_ = os.RemoveAll(filePath)
+		if deleteAfterSuccess != nil && len(deleteAfterSuccess) > 0 && deleteAfterSuccess[0] {
+			_ = os.RemoveAll(filePath)
+		}
 	}()
 
 	return g.uploadProcess(ctx, file, fileName, "public/img")
 }
 
-func (g *google) UploadFileFromLocalPathPublic(ctx context.Context, filePath string, fileName *string) error {
+func (g *google) UploadFileFromLocalPathPublic(ctx context.Context, filePath string, fileName *string, deleteAfterSuccess ...bool) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return errors.Wrap(err, "phastos.go.storage.google.UploadImageFromLocalPathPublic.Copy")
 	}
 	defer func() {
-		_ = os.RemoveAll(filePath)
+		if deleteAfterSuccess != nil && len(deleteAfterSuccess) > 0 && deleteAfterSuccess[0] {
+			_ = os.RemoveAll(filePath)
+		}
 	}()
 
 	return g.uploadProcess(ctx, file, fileName, "public/file")
