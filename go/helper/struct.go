@@ -259,8 +259,6 @@ func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}
 	//trc, ctx := tracer.StartSpanFromContext(ctx, "Helper-ConstructColNameAndValueForUpdate")
 	//defer trc.Finish()
 	cols, values := ConstructColNameAndValue(nil, structName)
-	var columns string
-	columns = strings.Join(cols, ",")
 	// change cols list with suffix '=?' using go routine
 	mutex := new(sync.Mutex)
 	wg := new(sync.WaitGroup)
@@ -284,6 +282,8 @@ func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}
 		cols = append(cols, "updated_at=?")
 		values = append(values, time.Now().Format("2006-01-02 15:04:05"))
 	}
+
+	columns := strings.Join(cols, ",")
 	if anotherValues != nil {
 		values = append(values, anotherValues...)
 	}
