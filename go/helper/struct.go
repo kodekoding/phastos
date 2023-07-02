@@ -260,6 +260,8 @@ func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}
 	//defer trc.Finish()
 	cols, values := ConstructColNameAndValue(nil, structName)
 	// change cols list with suffix '=?' using go routine
+	columns := strings.Join(cols, ",")
+
 	mutex := new(sync.Mutex)
 	wg := new(sync.WaitGroup)
 	colLength := len(cols)
@@ -280,10 +282,10 @@ func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}
 	wg.Wait()
 	if !haveUpdatedAtCol {
 		cols = append(cols, "updated_at=?")
+		columns = fmt.Sprintf("%s,updated_at", columns)
 		values = append(values, time.Now().Format("2006-01-02 15:04:05"))
 	}
 
-	columns := strings.Join(cols, ",")
 	if anotherValues != nil {
 		values = append(values, anotherValues...)
 	}
