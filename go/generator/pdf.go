@@ -6,7 +6,7 @@ import (
 	"strings"
 	"text/template"
 
-	wkhtmltopdf "github.com/SebastiaanKlippert/go-wkhtmltopdf"
+	"github.com/SebastiaanKlippert/go-wkhtmltopdf"
 	"github.com/pkg/errors"
 
 	"github.com/kodekoding/phastos/go/helper"
@@ -82,6 +82,7 @@ func (c *PDF) SetTemplate(templatePath string, data interface{}) PDFs {
 
 	contentString := buff.String()
 	c.contents = wkhtmltopdf.NewPageReader(strings.NewReader(contentString))
+	c.contents.EnableLocalFileAccess.Set(true)
 	return c
 }
 
