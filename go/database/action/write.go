@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/kodekoding/phastos/go/common"
 	"github.com/kodekoding/phastos/go/database"
@@ -115,6 +116,9 @@ func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, condition map[
 	var totalData int
 	tableRequest := new(database.TableRequest)
 	for cond, val := range condition {
+		if !strings.Contains(cond, "?") {
+			cond = fmt.Sprintf("%s = ?", cond)
+		}
 		tableRequest.SetWhereCondition(cond, val)
 	}
 	if err := b.db.Read(ctx, &database.QueryOpts{
