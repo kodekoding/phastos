@@ -115,7 +115,8 @@ func (b *BaseWrite) DeleteById(ctx context.Context, id interface{}, trx ...*sql.
 func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
 	var totalData int
 	tableRequest := new(database.TableRequest)
-	for cond, val := range condition {
+	pointerCondition := &condition
+	for cond, val := range *pointerCondition {
 		if !strings.Contains(cond, "?") {
 			cond = fmt.Sprintf("%s = ?", cond)
 		}
@@ -130,7 +131,7 @@ func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, condition map[
 	}
 
 	if totalData > 0 {
-		return b.cudProcess(ctx, "update", data, condition, trx...)
+		return b.cudProcess(ctx, "update", data, *pointerCondition, trx...)
 	}
 	return b.cudProcess(ctx, "insert", data, nil, trx...)
 }
