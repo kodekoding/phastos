@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"github.com/go-resty/resty/v2"
 	"google.golang.org/api/option"
 	"io"
 	"io/fs"
@@ -23,6 +24,8 @@ type google struct {
 	bucket       *storage.BucketHandle
 	imageExpTime int
 	contentType  string
+	resty        *resty.Client
+	bucketName   string
 }
 
 func (g *google) SetFileExpiredTime(minutes int) Buckets {
@@ -49,7 +52,14 @@ func NewGCS(ctx context.Context, bucketName string) (Buckets, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "phastos.go.storage.google.NewGCS.NewClient")
 	}
-	return &google{client: gcsClient, bucket: gcsClient.Bucket(bucketName)}, nil
+
+	restyClient := resty.New()
+	return &google{
+		client:     gcsClient,
+		bucket:     gcsClient.Bucket(bucketName),
+		resty:      restyClient,
+		bucketName: bucketName,
+	}, nil
 }
 
 func (g *google) Close() {
@@ -149,6 +159,7 @@ func (g *google) uploadProcess(ctx context.Context, file multipart.File, fileNam
 	if splitType[0] == "public" {
 		isPublic = true
 	}
+
 	*fileName = fmt.Sprintf("%s/%s/%s", fileType, currentEnv, *fileName)
 	obj := g.bucket.Object(*fileName).NewWriter(ctx)
 
@@ -244,4 +255,27 @@ func (g *google) CopyFileToAnotherBucket(ctx context.Context, destBucket, fileNa
 		return errors.Wrap(err, "phastos.go.storage.google.CopyFileToAnotherBucket")
 	}
 	return nil
+}
+
+func (g *google) InitResumableUploads(ctx context.Context, gcsPath *string) (string, error) {
+	gcsAccessToken := os.Getenv("GCS_ACCESS_TOKEN")
+	if gcsAccessToken == "" {
+		return "", errors.Wrap(errors.New("access token cannot be empty"), "phastos.go.storage.google.InitResumableUploads.GetAccessTokenFromEnv")
+	}
+
+	*gcsPath = fmt.Sprintf("resumable/%s/%s", env.ServiceEnv(), *gcsPath)
+
+	gcsURL := fmt.Sprintf("https://storage.googleapis.com/upload/storage/v1/b/%s/o?uploadType=resumable&name=%s", g.bucketName, *gcsPath)
+	var sessionURI string
+	if _, err := g.resty.R().
+		SetContext(ctx).
+		SetResult(&sessionURI).
+		SetHeaders(map[string]string{
+			"Authorization": fmt.Sprintf("Bearer %s", gcsAccessToken),
+			"Content-Type":  "application/json",
+		}).
+		Post(gcsURL); err != nil {
+		return "", errors.Wrap(err, "phastos.go.storage.google.InitResumableUploads.Post")
+	}
+	return sessionURI, nil
 }
