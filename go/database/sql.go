@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"reflect"
 	"strings"
 	"sync"
@@ -284,10 +283,8 @@ func (this *SQL) checkSQLWarning(ctx context.Context, query string, start time.T
 	if endSecond >= this.slowQueryThreshold {
 		defaultWarnMsg := fmt.Sprintf(`
 			[WARN] SLOW QUERY DETECTED (%s): %s (%#v)
-			Process Query: %.2fs`, env.ServiceEnv(), query, params, end.Seconds(),
-		)
+			Process Query: %.2fs`, env.ServiceEnv(), query, params, end.Seconds())
 		paramsString, _ := json.Marshal(params)
-		log.Printf(defaultWarnMsg)
 		notif := context2.GetNotif(ctx)
 		if notif != nil {
 			var attachment interface{}
