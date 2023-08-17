@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"time"
@@ -130,6 +131,9 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 					}
 				}
 				return paramValue
+			},
+			GetFile: func(key string) (multipart.File, *multipart.FileHeader, error) {
+				return r.FormFile(key)
 			},
 			GetQuery: func(i interface{}) error {
 				if err := decoder.Decode(i, r.URL.Query()); err != nil {

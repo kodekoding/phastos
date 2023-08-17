@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 )
@@ -12,6 +13,7 @@ type StringMap map[string]string
 
 type Request struct {
 	GetParams  func(key string, defaultValue ...string) string
+	GetFile    func(key string) (multipart.File, *multipart.FileHeader, error)
 	GetQuery   func(interface{}) error
 	GetBody    func(interface{}) error
 	GetHeaders func(interface{}) error
