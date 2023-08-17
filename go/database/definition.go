@@ -140,7 +140,7 @@ type (
 
 	SelectResponse struct {
 		Data interface{} `json:"data"`
-		ResponseMetaData
+		*ResponseMetaData
 	}
 
 	TableRequest struct {
