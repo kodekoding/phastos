@@ -132,11 +132,15 @@ type (
 		params []interface{}
 	}
 
-	SelectResponse struct {
+	ResponseMetaData struct {
 		RequestParam  interface{} `json:"request_param"`
-		Data          interface{} `json:"data"`
 		TotalData     int64       `json:"total_data"`
 		TotalFiltered int64       `json:"total_filtered"`
+	}
+
+	SelectResponse struct {
+		Data interface{} `json:"data"`
+		ResponseMetaData
 	}
 
 	TableRequest struct {

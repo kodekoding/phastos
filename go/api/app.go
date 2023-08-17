@@ -182,10 +182,9 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 				unknownError.Write(w)
 				return
 			}
+			w.WriteHeader(http.StatusOK)
+			WriteJson(w, response)
 		}
-
-		w.WriteHeader(http.StatusOK)
-		WriteJson(w, response)
 	}
 }
 
