@@ -216,6 +216,9 @@ func readField(_ context.Context, reflectVal reflect.Value, isNullStruct ...bool
 			containsNullStruct = true
 		}
 
+		if field.Kind() == reflect.Ptr {
+			field = field.Elem()
+		}
 		if field.Kind() == reflect.Struct {
 
 			embeddedCols, embeddedVals := ConstructColNameAndValue(nil, field.Interface(), containsNullStruct)
