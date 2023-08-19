@@ -67,11 +67,21 @@ func connectDB(cfg *SQLConfig) (*sqlx.DB, error) {
 
 	maxLifetime := time.Duration(cfg.MaxConnLifetime) * time.Second
 	db.SetConnMaxLifetime(maxLifetime)
-	maxIddleTime := time.Duration(cfg.MaxIdleTime) * time.Second
-	db.SetConnMaxIdleTime(maxIddleTime)
+	maxIdleTime := time.Duration(cfg.MaxIdleTime) * time.Second
+	db.SetConnMaxIdleTime(maxIdleTime)
 
-	db.SetMaxOpenConns(cfg.MaxOpenConn)
-	db.SetMaxIdleConns(cfg.MaxIdleConn)
+	// set maximum open connection to DB
+	maxOpenConn := cfg.MaxOpenConn
+	if maxOpenConn == 0 {
+		maxOpenConn = 10
+	}
+	db.SetMaxOpenConns(maxOpenConn)
+
+	maxIdleConn := cfg.MaxIdleConn
+	if maxIdleConn == 0 {
+		maxIdleConn = 4
+	}
+	db.SetMaxIdleConns(maxIdleConn)
 	return db, nil
 }
 
