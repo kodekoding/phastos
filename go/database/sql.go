@@ -288,7 +288,8 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		}
 	}
 	rowsAffected++
-
+	result.LastInsertID = lastInsertID
+	result.RowsAffected = rowsAffected
 	this.checkSQLWarning(ctx, query, start, data.Values)
 
 	if this.engine == common.MYSQL_ENGINE {
