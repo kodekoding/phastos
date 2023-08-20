@@ -17,10 +17,14 @@ import (
 	"github.com/pkg/errors"
 	_ "gorm.io/driver/mysql" // import mysql driver
 
-	"github.com/kodekoding/phastos/go/common"
 	context2 "github.com/kodekoding/phastos/go/context"
 	"github.com/kodekoding/phastos/go/env"
 	custerr "github.com/kodekoding/phastos/go/error"
+)
+
+const (
+	MySQLEngine    = "mysql"
+	PostgresEngine = "postgres"
 )
 
 func newSQL(master, follower *sqlx.DB, timeout int, slowThreshold float64) *SQL {
@@ -91,12 +95,12 @@ func generateConnString(cfg *SQLConfig) {
 		// if ConnString config is empty, then build the connection string manually
 		strFormat := ""
 		switch cfg.Engine {
-		case common.MYSQL_ENGINE:
+		case MySQLEngine:
 			if cfg.Port == "" {
 				cfg.Port = "3306"
 			}
 			strFormat = "%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=true&timeout=60s&readTimeout=60s&writeTimeout=60s"
-		case common.POSTGRES_ENGINE:
+		case PostgresEngine:
 			if cfg.Port == "" {
 				cfg.Port = "5432"
 			}
@@ -201,7 +205,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	switch data.Action {
 	case "insert":
 		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s)`, tableName, cols, strings.Repeat(",?", len(data.Cols)-1))
-		if this.engine == common.POSTGRES_ENGINE {
+		if this.engine == PostgresEngine {
 			query = fmt.Sprintf("%s RETURNING id", query)
 		}
 	case "bulk_insert":
@@ -261,7 +265,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 			return result, err
 		}
 
-		if this.engine == common.POSTGRES_ENGINE {
+		if this.engine == PostgresEngine {
 			if err = stmt.QueryRowContext(ctx, data.Values...).Scan(&lastInsertID); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
 				return result, err
@@ -274,7 +278,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 			}
 		}
 	} else {
-		if this.engine == common.POSTGRES_ENGINE {
+		if this.engine == PostgresEngine {
 			if err = this.Master.QueryRowContext(ctx, query, data.Values...).Scan(&lastInsertID); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
 				return result, err
@@ -292,7 +296,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	result.RowsAffected = rowsAffected
 	this.checkSQLWarning(ctx, query, start, data.Values)
 
-	if this.engine == common.MYSQL_ENGINE {
+	if this.engine == MySQLEngine {
 		lastInsertID, err = exec.LastInsertId()
 		if err == nil {
 			result.LastInsertID = lastInsertID
