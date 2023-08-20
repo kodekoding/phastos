@@ -59,6 +59,7 @@ func Connect(cfg *SQLs) (*SQL, error) {
 	}
 
 	db := newSQL(masterDB, followerDB, cfg.Timeout, cfg.SlowQueryThreshold)
+	db.engine = cfg.Master.Engine
 	return db, nil
 }
 
