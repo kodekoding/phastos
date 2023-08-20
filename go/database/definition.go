@@ -33,6 +33,12 @@ type (
 
 		// BindNamed do BindNamed on master DB
 		BindNamed(query string, arg interface{}) (string, []interface{}, error)
+
+		// QueryRow executes QueryRow against follower DB
+		QueryRow(query string, args ...interface{}) *sql.Row
+
+		// QueryRowContext from sql database
+		QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
 	}
 
 	// Follower defines operation that will be executed to follower DB
@@ -49,6 +55,9 @@ type (
 		// QueryRow executes QueryRow against follower DB
 		QueryRow(query string, args ...interface{}) *sql.Row
 
+		// QueryRowContext from sql database
+		QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+
 		// NamedQuery do named query on follower DB
 		NamedQuery(query string, arg interface{}) (*sqlx.Rows, error)
 
@@ -60,9 +69,6 @@ type (
 
 		// QueryContext from sql database
 		QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
-
-		// QueryRowContext from sql database
-		QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
 
 		// QueryxContext queries the database and returns an *sqlx.Rows. Any placeholder parameters are replaced with supplied args.
 		QueryxContext(ctx context.Context, query string, args ...interface{}) (*sqlx.Rows, error)

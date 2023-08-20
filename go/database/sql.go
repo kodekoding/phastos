@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	_ "gorm.io/driver/mysql" // import mysql driver
 
+	"github.com/kodekoding/phastos/go/common"
 	context2 "github.com/kodekoding/phastos/go/context"
 	"github.com/kodekoding/phastos/go/env"
 	custerr "github.com/kodekoding/phastos/go/error"
@@ -90,12 +91,12 @@ func generateConnString(cfg *SQLConfig) {
 		// if ConnString config is empty, then build the connection string manually
 		strFormat := ""
 		switch cfg.Engine {
-		case "mysql":
+		case common.MYSQL_ENGINE:
 			if cfg.Port == "" {
 				cfg.Port = "3306"
 			}
 			strFormat = "%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=true&timeout=60s&readTimeout=60s&writeTimeout=60s"
-		case "postgres":
+		case common.POSTGRES_ENGINE:
 			if cfg.Port == "" {
 				cfg.Port = "5432"
 			}
@@ -200,6 +201,9 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	switch data.Action {
 	case "insert":
 		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s)`, tableName, cols, strings.Repeat(",?", len(data.Cols)-1))
+		if this.engine == common.POSTGRES_ENGINE {
+			query = fmt.Sprintf("%s RETURNING id", query)
+		}
 	case "bulk_insert":
 		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES %s`, tableName, data.ColsInsert, data.BulkValues)
 	case "bulk_update":
@@ -247,35 +251,56 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	result.params = data.Values
 	trx := opts.Trx
 	start := time.Now()
+	lastInsertID := int64(0)
+	rowsAffected := int64(0)
+
 	if trx != nil {
 		stmt, err := trx.PrepareContext(ctx, query)
 		if err != nil {
 			_, err = sendNilResponse(err, "phastos.database.Write.PrepareContext", query, data.Values)
 			return result, err
 		}
-		exec, err = stmt.ExecContext(ctx, data.Values...)
-		if err != nil {
-			_, err = sendNilResponse(err, "phastos.database.Write.ExecContext", query, data.Values)
-			return result, err
+
+		if this.engine == common.POSTGRES_ENGINE {
+			if err = stmt.QueryRowContext(ctx, data.Values...).Scan(&lastInsertID); err != nil {
+				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
+				return result, err
+			}
+		} else {
+			exec, err = stmt.ExecContext(ctx, data.Values...)
+			if err != nil {
+				_, err = sendNilResponse(err, "phastos.database.Write.ExecContext", query, data.Values)
+				return result, err
+			}
 		}
 	} else {
-		exec, err = this.Master.ExecContext(ctx, query, data.Values...)
-		if err != nil {
-			_, err = sendNilResponse(err, "phastos.database.Write.WithoutTrx.ExecContext", query, data.Values)
-			return result, err
+		if this.engine == common.POSTGRES_ENGINE {
+			if err = this.Master.QueryRowContext(ctx, query, data.Values...).Scan(&lastInsertID); err != nil {
+				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
+				return result, err
+			}
+		} else {
+			exec, err = this.Master.ExecContext(ctx, query, data.Values...)
+			if err != nil {
+				_, err = sendNilResponse(err, "phastos.database.Write.WithoutTrx.ExecContext", query, data.Values)
+				return result, err
+			}
 		}
 	}
+	rowsAffected++
 
 	this.checkSQLWarning(ctx, query, start, data.Values)
 
-	lastInsertID, err := exec.LastInsertId()
-	if err == nil {
-		result.LastInsertID = lastInsertID
-	}
+	if this.engine == common.MYSQL_ENGINE {
+		lastInsertID, err = exec.LastInsertId()
+		if err == nil {
+			result.LastInsertID = lastInsertID
+		}
 
-	rowsAffected, err := exec.RowsAffected()
-	if err == nil {
-		result.RowsAffected = rowsAffected
+		rowsAffected, err = exec.RowsAffected()
+		if err == nil {
+			result.RowsAffected = rowsAffected
+		}
 	}
 
 	result.Status = true

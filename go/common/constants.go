@@ -8,3 +8,8 @@ var (
 	ErrIdMustNumeric       = errors.New("ID must be defined as number")
 	ErrPatch               = errors.New("error patch")
 )
+
+const (
+	MYSQL_ENGINE    = "mysql"
+	POSTGRES_ENGINE = "postgres"
+)
