@@ -95,6 +95,7 @@ type (
 		Follower           SQLConfig `yaml:"follower"`
 		Timeout            int       `yaml:"timeout"`
 		SlowQueryThreshold float64   `yaml:"slow_query_threshold"`
+		EncryptionKey      string    `yaml:"encryption_key"`
 	}
 
 	SQLConfig struct {

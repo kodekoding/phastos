@@ -30,5 +30,6 @@ type (
 		Handler       http.Handler
 		CertFile      string
 		KeyFile       string
+		EncryptionKey string `yaml:"encryption_key"`
 	}
 )
