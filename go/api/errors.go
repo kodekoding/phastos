@@ -13,9 +13,9 @@ type HttpError struct {
 
 type ErrorOption func(*HttpError)
 
-func (err *HttpError) Write(w http.ResponseWriter) {
-	w.WriteHeader(err.Status)
-	WriteJson(w, err)
+func (e *HttpError) Write(w http.ResponseWriter) {
+	w.WriteHeader(e.Status)
+	WriteJson(w, e)
 }
 
 func (e *HttpError) Error() string {

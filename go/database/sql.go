@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -17,9 +19,9 @@ import (
 	"github.com/pkg/errors"
 	_ "gorm.io/driver/mysql" // import mysql driver
 
-	context2 "github.com/kodekoding/phastos/go/context"
-	"github.com/kodekoding/phastos/go/env"
-	custerr "github.com/kodekoding/phastos/go/error"
+	context2 "github.com/kodekoding/phastos/v2/go/context"
+	"github.com/kodekoding/phastos/v2/go/env"
+	custerr "github.com/kodekoding/phastos/v2/go/error"
 )
 
 const (
@@ -27,92 +29,69 @@ const (
 	PostgresEngine = "postgres"
 )
 
-func newSQL(master, follower *sqlx.DB, timeout int, slowThreshold float64) *SQL {
-	sqlTimeOut := 3
+func newSQL(master, follower *sqlx.DB) *SQL {
 	slowQueryThreshold := float64(1)
-	if timeout > 0 {
-		sqlTimeOut = timeout
-	}
-	if slowThreshold > 0 {
-		slowQueryThreshold = slowThreshold
+	envSlowQuery, _ := strconv.ParseFloat(os.Getenv("DATABASE_SLOW_QUERY_THRESHOLD"), 32)
+	if envSlowQuery > 0 {
+		slowQueryThreshold = envSlowQuery
 	}
 	return &SQL{
 		Master:             master,
 		Follower:           follower,
 		master:             master,
 		follower:           follower,
-		timeout:            time.Duration(sqlTimeOut) * time.Second,
 		slowQueryThreshold: slowQueryThreshold,
 	}
 }
 
-func Connect(cfg *SQLs) (*SQL, error) {
+func Connect() (*SQL, error) {
+	engine := os.Getenv("DATABASE_ENGINE")
 
-	masterDB, err := connectDB(&cfg.Master)
+	masterDB, err := connectDB(engine, "MASTER")
 	if err != nil {
 		return nil, errors.Wrap(err, "phastos.database.ConnectMaster")
 	}
 
-	followerDB, err := connectDB(&cfg.Follower)
+	followerDB, err := connectDB(engine, "FOLLOWER")
 	if err != nil {
 		return nil, errors.Wrap(err, "phastos.database.ConnectFollower")
 	}
 
-	db := newSQL(masterDB, followerDB, cfg.Timeout, cfg.SlowQueryThreshold)
-	db.engine = cfg.Master.Engine
+	db := newSQL(masterDB, followerDB)
+	db.engine = engine
 	return db, nil
 }
 
-func connectDB(cfg *SQLConfig) (*sqlx.DB, error) {
-	generateConnString(cfg)
+func connectDB(engine string, dbType string) (*sqlx.DB, error) {
 
-	db, err := sqlx.Connect(cfg.Engine, cfg.ConnString)
+	connString := os.Getenv(fmt.Sprintf("DATABASE_CONN_STRING_%s", dbType))
+	db, err := sqlx.Connect(engine, connString)
 	if err != nil {
 		return nil, errors.Wrap(err, "phastos.database.Connect")
 	}
 
-	maxLifetime := time.Duration(cfg.MaxConnLifetime) * time.Second
+	cfgMaxConnLifeTime, _ := strconv.Atoi(os.Getenv("DATABASE_CONN_MAX_LIFETIME"))
+	maxLifetime := time.Duration(cfgMaxConnLifeTime) * time.Second
 	db.SetConnMaxLifetime(maxLifetime)
-	maxIdleTime := time.Duration(cfg.MaxIdleTime) * time.Second
+
+	cfgMaxIdleTime, _ := strconv.Atoi(os.Getenv("DATABASE_CONN_MAX_IDLE_TIME"))
+
+	maxIdleTime := time.Duration(cfgMaxIdleTime) * time.Second
 	db.SetConnMaxIdleTime(maxIdleTime)
 
 	// set maximum open connection to DB
-	maxOpenConn := cfg.MaxOpenConn
+	maxOpenConn, _ := strconv.Atoi(os.Getenv("DATABASE_MAX_OPEN_CONN"))
 	if maxOpenConn == 0 {
 		maxOpenConn = 10
 	}
 	db.SetMaxOpenConns(maxOpenConn)
 
-	maxIdleConn := cfg.MaxIdleConn
+	maxIdleConn, _ := strconv.Atoi(os.Getenv("DATABASE_MAX_IDLE_CONN"))
 	if maxIdleConn == 0 {
 		maxIdleConn = 4
 	}
 	db.SetMaxIdleConns(maxIdleConn)
 	return db, nil
-}
-
-func generateConnString(cfg *SQLConfig) {
-	if cfg.ConnString == "" {
-		// if ConnString config is empty, then build the connection string manually
-		strFormat := ""
-		switch cfg.Engine {
-		case MySQLEngine:
-			if cfg.Port == "" {
-				cfg.Port = "3306"
-			}
-			strFormat = "%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=true&timeout=60s&readTimeout=60s&writeTimeout=60s"
-		case PostgresEngine:
-			if cfg.Port == "" {
-				cfg.Port = "5432"
-			}
-			strFormat = "postgres://%s:%s@%s:%s/%s"
-		}
-		connString := fmt.Sprintf(
-			strFormat,
-			cfg.Username, cfg.Password, cfg.Host, cfg.Port, cfg.DBName,
-		)
-		cfg.ConnString = connString
-	}
 }
 
 func (this *SQL) GetMaster() *sqlx.DB {

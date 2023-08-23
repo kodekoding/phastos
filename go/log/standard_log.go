@@ -3,7 +3,7 @@ package log
 import (
 	"context"
 
-	"github.com/kodekoding/phastos/go/log/logger"
+	"github.com/kodekoding/phastos/v2/go/log/logger"
 	xid "github.com/rs/xid"
 )
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-resty/resty/v2"
-	slackentity "github.com/kodekoding/phastos/go/entity/slack"
+	slackentity "github.com/kodekoding/phastos/v2/go/entity/slack"
 	"github.com/pkg/errors"
 	slackpkg "github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"

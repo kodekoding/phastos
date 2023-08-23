@@ -1,4 +1,4 @@
-[![godoc](https://godoc.org/github.com/golang/mock/gomock?status.svg)](http://godoc.tkpd/pkg/github.com/kodekoding/phastos/go/env)
+[![godoc](https://godoc.org/github.com/golang/mock/gomock?status.svg)](http://godoc.tkpd/pkg/github.com/kodekoding/phastos/v2/go/env)
 
 # Env
 This small package give some functionality to common usage of detecting Tokopedia runtime ecosystem using `TKPENV` environment variable.
@@ -16,7 +16,7 @@ DB_CONN=postgres://foo@bar/database
 
 **main.go**
 ```go
-import _ "github.com/kodekoding/phastos/go/env" // this will enough just to trigger env to look for .env file
+import _ "github.com/kodekoding/phastos/v2/go/env" // this will enough just to trigger env to look for .env file
 
 func main(){
     initializeDbConnection() // your function that read DB_CONN 

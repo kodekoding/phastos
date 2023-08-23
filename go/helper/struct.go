@@ -11,8 +11,8 @@ import (
 
 	"github.com/volatiletech/null"
 
-	"github.com/kodekoding/phastos/go/database"
-	"github.com/kodekoding/phastos/go/log"
+	"github.com/kodekoding/phastos/v2/go/database"
+	"github.com/kodekoding/phastos/v2/go/log"
 )
 
 func ConstructColNameAndValueBulk(ctx context.Context, arrayOfData interface{}, conditions ...map[string][]interface{}) (*database.CUDConstructData, error) {

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kodekoding/phastos/go/database"
-	"github.com/kodekoding/phastos/go/helper"
-	"github.com/kodekoding/phastos/go/log"
+	"github.com/kodekoding/phastos/v2/go/database"
+	"github.com/kodekoding/phastos/v2/go/helper"
+	"github.com/kodekoding/phastos/v2/go/log"
 )
 
 type BaseRead struct {

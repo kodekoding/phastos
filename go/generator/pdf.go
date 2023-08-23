@@ -9,7 +9,7 @@ import (
 	"github.com/SebastiaanKlippert/go-wkhtmltopdf"
 	"github.com/pkg/errors"
 
-	"github.com/kodekoding/phastos/go/helper"
+	"github.com/kodekoding/phastos/v2/go/helper"
 )
 
 type PDFs interface {

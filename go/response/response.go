@@ -12,11 +12,11 @@ import (
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
 	"github.com/pkg/errors"
 
-	ctxlib "github.com/kodekoding/phastos/go/context"
-	"github.com/kodekoding/phastos/go/env"
-	cutomerr "github.com/kodekoding/phastos/go/error"
-	"github.com/kodekoding/phastos/go/helper"
-	"github.com/kodekoding/phastos/go/log"
+	ctxlib "github.com/kodekoding/phastos/v2/go/context"
+	"github.com/kodekoding/phastos/v2/go/env"
+	cutomerr "github.com/kodekoding/phastos/v2/go/error"
+	"github.com/kodekoding/phastos/v2/go/helper"
+	"github.com/kodekoding/phastos/v2/go/log"
 )
 
 type JSON struct {

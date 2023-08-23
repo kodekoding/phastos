@@ -1,8 +1,8 @@
 package action
 
 import (
-	"github.com/kodekoding/phastos/go/common"
-	"github.com/kodekoding/phastos/go/database"
+	"github.com/kodekoding/phastos/v2/go/common"
+	"github.com/kodekoding/phastos/v2/go/database"
 )
 
 type Base struct {

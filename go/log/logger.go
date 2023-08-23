@@ -3,9 +3,9 @@ package log
 import (
 	"errors"
 
-	"github.com/kodekoding/phastos/go/env"
-	"github.com/kodekoding/phastos/go/log/logger"
-	"github.com/kodekoding/phastos/go/log/logger/zerolog"
+	"github.com/kodekoding/phastos/v2/go/env"
+	"github.com/kodekoding/phastos/v2/go/log/logger"
+	"github.com/kodekoding/phastos/v2/go/log/logger/zerolog"
 )
 
 type (

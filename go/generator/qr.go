@@ -6,7 +6,7 @@ import (
 
 	"github.com/yeqown/go-qrcode"
 
-	"github.com/kodekoding/phastos/go/helper"
+	"github.com/kodekoding/phastos/v2/go/helper"
 	"github.com/pkg/errors"
 )
 

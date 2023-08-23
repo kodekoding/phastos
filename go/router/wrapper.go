@@ -17,10 +17,10 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/cors"
 
-	context2 "github.com/kodekoding/phastos/go/context"
-	"github.com/kodekoding/phastos/go/helper"
-	"github.com/kodekoding/phastos/go/log"
-	"github.com/kodekoding/phastos/go/response"
+	context2 "github.com/kodekoding/phastos/v2/go/context"
+	"github.com/kodekoding/phastos/v2/go/helper"
+	"github.com/kodekoding/phastos/v2/go/log"
+	"github.com/kodekoding/phastos/v2/go/response"
 )
 
 type WrapperFunc func(http.ResponseWriter, *http.Request) *response.JSON

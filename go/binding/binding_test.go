@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/kodekoding/phastos/go/common"
+	"github.com/kodekoding/phastos/v2/go/common"
 
 	"github.com/go-playground/validator"
 	"github.com/gorilla/schema"

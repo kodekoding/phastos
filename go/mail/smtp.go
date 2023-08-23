@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
-	helper2 "github.com/kodekoding/phastos/go/helper"
+	helper2 "github.com/kodekoding/phastos/v2/go/helper"
 	"net/smtp"
 	"strings"
 

@@ -9,8 +9,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/kodekoding/phastos/go/env"
-	"github.com/kodekoding/phastos/go/storage"
+	"github.com/kodekoding/phastos/v2/go/env"
+	"github.com/kodekoding/phastos/v2/go/storage"
 )
 
 type CloudStorageTmpUpload struct {

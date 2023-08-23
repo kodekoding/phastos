@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/kodekoding/phastos/go/notifications"
+	"github.com/kodekoding/phastos/v2/go/notifications"
 )
 
 type (

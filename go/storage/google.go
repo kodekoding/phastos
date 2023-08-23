@@ -16,7 +16,7 @@ import (
 	"github.com/mauri870/gcsfs"
 	"github.com/pkg/errors"
 
-	"github.com/kodekoding/phastos/go/env"
+	"github.com/kodekoding/phastos/v2/go/env"
 )
 
 type google struct {

@@ -8,8 +8,8 @@ import (
 	"context"
 	"log"
 	
-	"github.com/kodekoding/phastos/go/database"
-	"github.com/kodekoding/phastos/go/database/action"
+	"github.com/kodekoding/phastos/v2/go/database"
+	"github.com/kodekoding/phastos/v2/go/database/action"
 )
 
 func main() {

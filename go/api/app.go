@@ -4,7 +4,6 @@ import (
 	contextpkg "context"
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -13,10 +12,12 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/gorilla/schema"
-	"github.com/kodekoding/phastos/go/server"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/unrolled/secure"
+
+	"github.com/kodekoding/phastos/v2/go/server"
 )
 
 var decoder = schema.NewDecoder()

@@ -11,9 +11,9 @@ import (
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
 
-	"github.com/kodekoding/phastos/go/api"
-	log2 "github.com/kodekoding/phastos/go/log"
-	handler2 "github.com/kodekoding/phastos/go/third_party/slack/handler"
+	"github.com/kodekoding/phastos/v2/go/api"
+	log2 "github.com/kodekoding/phastos/v2/go/log"
+	handler2 "github.com/kodekoding/phastos/v2/go/third_party/slack/handler"
 )
 
 type (

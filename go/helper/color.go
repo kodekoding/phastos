@@ -5,7 +5,7 @@ import (
 	"image"
 	"image/color"
 
-	"github.com/kodekoding/phastos/go/log"
+	"github.com/kodekoding/phastos/v2/go/log"
 )
 
 func ParseHexColor(s string) (c color.RGBA, err error) {

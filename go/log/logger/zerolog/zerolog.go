@@ -5,8 +5,8 @@ import (
 	"io"
 	"os"
 
-	errors "github.com/kodekoding/phastos/go/error"
-	"github.com/kodekoding/phastos/go/log/logger"
+	errors "github.com/kodekoding/phastos/v2/go/error"
+	"github.com/kodekoding/phastos/v2/go/log/logger"
 	"github.com/rs/zerolog"
 )
 

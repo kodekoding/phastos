@@ -1,7 +1,7 @@
 package log
 
 import (
-	"github.com/kodekoding/phastos/go/log/logger"
+	"github.com/kodekoding/phastos/v2/go/log/logger"
 )
 
 // KV is a type for passing more fields information

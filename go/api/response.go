@@ -1,6 +1,6 @@
 package api
 
-import "github.com/kodekoding/phastos/go/database"
+import "github.com/kodekoding/phastos/v2/go/database"
 
 type Response struct {
 	Message  string                     `json:"message,omitempty"`
