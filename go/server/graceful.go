@@ -74,7 +74,7 @@ func serveHTTPs(config *Config, secure bool) error {
 	if secure {
 		protocol += "s"
 	}
-	log.Printf("%s Server %s is running on %s", protocol, config.Environment, listenPort)
+	log.Printf("%s Server %s is running on %s", protocol, os.Getenv("APPS_ENV"), listenPort)
 
 	<-sign
 
