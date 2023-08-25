@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-resty/resty/v2"
+	"github.com/iancoleman/strcase"
 	"google.golang.org/api/option"
 	"io"
 	"io/fs"
@@ -27,6 +28,11 @@ type google struct {
 	resty        *resty.Client
 	bucketName   string
 }
+
+const (
+	UploadProcess   = "upload"
+	DownloadProcess = "download"
+)
 
 func (g *google) SetFileExpiredTime(minutes int) Buckets {
 	g.imageExpTime = minutes
@@ -278,4 +284,33 @@ func (g *google) InitResumableUploads(ctx context.Context, gcsPath *string) (str
 		return "", errors.Wrap(err, "phastos.go.storage.google.InitResumableUploads.Post")
 	}
 	return sessionURI, nil
+}
+
+func (g *google) GenerateSignedURL(urlType string, path string, expires ...time.Duration) (string, error) {
+	defaultExpires := 60 * time.Second // 1 minutes for upload
+	if urlType == DownloadProcess {
+		defaultExpires = 5 * time.Minute // 5 minutes for download
+	}
+
+	if expires != nil && len(expires) > 0 {
+		defaultExpires = expires[0]
+	}
+	opts := &storage.SignedURLOptions{
+		Scheme:  storage.SigningSchemeV4,
+		Method:  "GET",
+		Expires: time.Now().Add(defaultExpires),
+	}
+
+	if urlType == UploadProcess {
+		opts.Method = "PUT"
+		opts.Headers = []string{
+			"Content-Type:application/octet-stream",
+		}
+	}
+
+	url, err := g.bucket.SignedURL(path, opts)
+	if err != nil {
+		return "", errors.Wrap(err, fmt.Sprintf("storage.google.GenerateSignedURL%s.SignedURL", strcase.ToCamel(urlType)))
+	}
+	return url, nil
 }

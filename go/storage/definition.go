@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/fs"
 	"mime/multipart"
+	"time"
 )
 
 type Buckets interface {
@@ -29,5 +30,6 @@ type Buckets interface {
 	DeleteFile(ctx context.Context, fileName string) error
 
 	CopyFileToAnotherBucket(ctx context.Context, destBucket, fileName string) error
+	GenerateSignedURL(urlType string, path string, expires ...time.Duration) (string, error)
 	Close()
 }
