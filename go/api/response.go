@@ -1,6 +1,19 @@
 package api
 
-import "github.com/kodekoding/phastos/v2/go/database"
+import (
+	"bytes"
+	contextpkg "context"
+	"fmt"
+	"io"
+	"net/http"
+
+	sgw "github.com/ashwanthkumar/slack-go-webhook"
+
+	"github.com/kodekoding/phastos/v2/go/context"
+	"github.com/kodekoding/phastos/v2/go/database"
+	"github.com/kodekoding/phastos/v2/go/env"
+	"github.com/kodekoding/phastos/v2/go/log"
+)
 
 type Response struct {
 	Message  string                     `json:"message,omitempty"`
@@ -37,4 +50,57 @@ func (resp *Response) SetError(err error) *Response {
 func (resp *Response) SetHTTPError(err *HttpError) *Response {
 	resp.Err = err
 	return resp
+}
+
+func (resp *Response) SentNotif(ctx contextpkg.Context, err *HttpError, r *http.Request, traceId string) {
+	getNotifContext := context.GetNotif(ctx)
+	if getNotifContext != nil {
+		for _, notif := range getNotifContext.GetAllPlatform() {
+			if notif.IsActive() {
+				if notif.Type() == "slack" {
+
+					notif.SetTraceId(traceId)
+					if err.Status == 500 {
+						bodyReq, _ := io.ReadAll(r.Body)
+						r.Body = io.NopCloser(bytes.NewBuffer(bodyReq))
+						slackAttachment := new(sgw.Attachment)
+						color := "#ff0e0a"
+						slackAttachment.Color = &color
+						slackAttachment.AddField(
+							sgw.Field{
+								Short: true,
+								Title: "Error Status",
+								Value: fmt.Sprintf("%d", err.Status),
+							}).AddField(
+							sgw.Field{
+								Short: true,
+								Title: "Error Code",
+								Value: err.Code,
+							}).AddField(
+							sgw.Field{
+								Title: "Body Request",
+								Value: string(bodyReq),
+							}).AddField(
+							sgw.Field{
+								Title: "Description",
+								Value: err.Message,
+							}).AddField(
+							sgw.Field{
+								Short: true,
+								Title: "Route Path",
+								Value: fmt.Sprintf("%s: %s", r.Method, r.URL.Path),
+							}).AddField(
+							sgw.Field{
+								Short: true,
+								Title: "Environment",
+								Value: env.ServiceEnv(),
+							})
+						if err := notif.Send(ctx, "Error Processing Request", slackAttachment); err != nil {
+							log.Errorln("error when sent", notif.Type(), " notifications: ", err.Error())
+						}
+					}
+				}
+			}
+		}
+	}
 }

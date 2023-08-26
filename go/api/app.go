@@ -17,6 +17,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/unrolled/secure"
 
+	"github.com/kodekoding/phastos/v2/go/helper"
 	"github.com/kodekoding/phastos/v2/go/server"
 )
 
@@ -157,6 +158,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 		}
 		ctx, cancel := contextpkg.WithTimeout(r.Context(), time.Second*time.Duration(app.apiTimeout))
 		defer cancel()
+		traceId := helper.GenerateUUIDV4()
 
 		respChan := make(chan *Response)
 		go func() {
@@ -175,12 +177,14 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 			}
 		case response = <-respChan:
 			if response.Err != nil {
-				if httpError, ok := response.Err.(*HttpError); ok {
-					httpError.Write(w)
-					return
+				var respErr *HttpError
+				var ok bool
+				if respErr, ok = response.Err.(*HttpError); !ok {
+					respErr = NewErr(WithMessage(err.Error()))
 				}
-				unknownError := NewErr(WithMessage(err.Error()))
-				unknownError.Write(w)
+				respErr.Write(w)
+
+				go response.SentNotif(ctx, respErr, r, traceId)
 				return
 			}
 			w.WriteHeader(http.StatusOK)
