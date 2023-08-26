@@ -18,7 +18,7 @@ type (
 		SetContent(subject, message string) *SMTP
 		SetHTMLTemplate(fs embed.FS, tplFile, subject string, args interface{}) *SMTP
 		SetSingleRecipient(recipient string) *SMTP
-		Send(recipient ...string) error
+		Send() error
 	}
 
 	SMTP struct {
