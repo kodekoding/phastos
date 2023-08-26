@@ -12,7 +12,6 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/gorilla/schema"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/unrolled/secure"
@@ -177,19 +176,23 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 				_, err = w.Write([]byte("timeout"))
 				if err != nil {
 
-					log.Log().Err(errors.New("context deadline exceed: " + err.Error()))
+					log.Error().Msg("context deadline exceed: " + err.Error())
 				}
 			}
 		case response = <-respChan:
 			if response.Err != nil {
 				var respErr *HttpError
 				var ok bool
+				response.TraceId = traceId
 				if respErr, ok = response.Err.(*HttpError); !ok {
 					respErr = NewErr(WithMessage(respErr.Error()))
 				}
 				respErr.Write(w)
 
-				go response.SentNotif(ctx, respErr, r, traceId)
+				go func() {
+					log.Error().Msg(fmt.Sprintf("%s - %s (%s)", response.InternalError.Message, response.InternalError.Code, traceId))
+				}()
+				go response.SentNotif(ctx, respErr, r)
 				return
 			}
 			w.WriteHeader(http.StatusOK)
