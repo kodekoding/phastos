@@ -96,7 +96,7 @@ func (s *SMTP) SetHTMLTemplate(fs embed.FS, tplFile, subject string, args interf
 	mimeHeaders := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
 	additionalBody := fmt.Sprintf("From: %s\nTo:%s\nSubject:%s \n%s\n\n", s.Sender, strings.Join(s.recipient, ","), subject, mimeHeaders)
 
-	s.body, _ = helper.ParseTemplate(fs, tplFile, args, additionalBody)
+	s.body, s.err = helper.ParseTemplate(fs, tplFile, args, additionalBody)
 
 	return s
 }
