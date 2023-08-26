@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
-	helper2 "github.com/kodekoding/phastos/v2/go/helper"
 	"net/smtp"
 	"strings"
 
 	"github.com/pkg/errors"
+
+	"github.com/kodekoding/phastos/v2/go/helper"
 )
 
 type (
 	SMTPs interface {
-		AddRecipient(recipient string) *SMTP
+		AddRecipient(recipient ...string) *SMTP
 		SetContent(subject, message string) *SMTP
 		SetHTMLTemplate(fs embed.FS, tplFile, subject string, args interface{}) *SMTP
 		SetSingleRecipient(recipient string) *SMTP
@@ -54,8 +55,13 @@ func NewSMTP(cfg *SMTPConfig) *SMTP {
 	}
 }
 
-func (s *SMTP) AddRecipient(recipient string) *SMTP {
-	s.recipient = append(s.recipient, recipient)
+func (s *SMTP) reset() {
+	s.recipient = nil
+	s.body.Reset()
+}
+
+func (s *SMTP) AddRecipient(recipient ...string) *SMTP {
+	s.recipient = append(s.recipient, recipient...)
 	return s
 }
 
@@ -90,24 +96,18 @@ func (s *SMTP) SetHTMLTemplate(fs embed.FS, tplFile, subject string, args interf
 	mimeHeaders := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
 	additionalBody := fmt.Sprintf("From: %s\nTo:%s\nSubject:%s \n%s\n\n", s.Sender, strings.Join(s.recipient, ","), subject, mimeHeaders)
 
-	s.body, _ = helper2.ParseTemplate(fs, tplFile, args, additionalBody)
+	s.body, _ = helper.ParseTemplate(fs, tplFile, args, additionalBody)
 
 	return s
 }
 
-func (s *SMTP) Send(recipient ...string) error {
+func (s *SMTP) Send() error {
+	defer s.reset()
 	if s.err != nil {
 		return s.err
 	}
 
-	var destination []string
-	destination = s.recipient
-
-	if recipient != nil {
-		destination = recipient
-	}
-
-	if err := smtp.SendMail(s.address, s.auth, s.EmailFrom, destination, s.body.Bytes()); err != nil {
+	if err := smtp.SendMail(s.address, s.auth, s.EmailFrom, s.recipient, s.body.Bytes()); err != nil {
 		return err
 	}
 
