@@ -185,7 +185,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 				var respErr *HttpError
 				var ok bool
 				if respErr, ok = response.Err.(*HttpError); !ok {
-					respErr = NewErr(WithMessage(err.Error()))
+					respErr = NewErr(WithMessage(respErr.Error()))
 				}
 				respErr.Write(w)
 

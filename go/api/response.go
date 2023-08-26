@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
+	"github.com/pkg/errors"
 
 	"github.com/kodekoding/phastos/v2/go/context"
 	"github.com/kodekoding/phastos/v2/go/database"
@@ -43,7 +44,11 @@ func (resp *Response) SetData(data interface{}) *Response {
 }
 
 func (resp *Response) SetError(err error) *Response {
-	resp.Err = err
+	if causeErr, isHttpErr := errors.Cause(err).(*HttpError); isHttpErr {
+		resp.Err = NewErr(WithMessage(causeErr.Message), WithCode(causeErr.Code), WithStatus(causeErr.Status))
+	} else {
+		resp.Err = err
+	}
 	return resp
 }
 
