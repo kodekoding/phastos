@@ -13,16 +13,6 @@ type HttpError struct {
 
 type ErrorOption func(*HttpError)
 
-var (
-	errMessage = map[int]string{
-		500: "Internal Server Error",
-		400: "Bad Request",
-		401: "Unauthorized",
-		403: "Forbidden",
-		422: "Unprocessable Entity",
-	}
-)
-
 func (e *HttpError) Write(w http.ResponseWriter) {
 	w.WriteHeader(e.Status)
 	WriteJson(w, e)

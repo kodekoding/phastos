@@ -48,10 +48,8 @@ func (resp *Response) SetData(data interface{}) *Response {
 func (resp *Response) SetError(err error) *Response {
 	if causeErr, isHttpErr := errors.Cause(err).(*HttpError); isHttpErr {
 		resp.InternalError = NewErr(WithCode(causeErr.Code), WithMessage(causeErr.Message), WithStatus(causeErr.Status))
-		resp.Err = errors.New(errMessage[causeErr.Status])
-	} else {
-		resp.Err = err
 	}
+	resp.Err = err
 
 	return resp
 }
