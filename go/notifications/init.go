@@ -5,7 +5,7 @@ import (
 	_log "log"
 	"net/http"
 
-	context2 "github.com/kodekoding/phastos/v2/go/context"
+	"github.com/kodekoding/phastos/v2/go/entity"
 	"github.com/kodekoding/phastos/v2/go/log"
 	"github.com/kodekoding/phastos/v2/go/notifications/slack"
 	"github.com/kodekoding/phastos/v2/go/notifications/telegram"
@@ -87,7 +87,9 @@ func (this *Platform) GetAllPlatform() []Action {
 
 func (this *Platform) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		context2.SetNotif(request, this)
+		ctx := context.WithValue(request.Context(), entity.NotifPlatformContext{}, this)
+		*request = *request.WithContext(ctx)
+
 		next.ServeHTTP(writer, request)
 	})
 }
