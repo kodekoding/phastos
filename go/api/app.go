@@ -185,7 +185,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 				var ok bool
 				response.TraceId = traceId
 				if respErr, ok = response.Err.(*HttpError); !ok {
-					respErr = NewErr(WithMessage(respErr.Error()))
+					respErr = NewErr(WithMessage(response.Err.Error()))
 				}
 				respErr.Write(w)
 
