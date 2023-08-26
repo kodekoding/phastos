@@ -26,18 +26,22 @@ var decoder = schema.NewDecoder()
 type (
 	Apps interface {
 		LoadModules()
+		LoadWrapper()
 	}
-
-	AppImplementor struct{}
 
 	App struct {
 		Http *chi.Mux
 		*server.Config
 		TotalEndpoints int
 		apiTimeout     int
+		wrapper        []Wrapper
 	}
 
 	Options func(api *App)
+
+	Wrapper interface {
+		Handler(handler http.Handler) http.Handler
+	}
 )
 
 func NewApp(opts ...Options) *App {
@@ -55,6 +59,7 @@ func NewApp(opts ...Options) *App {
 	for _, opt := range opts {
 		opt(&apiApp)
 	}
+
 	return &apiApp
 }
 
@@ -215,6 +220,10 @@ func (app *App) AddController(ctrl Controller) {
 	app.TotalEndpoints += len(config.Routes)
 }
 
+func (app *App) WrapToContext(wrapper Wrapper) {
+	app.wrapper = append(app.wrapper, wrapper)
+}
+
 func (app *App) Start() error {
 	app.Handler = InitHandler(app.Http)
 	secureMiddleware := secure.New(secure.Options{
@@ -222,6 +231,10 @@ func (app *App) Start() error {
 		ContentTypeNosniff: true,
 	})
 	app.Handler = secureMiddleware.Handler(app.Handler)
+
+	for _, wrapper := range app.wrapper {
+		app.Handler = wrapper.Handler(app.Handler)
+	}
 
 	log.Info().Msg(fmt.Sprintf("server started on port %d, serving %d endpoint(s)", app.Port, app.TotalEndpoints))
 	return server.ServeHTTP(app.Config)

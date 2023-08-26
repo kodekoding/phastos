@@ -3,7 +3,9 @@ package notifications
 import (
 	"context"
 	_log "log"
+	"net/http"
 
+	context2 "github.com/kodekoding/phastos/v2/go/context"
 	"github.com/kodekoding/phastos/v2/go/log"
 	"github.com/kodekoding/phastos/v2/go/notifications/slack"
 	"github.com/kodekoding/phastos/v2/go/notifications/telegram"
@@ -22,6 +24,7 @@ type (
 		Telegram() Action
 		Slack() Action
 		GetAllPlatform() []Action
+		Handler(next http.Handler) http.Handler
 	}
 
 	Platform struct {
@@ -80,4 +83,11 @@ func (this *Platform) Slack() Action {
 
 func (this *Platform) GetAllPlatform() []Action {
 	return this.list
+}
+
+func (this *Platform) Handler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		context2.SetNotif(request, this)
+		next.ServeHTTP(writer, request)
+	})
 }
