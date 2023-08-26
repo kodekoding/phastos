@@ -183,16 +183,16 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 			if response.Err != nil {
 				var respErr *HttpError
 				var ok bool
-				response.TraceId = traceId
 				if respErr, ok = response.Err.(*HttpError); !ok {
 					respErr = NewErr(WithMessage(response.Err.Error()))
 				}
+				respErr.TraceId = traceId
 				respErr.Write(w)
 
 				go func() {
 					log.Error().Msg(fmt.Sprintf("%s - %s (%s)", response.InternalError.Message, response.InternalError.Code, traceId))
 				}()
-				go response.SentNotif(ctx, respErr, r)
+				go response.SentNotif(ctx, respErr, r, traceId)
 				return
 			}
 			w.WriteHeader(http.StatusOK)

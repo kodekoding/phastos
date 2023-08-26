@@ -8,6 +8,7 @@ type HttpError struct {
 	Message string       `json:"message"`
 	Code    string       `json:"code"`
 	Status  int          `json:"status"`
+	TraceId string       `json:"trace_id"`
 	Data    *interface{} `json:"data,omitempty"`
 }
 

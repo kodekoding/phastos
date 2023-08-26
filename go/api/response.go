@@ -21,7 +21,6 @@ type Response struct {
 	Data          interface{}                `json:"data,omitempty"`
 	Err           error                      `json:"error,omitempty"`
 	InternalError *HttpError                 `json:"-"`
-	TraceId       string                     `json:"trace_id"`
 	MetaData      *database.ResponseMetaData `json:"metadata,omitempty"`
 }
 
@@ -48,8 +47,10 @@ func (resp *Response) SetData(data interface{}) *Response {
 func (resp *Response) SetError(err error) *Response {
 	if causeErr, isHttpErr := errors.Cause(err).(*HttpError); isHttpErr {
 		resp.InternalError = NewErr(WithCode(causeErr.Code), WithMessage(causeErr.Message), WithStatus(causeErr.Status))
+		resp.Err = errors.New("Internal Server Error")
+	} else {
+		resp.Err = err
 	}
-	resp.Err = err
 
 	return resp
 }
@@ -59,14 +60,14 @@ func (resp *Response) SetHTTPError(err *HttpError) *Response {
 	return resp
 }
 
-func (resp *Response) SentNotif(ctx contextpkg.Context, err *HttpError, r *http.Request) {
+func (resp *Response) SentNotif(ctx contextpkg.Context, err *HttpError, r *http.Request, traceId string) {
 	getNotifContext := context.GetNotif(ctx)
 	if getNotifContext != nil {
 		for _, notif := range getNotifContext.GetAllPlatform() {
 			if notif.IsActive() {
 				if notif.Type() == "slack" {
 
-					notif.SetTraceId(resp.TraceId)
+					notif.SetTraceId(traceId)
 					if err.Status == 500 {
 						bodyReq, _ := io.ReadAll(r.Body)
 						r.Body = io.NopCloser(bytes.NewBuffer(bodyReq))
