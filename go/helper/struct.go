@@ -206,17 +206,11 @@ func readField(_ context.Context, reflectVal reflect.Value, isNullStruct ...bool
 			}
 		}
 		colTagVal, hasColTag := fieldType.Tag.Lookup("col")
-		if hasColTag {
-			if colTagVal == "pk" {
-				continue
-			} else if colTagVal == "json" {
-				cols = append(cols, colName)
-				values = append(values, value)
-				continue
-			}
+		if hasColTag && colTagVal == "pk" {
+			continue
 		}
 		fieldTypeData := fieldType.Type.String()
-		nullStruct := strings.Contains(fieldTypeData, "null.")
+		nullStruct := strings.Contains(fieldTypeData, "null.") || colTagVal == "json"
 
 		if nullStruct {
 			containsNullStruct = true
