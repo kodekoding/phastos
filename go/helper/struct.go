@@ -280,7 +280,7 @@ func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}
 			_, valid := vals.(null.String)
 			if vals == nil || valid {
 				*col = *col + "=null"
-				Remove(values, index)
+				values = Remove(values, index)
 			} else {
 				*col = *col + "=?"
 			}
