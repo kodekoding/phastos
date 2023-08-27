@@ -5,11 +5,11 @@ import (
 )
 
 type HttpError struct {
-	Message string       `json:"message"`
-	Code    string       `json:"code"`
-	Status  int          `json:"-"`
-	TraceId string       `json:"trace_id"`
-	Data    *interface{} `json:"data,omitempty"`
+	Message string      `json:"message"`
+	Code    string      `json:"code"`
+	Status  int         `json:"-"`
+	TraceId string      `json:"trace_id"`
+	Data    interface{} `json:"data,omitempty"`
 }
 
 type ErrorOption func(*HttpError)
@@ -43,7 +43,7 @@ func WithMessage(message string) ErrorOption {
 
 func WithData(data interface{}) ErrorOption {
 	return func(e *HttpError) {
-		e.Data = &data
+		e.Data = data
 	}
 }
 
