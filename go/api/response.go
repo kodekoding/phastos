@@ -58,7 +58,13 @@ func (resp *Response) Send(w http.ResponseWriter) {
 		}
 	} else {
 		responseStatus = http.StatusOK
-		dataToMarshal = resp.Data
+		if resp.Data != nil {
+			dataToMarshal = resp.Data
+		} else if resp.Message != "" {
+			dataToMarshal = map[string]string{
+				"message": resp.Message,
+			}
+		}
 	}
 
 	w.WriteHeader(responseStatus)
@@ -69,9 +75,9 @@ func (resp *Response) Send(w http.ResponseWriter) {
 func (resp *Response) SetError(err error) *Response {
 	if causeErr, isHttpErr := errors.Cause(err).(*HttpError); isHttpErr {
 		resp.InternalError = NewErr(WithCode(causeErr.Code), WithMessage(causeErr.Message), WithStatus(causeErr.Status))
-		resp.Err = errors.New("Internal Server Error")
-	} else {
 		resp.Err = err
+	} else {
+		resp.Err = errors.New("Internal Server Error")
 	}
 
 	return resp
