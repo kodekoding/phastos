@@ -166,6 +166,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 
 		respChan := make(chan *Response)
 		go func() {
+			defer panicRecover(r, traceId)
 			respChan <- h(request, ctx)
 		}()
 
