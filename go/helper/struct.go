@@ -271,13 +271,14 @@ func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}
 	haveUpdatedAtCol := false
 	for i := 0; i < colLength; i++ {
 		wg.Add(1)
-		go func(index int, col *string, vals *interface{}, wg *sync.WaitGroup, mtx *sync.Mutex) {
+		go func(index int, col *string, vals interface{}, wg *sync.WaitGroup, mtx *sync.Mutex) {
 			mtx.Lock()
 			if *col == "updated_at" {
 				haveUpdatedAtCol = true
 			}
 
-			if *vals == nil {
+			strVals, valid := vals.(string)
+			if vals == nil || (valid && strVals == "null") {
 				*col = *col + "=null"
 				Remove(values, index)
 			} else {
@@ -285,7 +286,7 @@ func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}
 			}
 			mtx.Unlock()
 			wg.Done()
-		}(i, &cols[i], &values[i], wg, mutex)
+		}(i, &cols[i], values[i], wg, mutex)
 	}
 
 	wg.Wait()
