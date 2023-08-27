@@ -89,6 +89,9 @@ func (resp *Response) SetHTTPError(err *HttpError) *Response {
 }
 
 func (resp *Response) SentNotif(ctx contextpkg.Context, err *HttpError, r *http.Request, traceId string) {
+	if err == nil {
+		return
+	}
 	getNotifContext := context.GetNotif(ctx)
 	if getNotifContext != nil {
 		for _, notif := range getNotifContext.GetAllPlatform() {
