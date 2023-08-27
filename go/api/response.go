@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	contextpkg "context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -42,6 +43,27 @@ func (resp *Response) SetData(data interface{}) *Response {
 		resp.Data = selectResponseData.Data
 	}
 	return resp
+}
+
+func (resp *Response) Send(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	var b []byte
+
+	var dataToMarshal interface{}
+	var responseStatus int
+	if resp.Err != nil {
+		if respErr, ok := resp.Err.(*HttpError); ok {
+			responseStatus = respErr.Status
+			dataToMarshal = respErr
+		}
+	} else {
+		responseStatus = http.StatusOK
+		dataToMarshal = resp.Data
+	}
+
+	w.WriteHeader(responseStatus)
+	b, _ = json.Marshal(dataToMarshal)
+	_, _ = w.Write(b)
 }
 
 func (resp *Response) SetError(err error) *Response {
