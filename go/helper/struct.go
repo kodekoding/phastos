@@ -277,8 +277,8 @@ func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}
 				haveUpdatedAtCol = true
 			}
 
-			strVals, valid := vals.(string)
-			if vals == nil || (valid && strVals == "null") {
+			_, valid := vals.(null.String)
+			if vals == nil || valid {
 				*col = *col + "=null"
 				Remove(values, index)
 			} else {
