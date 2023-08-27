@@ -7,7 +7,7 @@ import (
 type HttpError struct {
 	Message string       `json:"message"`
 	Code    string       `json:"code"`
-	Status  int          `json:"status"`
+	Status  int          `json:"-"`
 	TraceId string       `json:"trace_id"`
 	Data    *interface{} `json:"data,omitempty"`
 }
