@@ -307,7 +307,35 @@ func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}
 	}
 }
 
-func GenerateSelectCols(ctx context.Context, source interface{}, isNullStruct ...bool) []string {
+type GenSelectColsOptions func(*GenSelectColsOptionalParams)
+type GenSelectColsOptionalParams struct {
+	isNullStruct bool
+	excludedCols string
+	includedCols string
+}
+
+func WithIsNullStruct(isNullStruct bool) GenSelectColsOptions {
+	return func(params *GenSelectColsOptionalParams) {
+		params.isNullStruct = isNullStruct
+	}
+}
+
+func WithExcludedCols(excludedCols string) GenSelectColsOptions {
+	return func(params *GenSelectColsOptionalParams) {
+		params.excludedCols = excludedCols
+	}
+}
+func WithIncludedCols(includedCols string) GenSelectColsOptions {
+	return func(params *GenSelectColsOptionalParams) {
+		params.includedCols = includedCols
+	}
+}
+
+func GenerateSelectCols(ctx context.Context, source interface{}, opts ...GenSelectColsOptions) []string {
+	optionalParams := new(GenSelectColsOptionalParams)
+	for _, opt := range opts {
+		opt(optionalParams)
+	}
 	reflectVal := reflect.ValueOf(source)
 	if reflectVal.Kind() == reflect.Ptr {
 		reflectVal = reflectVal.Elem()
@@ -331,9 +359,11 @@ func GenerateSelectCols(ctx context.Context, source interface{}, isNullStruct ..
 	refType := elem.Type()
 	var cols []string
 
-	var containsNullStruct bool
-	if isNullStruct != nil {
-		containsNullStruct = isNullStruct[0]
+	includedColsNotNull := optionalParams.includedCols != ""
+	excludedColsNotNull := optionalParams.excludedCols != ""
+
+	if includedColsNotNull && excludedColsNotNull {
+		return nil
 	}
 
 	elemNumField := elem.NumField()
@@ -361,16 +391,32 @@ func GenerateSelectCols(ctx context.Context, source interface{}, isNullStruct ..
 			colTagVal, hasColTag := fieldType.Tag.Lookup("col")
 
 			if strings.Contains(fieldTypeData, "null.") || (hasColTag && colTagVal == "json") {
-				*columns = append(*columns, fieldName)
+				if !includedColsNotNull && !excludedColsNotNull {
+					// condition when include + exclude cols is ""
+					*columns = append(*columns, fieldName)
+				} else if includedColsNotNull && strings.Contains(optionalParams.includedCols, fieldName) {
+					// condition when field name is registered on included cols string
+					*columns = append(*columns, fieldName)
+				} else if excludedColsNotNull && !strings.Contains(optionalParams.excludedCols, fieldName) {
+					*columns = append(*columns, fieldName)
+				}
 				return
 			}
 			if field.Kind() == reflect.Struct {
-				embeddedCols := GenerateSelectCols(ctx, value, containsNullStruct)
+				embeddedCols := GenerateSelectCols(ctx, value, opts...)
 				*columns = append(*columns, embeddedCols...)
 				return
 			}
-			*columns = append(*columns, fieldName)
 
+			if !includedColsNotNull && !excludedColsNotNull {
+				// condition when include + exclude cols is ""
+				*columns = append(*columns, fieldName)
+			} else if includedColsNotNull && strings.Contains(optionalParams.includedCols, fieldName) {
+				// condition when field name is registered on included cols string
+				*columns = append(*columns, fieldName)
+			} else if excludedColsNotNull && !strings.Contains(optionalParams.excludedCols, fieldName) {
+				*columns = append(*columns, fieldName)
+			}
 		}(i, elem, &cols, wg, mtx)
 	}
 

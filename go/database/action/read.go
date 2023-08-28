@@ -3,11 +3,8 @@ package action
 import (
 	"context"
 	"fmt"
-	"strings"
-
 	"github.com/kodekoding/phastos/v2/go/database"
 	"github.com/kodekoding/phastos/v2/go/helper"
-	"github.com/kodekoding/phastos/v2/go/log"
 )
 
 type BaseRead struct {
@@ -32,26 +29,17 @@ func (b *BaseRead) getBaseQuery(ctx context.Context, opts *database.QueryOpts) s
 	}
 	newBaseQuery := opts.BaseQuery
 	if newBaseQuery == "" {
-		selectedCols := helper.GenerateSelectCols(ctx, opts.Result)
-		selectedColumnStr := "*"
-		if opts.Columns != "" && opts.ExcludeColumns == "" {
-			selectedColumnStr = opts.Columns
-		} else if opts.ExcludeColumns != "" && opts.Columns == "" {
-			excludedColList := strings.Split(opts.ExcludeColumns, ",")
-			var newSelectedCols []string
-		colsLoop:
-			for _, col := range selectedCols {
-				for _, excludeCol := range excludedColList {
-					if excludeCol == col {
-						continue colsLoop
-					}
-				}
-				newSelectedCols = append(newSelectedCols, col)
-			}
-			selectedColumnStr = strings.Join(newSelectedCols, ", ")
-		} else if opts.ExcludeColumns != "" && opts.Columns != "" {
-			log.Warnln("Selected Columns and Excluded Columns can only be filled in one of them, select column will be reset to '*'")
+		selectedCols := helper.GenerateSelectCols(
+			ctx,
+			opts.Result,
+			helper.WithExcludedCols(opts.ExcludeColumns),
+			helper.WithIncludedCols(opts.Columns),
+		)
+		var selectedColumnStr string
+		if selectedCols == nil {
+			selectedColumnStr = "*"
 		}
+
 		newBaseQuery = fmt.Sprintf("SELECT %s FROM %s", selectedColumnStr, b.tableName)
 	}
 	return newBaseQuery
