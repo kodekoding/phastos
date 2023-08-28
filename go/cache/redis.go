@@ -21,6 +21,8 @@ type RedisCfg struct {
 	Timeout   int    `yaml:"timeout"`
 	MaxIdle   int    `yaml:"max_iddle"`
 	MaxActive int    `yaml:"max_active"`
+	Password  string `yaml:"password"`
+	Username  string `yaml:"username"`
 }
 
 // Handler handler for cache
@@ -47,24 +49,41 @@ func New(options ...Options) *Store {
 		opt(&cfg)
 	}
 
-	return &Store{
+	store := &Store{
 		Pool: &redigo.Pool{
 			MaxIdle:     cfg.MaxIdle,
 			MaxActive:   cfg.MaxActive,
 			IdleTimeout: time.Duration(cfg.Timeout) * time.Second,
 			Dial: func() (redigo.Conn, error) {
-				c, err := redigo.Dial("tcp", cfg.Address)
+				var dialOpts []redigo.DialOption
+
+				if cfg.Password != "" {
+					dialOpts = append(dialOpts, redigo.DialPassword(cfg.Password))
+				}
+				if cfg.Username != "" {
+					dialOpts = append(dialOpts, redigo.DialUsername(cfg.Username))
+				}
+
+				c, err := redigo.Dial("tcp", cfg.Address, dialOpts...)
 				if err != nil {
 					log.Fatalln("Can't connect to redis: ", err.Error())
 				}
 				return c, nil
 			},
 			TestOnBorrow: func(c redigo.Conn, t time.Time) error {
-				_, err := c.Do("PING")
+				_, err := redigo.String(c.Do("PING"))
 				return err
 			},
 		},
 	}
+
+	pool := store.Pool.Get()
+	if _, err := redigo.String(pool.Do("PING")); err != nil {
+		log.Fatalln("Cannot connect to redis: " + err.Error())
+	}
+	log.Println("Successful connect to redis")
+
+	return store
 }
 
 func WithAddress(address string) Options {
@@ -88,6 +107,18 @@ func WithMaxActive(maxActive int) Options {
 func WithMaxIdle(maxIdle int) Options {
 	return func(cfg *RedisCfg) {
 		cfg.MaxIdle = maxIdle
+	}
+}
+
+func WithPassword(password string) Options {
+	return func(cfg *RedisCfg) {
+		cfg.Password = password
+	}
+}
+
+func WithUsername(username string) Options {
+	return func(cfg *RedisCfg) {
+		cfg.Username = username
 	}
 }
 
