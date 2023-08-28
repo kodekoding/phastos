@@ -92,8 +92,11 @@ func WithMaxIdle(maxIdle int) Options {
 }
 
 // Get string value
-func (r *Store) Get(key string) (string, error) {
-	conn := r.Pool.Get()
+func (r *Store) Get(ctx context.Context, key string) (string, error) {
+	conn, err := r.Pool.GetContext(ctx)
+	if err != nil {
+		return "", errors.Wrap(err, "cache.redis.Get.GetContext")
+	}
 	defer conn.Close()
 	resp, err := redigo.String(conn.Do("GET", key))
 	if err == redigo.ErrNil {
@@ -103,8 +106,11 @@ func (r *Store) Get(key string) (string, error) {
 }
 
 // Del key value
-func (r *Store) Del(key string) (int64, error) {
-	conn := r.Pool.Get()
+func (r *Store) Del(ctx context.Context, key string) (int64, error) {
+	conn, err := r.Pool.GetContext(ctx)
+	if err != nil {
+		return 0, errors.Wrap(err, "cache.redis.Del.GetContext")
+	}
 	defer conn.Close()
 	resp, err := redigo.Int64(conn.Do("DEL", key))
 	if err == redigo.ErrNil {
@@ -114,50 +120,71 @@ func (r *Store) Del(key string) (int64, error) {
 }
 
 // HSet set has map
-func (r *Store) HSet(key, field, value string) (string, error) {
-	conn := r.Pool.Get()
+func (r *Store) HSet(ctx context.Context, key, field, value string) (string, error) {
+	conn, err := r.Pool.GetContext(ctx)
+	if err != nil {
+		return "", errors.Wrap(err, "cache.redis.HSet.GetContext")
+	}
 	defer conn.Close()
 	return redigo.String(conn.Do("HSET", key, field, value))
 }
 
 // Set ill be used to set the value
-func (r *Store) Set(key, value string, expire int) (string, error) {
-	conn := r.Pool.Get()
+func (r *Store) Set(ctx context.Context, key, value string, expire int) (string, error) {
+	conn, err := r.Pool.GetContext(ctx)
+	if err != nil {
+		return "", errors.Wrap(err, "cache.redis.Set.GetContext")
+	}
 	defer conn.Close()
 	return redigo.String(conn.Do("SET", key, value, "EX", expire))
 }
 
 // AddInSet will be used to add value in set
-func (r *Store) AddInSet(key, value string) (int, error) {
-	conn := r.Pool.Get()
+func (r *Store) AddInSet(ctx context.Context, key, value string) (int, error) {
+	conn, err := r.Pool.GetContext(ctx)
+	if err != nil {
+		return 0, errors.Wrap(err, "cache.redis.AddInSet.GetContext")
+	}
 	defer conn.Close()
 	return redigo.Int(conn.Do("SADD", key, value))
 }
 
 // GetSetMembers will be used to get the set memebers
-func (r *Store) GetSetMembers(key string) ([]string, error) {
-	conn := r.Pool.Get()
+func (r *Store) GetSetMembers(ctx context.Context, key string) ([]string, error) {
+	conn, err := r.Pool.GetContext(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "cache.redis.GetSetMembers.GetContext")
+	}
 	defer conn.Close()
 	return redigo.Strings(conn.Do("SMEMBERS", key))
 }
 
 // GetSetLength will be used to get the set length
-func (r *Store) GetSetLength(key string) (int, error) {
-	conn := r.Pool.Get()
+func (r *Store) GetSetLength(ctx context.Context, key string) (int, error) {
+	conn, err := r.Pool.GetContext(ctx)
+	if err != nil {
+		return 0, errors.Wrap(err, "cache.redis.GetSetLength.GetContext")
+	}
 	defer conn.Close()
 	return redigo.Int(conn.Do("SCARD", key))
 }
 
 // GetNElementOfSet to get the first N elements of set
-func (r *Store) GetNElementOfSet(key string, n int) ([]string, error) {
-	conn := r.Pool.Get()
+func (r *Store) GetNElementOfSet(ctx context.Context, key string, n int) ([]string, error) {
+	conn, err := r.Pool.GetContext(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "cache.redis.GetNElementOfSet.GetContext")
+	}
 	defer conn.Close()
 	return redigo.Strings(conn.Do("SPOP", key, n))
 }
 
 // PushNElementToSet will be used to push n elements to set
-func (r *Store) PushNElementToSet(values []interface{}) (int, error) {
-	conn := r.Pool.Get()
+func (r *Store) PushNElementToSet(ctx context.Context, values []interface{}) (int, error) {
+	conn, err := r.Pool.GetContext(ctx)
+	if err != nil {
+		return 0, errors.Wrap(err, "cache.redis.PushNElementToSet.GetContext")
+	}
 	defer conn.Close()
 	return redigo.Int(conn.Do("SADD", values...))
 }
