@@ -337,27 +337,43 @@ func GenerateSelectCols(ctx context.Context, source interface{}, isNullStruct ..
 	}
 
 	elemNumField := elem.NumField()
-	for i := 0; i < elemNumField; i++ {
-		field := elem.Field(i)
 
-		value := field.Interface()
-		fieldType := refType.Field(i)
-		fieldName := ToSnakeCase(fieldType.Name)
-		val, exist := fieldType.Tag.Lookup("db")
-		if exist {
-			fieldName = val
-		}
-		fieldTypeData := fieldType.Type.String()
-		if strings.Contains(fieldTypeData, "null.") {
-			cols = append(cols, fieldName)
-			continue
-		}
-		if field.Kind() == reflect.Struct {
-			embeddedCols := GenerateSelectCols(ctx, value, containsNullStruct)
-			cols = append(cols, embeddedCols...)
-			continue
-		}
-		cols = append(cols, fieldName)
+	wg := new(sync.WaitGroup)
+	mtx := new(sync.Mutex)
+	for i := 0; i < elemNumField; i++ {
+		wg.Add(1)
+		go func(index int, element reflect.Value, columns *[]string, wait *sync.WaitGroup, mute *sync.Mutex) {
+			mute.Lock()
+			defer func() {
+				wait.Done()
+				mute.Unlock()
+			}()
+			field := elem.Field(index)
+
+			value := field.Interface()
+			fieldType := refType.Field(index)
+			fieldName := ToSnakeCase(fieldType.Name)
+			val, exist := fieldType.Tag.Lookup("db")
+			if exist {
+				fieldName = val
+			}
+			fieldTypeData := fieldType.Type.String()
+			colTagVal, hasColTag := fieldType.Tag.Lookup("col")
+
+			if strings.Contains(fieldTypeData, "null.") || (hasColTag && colTagVal == "json") {
+				*columns = append(*columns, fieldName)
+				return
+			}
+			if field.Kind() == reflect.Struct {
+				embeddedCols := GenerateSelectCols(ctx, value, containsNullStruct)
+				*columns = append(*columns, embeddedCols...)
+				return
+			}
+			*columns = append(*columns, fieldName)
+
+		}(i, elem, &cols, wg, mtx)
 	}
+
+	wg.Wait()
 	return cols
 }
