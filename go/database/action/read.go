@@ -3,6 +3,8 @@ package action
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/kodekoding/phastos/v2/go/database"
 	"github.com/kodekoding/phastos/v2/go/helper"
 )
@@ -35,9 +37,9 @@ func (b *BaseRead) getBaseQuery(ctx context.Context, opts *database.QueryOpts) s
 			helper.WithExcludedCols(opts.ExcludeColumns),
 			helper.WithIncludedCols(opts.Columns),
 		)
-		var selectedColumnStr string
-		if selectedCols == nil {
-			selectedColumnStr = "*"
+		selectedColumnStr := "*"
+		if selectedCols != nil {
+			selectedColumnStr = strings.Join(selectedCols, ", ")
 		}
 
 		newBaseQuery = fmt.Sprintf("SELECT %s FROM %s", selectedColumnStr, b.tableName)
