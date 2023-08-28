@@ -30,15 +30,15 @@ type Handler interface {
 }
 
 type Caches interface {
-	Get(key string) (string, error)
-	Del(key string) (int64, error)
-	HSet(key, field, value string) (string, error)
-	Set(key, value string, expire int) (string, error)
-	AddInSet(key, value string) (int, error)
-	GetSetMembers(key string) ([]string, error)
-	GetSetLength(key string) (int, error)
-	GetNElementOfSet(key string, n int) ([]string, error)
-	PushNElementToSet(values []interface{}) (int, error)
+	Get(ctx context.Context, key string) (string, error)
+	Del(ctx context.Context, key string) (int64, error)
+	HSet(ctx context.Context, key, field, value string) (string, error)
+	Set(ctx context.Context, key, value string, expire int) (string, error)
+	AddInSet(ctx context.Context, key, value string) (int, error)
+	GetSetMembers(ctx context.Context, key string) ([]string, error)
+	GetSetLength(ctx context.Context, key string) (int, error)
+	GetNElementOfSet(ctx context.Context, key string, n int) ([]string, error)
+	PushNElementToSet(ctx context.Context, values []interface{}) (int, error)
 }
 
 func New(options ...Options) *Store {
