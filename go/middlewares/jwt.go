@@ -23,14 +23,15 @@ func JWTAuth(next http.Handler) http.Handler {
 			token = strings.Replace(authHeader, "Bearer ", "", 1)
 		} else {
 			errUnauthorized := api.Unauthorized("invalid token", "INVALID_TOKEN")
-			errUnauthorized.Write(w)
+			api.NewResponse().SetError(errUnauthorized).Send(w)
 			return
 		}
 
 		if os.Getenv("JWT_SIGNING_KEY") == "" {
 			err := errors.New("JWT Signing Key is nil")
 			newError := api.Unauthorized(err.Error(), "INVALID_KEY")
-			newError.Write(w)
+			api.NewResponse().SetError(newError).Send(w)
+
 			return
 		}
 
@@ -49,12 +50,14 @@ func JWTAuth(next http.Handler) http.Handler {
 		tokenData, errToken := jwt.ParseWithClaims(tokenClient, data, keyFunc)
 		if errToken != nil {
 			invalidClaim := api.Unauthorized(errToken.Error(), "INVALID_CLAIMS")
-			invalidClaim.Write(w)
+			api.NewResponse().SetError(invalidClaim).Send(w)
+
 			return
 		}
 		if !tokenData.Valid {
 			invalidTokenError := api.Unauthorized("Token is not valid", "TOKEN_NOT_VALID")
-			invalidTokenError.Write(w)
+			api.NewResponse().SetError(invalidTokenError).Send(w)
+
 			return
 		}
 
@@ -62,7 +65,8 @@ func JWTAuth(next http.Handler) http.Handler {
 		var result entity.JWTClaimData
 		if err := json.Unmarshal(claimByte, &result); err != nil {
 			invalidClaim := api.Unauthorized("invalid struct claim", "INVALID_STRUCT_CLAIM")
-			invalidClaim.Write(w)
+			api.NewResponse().SetError(invalidClaim).Send(w)
+
 			return
 		}
 
