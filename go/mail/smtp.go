@@ -13,7 +13,8 @@ import (
 )
 
 type (
-	SMTPs interface {
+	SMTPOptions func(*SMTPConfig)
+	SMTPs       interface {
 		AddRecipient(recipient ...string) *SMTP
 		SetContent(subject, message string) *SMTP
 		SetHTMLTemplate(fs embed.FS, tplFile, subject string, args interface{}) *SMTP
@@ -46,12 +47,57 @@ type (
 	}
 )
 
-func NewSMTP(cfg *SMTPConfig) *SMTP {
+func NewSMTP(opts ...SMTPOptions) *SMTP {
+	cfg := new(SMTPConfig)
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	if cfg.EmailFrom == "" {
+		cfg.EmailFrom = cfg.EmailUsername
+	}
+
 	auth := smtp.PlainAuth("", cfg.EmailUsername, cfg.EmailPassword, cfg.Host)
 	cfg.address = fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	return &SMTP{
 		SMTPConfig: *cfg,
 		auth:       auth,
+	}
+}
+
+func WithEmail(email string) SMTPOptions {
+	return func(config *SMTPConfig) {
+		config.EmailUsername = email
+	}
+}
+
+func WithEmailPassword(password string) SMTPOptions {
+	return func(config *SMTPConfig) {
+		config.EmailPassword = password
+	}
+}
+
+func WithHost(host string) SMTPOptions {
+	return func(config *SMTPConfig) {
+		config.Host = host
+	}
+}
+
+func WithPort(port int) SMTPOptions {
+	return func(config *SMTPConfig) {
+		config.Port = port
+	}
+}
+
+func WithSender(sender string) SMTPOptions {
+	return func(config *SMTPConfig) {
+		config.Sender = sender
+	}
+}
+
+func WithEmailFrom(emailFrom string) SMTPOptions {
+	return func(config *SMTPConfig) {
+		config.EmailFrom = emailFrom
 	}
 }
 
