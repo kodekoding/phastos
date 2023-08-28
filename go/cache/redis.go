@@ -14,6 +14,8 @@ type Store struct {
 	Pool Handler
 }
 
+type Options func(*RedisCfg)
+
 type RedisCfg struct {
 	Address   string `yaml:"address"`
 	Timeout   int    `yaml:"timeout"`
@@ -39,7 +41,12 @@ type Caches interface {
 	PushNElementToSet(values []interface{}) (int, error)
 }
 
-func New(cfg *RedisCfg) *Store {
+func New(options ...Options) *Store {
+	var cfg RedisCfg
+	for _, opt := range options {
+		opt(&cfg)
+	}
+
 	return &Store{
 		Pool: &redigo.Pool{
 			MaxIdle:     cfg.MaxIdle,
@@ -57,6 +64,30 @@ func New(cfg *RedisCfg) *Store {
 				return err
 			},
 		},
+	}
+}
+
+func WithAddress(address string) Options {
+	return func(cfg *RedisCfg) {
+		cfg.Address = address
+	}
+}
+
+func WithTimeout(timeout int) Options {
+	return func(cfg *RedisCfg) {
+		cfg.Timeout = timeout
+	}
+}
+
+func WithMaxActive(maxActive int) Options {
+	return func(cfg *RedisCfg) {
+		cfg.MaxActive = maxActive
+	}
+}
+
+func WithMaxIdle(maxIdle int) Options {
+	return func(cfg *RedisCfg) {
+		cfg.MaxIdle = maxIdle
 	}
 }
 
