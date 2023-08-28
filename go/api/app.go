@@ -16,6 +16,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/unrolled/secure"
 
+	"github.com/kodekoding/phastos/v2/go/common"
 	"github.com/kodekoding/phastos/v2/go/helper"
 	"github.com/kodekoding/phastos/v2/go/server"
 )
@@ -163,6 +164,9 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 		ctx, cancel := contextpkg.WithTimeout(r.Context(), time.Second*time.Duration(app.apiTimeout))
 		defer cancel()
 		traceId := helper.GenerateUUIDV4()
+
+		ctx = contextpkg.WithValue(ctx, common.TraceIdKeyContextStr, traceId)
+		*r = *r.WithContext(ctx)
 
 		respChan := make(chan *Response)
 		go func() {
