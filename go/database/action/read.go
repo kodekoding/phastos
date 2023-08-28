@@ -39,10 +39,11 @@ func (b *BaseRead) getBaseQuery(ctx context.Context, opts *database.QueryOpts) s
 		} else if opts.ExcludeColumns != "" && opts.Columns == "" {
 			excludedColList := strings.Split(opts.ExcludeColumns, ",")
 			var newSelectedCols []string
+		colsLoop:
 			for _, col := range selectedCols {
 				for _, excludeCol := range excludedColList {
 					if excludeCol == col {
-						continue
+						continue colsLoop
 					}
 				}
 				newSelectedCols = append(newSelectedCols, col)
