@@ -223,6 +223,11 @@ func readField(_ context.Context, reflectVal reflect.Value, isNullStruct ...bool
 
 			embeddedCols, embeddedVals := ConstructColNameAndValue(nil, field.Interface(), containsNullStruct)
 
+			if colTagVal == "json" && embeddedVals != nil {
+				cols = append(cols, colName)
+				values = append(values, value)
+				continue
+			}
 			if nullStruct && embeddedVals != nil {
 				cols = append(cols, colName)
 			} else {
