@@ -123,6 +123,7 @@ type (
 		CUDRequest        *CUDConstructData
 		Result            interface{}
 		IsList            bool
+		UpsertInsertId    int64
 		Trx               *sql.Tx
 		executedQuery
 	}
