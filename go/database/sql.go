@@ -274,6 +274,10 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	rowsAffected++
 	result.LastInsertID = lastInsertID
 	result.RowsAffected = rowsAffected
+
+	if lastInsertID == 0 && opts.UpsertInsertId > 0 {
+		result.LastInsertID = opts.UpsertInsertId
+	}
 	this.checkSQLWarning(ctx, query, start, data.Values)
 
 	if this.engine == MySQLEngine {
