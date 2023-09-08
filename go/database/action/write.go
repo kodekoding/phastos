@@ -30,11 +30,11 @@ func NewBaseWrite(db *database.SQL, tableName string, isSoftDelete ...bool) *Bas
 }
 
 func (b *BaseWrite) Insert(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
-	return b.cudProcess(ctx, "insert", data, nil, trx...)
+	return b.cudProcess(ctx, "insert", data, nil, trx)
 }
 
 func (b *BaseWrite) BulkInsert(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
-	return b.cudProcess(ctx, "bulk_insert", data, nil, trx...)
+	return b.cudProcess(ctx, "bulk_insert", data, nil, trx)
 }
 
 func (b *BaseWrite) BulkUpdate(ctx context.Context, data interface{}, condition map[string][]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
@@ -63,14 +63,14 @@ func (b *BaseWrite) BulkUpdate(ctx context.Context, data interface{}, condition 
 }
 
 func (b *BaseWrite) Update(ctx context.Context, data interface{}, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
-	return b.cudProcess(ctx, "update", data, condition, trx...)
+	return b.cudProcess(ctx, "update", data, condition, trx)
 }
 
 func (b *BaseWrite) UpdateById(ctx context.Context, data interface{}, id interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
 	condition := map[string]interface{}{
 		"id = ?": id,
 	}
-	return b.cudProcess(ctx, "update_by_id", data, condition, trx...)
+	return b.cudProcess(ctx, "update_by_id", data, condition, trx)
 }
 
 func (b *BaseWrite) Delete(ctx context.Context, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
@@ -113,7 +113,7 @@ func (b *BaseWrite) DeleteById(ctx context.Context, id interface{}, trx ...*sql.
 }
 
 func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
-	var totalData int
+	var existingId int64
 	tableRequest := new(database.TableRequest)
 	pointerCondition := &condition
 	for cond, val := range *pointerCondition {
@@ -123,20 +123,20 @@ func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, condition map[
 		tableRequest.SetWhereCondition(cond, val)
 	}
 	if err := b.db.Read(ctx, &database.QueryOpts{
-		BaseQuery:     fmt.Sprintf("SELECT COUNT(1) FROM %s", b.tableName),
+		BaseQuery:     fmt.Sprintf("SELECT id FROM %s", b.tableName),
 		SelectRequest: tableRequest,
-		Result:        &totalData,
+		Result:        &existingId,
 	}); err != nil {
 		return nil, errors.Wrap(err, "phastos.go.database.action.write.Upsert.GetData")
 	}
 
-	if totalData > 0 {
-		return b.cudProcess(ctx, "update", data, *pointerCondition, trx...)
+	if existingId > 0 {
+		return b.cudProcess(ctx, "update", data, *pointerCondition, trx, existingId)
 	}
-	return b.cudProcess(ctx, "insert", data, nil, trx...)
+	return b.cudProcess(ctx, "insert", data, nil, trx)
 }
 
-func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interface{}, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error) {
+func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interface{}, condition map[string]interface{}, opts ...interface{}) (*database.CUDResponse, error) {
 	var cudRequestData *database.CUDConstructData
 	var err error
 	switch action {
@@ -174,8 +174,13 @@ func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interfac
 	qOpts := &database.QueryOpts{
 		CUDRequest: cudRequestData,
 	}
-	if trx != nil && len(trx) > 0 {
-		qOpts.Trx = trx[0]
+
+	totalOpts := len(opts)
+	if opts != nil && totalOpts > 0 {
+		qOpts.Trx = opts[0].(*sql.Tx)
+		if totalOpts > 1 {
+			qOpts.UpsertInsertId = opts[1].(int64)
+		}
 	}
 
 	if condition != nil {
