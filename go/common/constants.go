@@ -10,5 +10,12 @@ var (
 )
 
 const (
-	TraceIdKeyContextStr = "traceId"
+	TraceIdKeyContextStr   = "traceId"
+	ErrInvalidTokenMessage = "invalid token"
+	ErrInvalidTokenCode    = "INVALID_TOKEN"
+
+	HeaderSecret = "secret"
+
+	EnvServiceSecret = "SERVICE_SECRET"
+	EnvJWTSigningKey = "JWT_SIGNING_KEY"
 )
