@@ -216,6 +216,10 @@ func readField(_ context.Context, reflectVal reflect.Value, isNullStruct ...bool
 			containsNullStruct = true
 		}
 
+		if value == nil {
+			continue
+		}
+
 		if field.Kind() == reflect.Ptr {
 			field = field.Elem()
 		}
