@@ -28,13 +28,11 @@ func JWTAuth(next http.Handler) http.Handler {
 		if authHeader := r.Header.Get("Authorization"); authHeader != "" {
 			token = strings.Replace(authHeader, "Bearer ", "", 1)
 		} else {
-			errUnauthorized := api.Unauthorized("invalid token", "INVALID_TOKEN")
-			errUnauthorized.SetTraceId(traceIdCtx)
-			api.NewResponse().SetError(errUnauthorized).Send(w)
+			unauthorizedInvalidToken(w, traceIdCtx)
 			return
 		}
 
-		if os.Getenv("JWT_SIGNING_KEY") == "" {
+		if os.Getenv(common.EnvJWTSigningKey) == "" {
 			err := errors.New("JWT Signing Key is nil")
 			newError := api.Unauthorized(err.Error(), "INVALID_KEY")
 			newError.SetTraceId(traceIdCtx)
@@ -48,7 +46,7 @@ func JWTAuth(next http.Handler) http.Handler {
 			if token.Method.Alg() != "HS256" {
 				return nil, fmt.Errorf("unexpected jwt signing method=%v", token.Header["alg"])
 			}
-			return []byte(os.Getenv("JWT_SIGNING_KEY")), nil
+			return []byte(os.Getenv(common.EnvJWTSigningKey)), nil
 		}
 
 		tokenClient := strings.TrimSpace(token)
