@@ -24,11 +24,6 @@ import (
 	custerr "github.com/kodekoding/phastos/v2/go/error"
 )
 
-const (
-	MySQLEngine    = "mysql"
-	PostgresEngine = "postgres"
-)
-
 func newSQL(master, follower *sqlx.DB) *SQL {
 	slowQueryThreshold := float64(1)
 	envSlowQuery, _ := strconv.ParseFloat(os.Getenv("DATABASE_SLOW_QUERY_THRESHOLD"), 32)
@@ -183,32 +178,32 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	var query string
 	tableName := data.TableName
 	switch data.Action {
-	case "insert":
+	case ActionInsert:
 		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s)`, tableName, cols, strings.Repeat(",?", len(data.Cols)-1))
 		if this.engine == PostgresEngine {
 			query = fmt.Sprintf("%s RETURNING id", query)
 		}
-	case "bulk_insert":
+	case ActionBulkInsert:
 		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES %s`, tableName, data.ColsInsert, data.BulkValues)
-	case "bulk_update":
+	case ActionBulkUpdate:
 		query = fmt.Sprintf(`UPDATE %s AS main_table JOIN (%s) AS join_table %s`, tableName, data.BulkValues, data.BulkQuery)
-	case "upsert":
+	case ActionUpsert:
 		colsUpdate := strings.Join(data.Cols, ",")
 		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s) ON DUPLICATE KEY UPDATE %s`,
 			data.TableName,
 			data.ColsInsert,
 			strings.Repeat(",?", len(data.Cols)-1),
 			colsUpdate)
-	case "update_by_id":
+	case ActionUpdateById:
 		query = fmt.Sprintf(`UPDATE %s SET %s WHERE id = ?`, tableName, cols)
-	case "delete_by_id":
+	case ActionDeleteById:
 		query = fmt.Sprintf(`DELETE FROM %s WHERE id = ?`, tableName)
 		if softDelete {
 			query = fmt.Sprintf("UPDATE %s SET deleted_at = now() WHERE id = ?", tableName)
 		}
-	case "update":
+	case ActionUpdate:
 		query = fmt.Sprintf(`UPDATE %s SET %s`, tableName, cols)
-	case "delete":
+	case ActionDelete:
 		query = fmt.Sprintf(`DELETE FROM %s`, tableName)
 		if softDelete {
 			query = fmt.Sprintf("UPDATE %s SET deleted_at = now()", tableName)
@@ -239,6 +234,9 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	rowsAffected := int64(0)
 
 	if trx != nil {
+		if this.engine == PostgresEngine && data.Action == ActionUpdate {
+			query = fmt.Sprintf("%s RETURNING id", query)
+		}
 		stmt, err := trx.PrepareContext(ctx, query)
 		if err != nil {
 			_, err = sendNilResponse(err, "phastos.database.Write.PrepareContext", query, data.Values)
@@ -259,6 +257,9 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		}
 	} else {
 		if this.engine == PostgresEngine {
+			if data.Action == ActionUpdate {
+				query = fmt.Sprintf("%s RETURNING id", query)
+			}
 			if err = this.Master.QueryRowContext(ctx, query, data.Values...).Scan(&lastInsertID); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
 				return result, err
@@ -275,9 +276,6 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	result.LastInsertID = lastInsertID
 	result.RowsAffected = rowsAffected
 
-	if lastInsertID == 0 && opts.UpsertInsertId > 0 {
-		result.LastInsertID = opts.UpsertInsertId
-	}
 	this.checkSQLWarning(ctx, query, start, data.Values)
 
 	if this.engine == MySQLEngine {

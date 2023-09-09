@@ -34,7 +34,7 @@ func (b *BaseWrite) Insert(ctx context.Context, data interface{}, optTrx ...*sql
 	if optTrx != nil && len(optTrx) > 0 {
 		trx = optTrx[0]
 	}
-	return b.cudProcess(ctx, "insert", data, nil, trx)
+	return b.cudProcess(ctx, database.ActionInsert, data, nil, trx)
 }
 
 func (b *BaseWrite) BulkInsert(ctx context.Context, data interface{}, optTrx ...*sql.Tx) (*database.CUDResponse, error) {
@@ -42,7 +42,7 @@ func (b *BaseWrite) BulkInsert(ctx context.Context, data interface{}, optTrx ...
 	if optTrx != nil && len(optTrx) > 0 {
 		trx = optTrx[0]
 	}
-	return b.cudProcess(ctx, "bulk_insert", data, nil, trx)
+	return b.cudProcess(ctx, database.ActionBulkInsert, data, nil, trx)
 }
 
 func (b *BaseWrite) BulkUpdate(ctx context.Context, data interface{}, condition map[string][]interface{}, optTrx ...*sql.Tx) (*database.CUDResponse, error) {
@@ -51,7 +51,7 @@ func (b *BaseWrite) BulkUpdate(ctx context.Context, data interface{}, condition 
 		return nil, err
 	}
 
-	action := "bulk_update"
+	action := database.ActionBulkUpdate
 	cudRequestData.Action = action
 	cudRequestData.TableName = b.tableName
 
@@ -77,7 +77,7 @@ func (b *BaseWrite) Update(ctx context.Context, data interface{}, condition map[
 	if optTrx != nil && len(optTrx) > 0 {
 		trx = optTrx[0]
 	}
-	return b.cudProcess(ctx, "update", data, condition, trx)
+	return b.cudProcess(ctx, database.ActionUpdate, data, condition, trx)
 }
 
 func (b *BaseWrite) UpdateById(ctx context.Context, data interface{}, id interface{}, optTrx ...*sql.Tx) (*database.CUDResponse, error) {
@@ -88,14 +88,14 @@ func (b *BaseWrite) UpdateById(ctx context.Context, data interface{}, id interfa
 	if optTrx != nil && len(optTrx) > 0 {
 		trx = optTrx[0]
 	}
-	return b.cudProcess(ctx, "update_by_id", data, condition, trx)
+	return b.cudProcess(ctx, database.ActionUpdateById, data, condition, trx)
 }
 
 func (b *BaseWrite) Delete(ctx context.Context, condition map[string]interface{}, optTrx ...*sql.Tx) (*database.CUDResponse, error) {
 	// soft delete, just update the deleted_at to not null
 	data := &database.CUDConstructData{
 		Cols:      []string{"deleted_at = now()"},
-		Action:    "delete",
+		Action:    database.ActionDelete,
 		TableName: b.tableName,
 	}
 	qOpts := &database.QueryOpts{
@@ -119,7 +119,7 @@ func (b *BaseWrite) Delete(ctx context.Context, condition map[string]interface{}
 func (b *BaseWrite) DeleteById(ctx context.Context, id interface{}, optTrx ...*sql.Tx) (*database.CUDResponse, error) {
 	// soft delete, just update the deleted_at to not null
 	data := &database.CUDConstructData{
-		Action:    "delete_by_id",
+		Action:    database.ActionDeleteById,
 		TableName: b.tableName,
 		Values:    []interface{}{id},
 	}
@@ -145,7 +145,7 @@ func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, condition map[
 		tableRequest.SetWhereCondition(cond, val)
 	}
 	if err := b.db.Read(ctx, &database.QueryOpts{
-		BaseQuery:     fmt.Sprintf("SELECT id FROM %s", b.tableName),
+		BaseQuery:     fmt.Sprintf("SELECT count(1) FROM %s", b.tableName),
 		SelectRequest: tableRequest,
 		Result:        &existingId,
 	}); err != nil {
@@ -158,16 +158,16 @@ func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, condition map[
 	}
 
 	if existingId > 0 {
-		return b.cudProcess(ctx, "update", data, *pointerCondition, trx, existingId)
+		return b.cudProcess(ctx, database.ActionUpdate, data, *pointerCondition, trx, existingId)
 	}
-	return b.cudProcess(ctx, "insert", data, nil, trx)
+	return b.cudProcess(ctx, database.ActionInsert, data, nil, trx)
 }
 
 func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interface{}, condition map[string]interface{}, opts ...interface{}) (*database.CUDResponse, error) {
 	var cudRequestData *database.CUDConstructData
 	var err error
 	switch action {
-	case "insert":
+	case database.ActionInsert:
 		cols, vals := helper.ConstructColNameAndValue(ctx, data)
 		if cols == nil && vals == nil {
 			return nil, errors.New("second parameter should be a pointer of struct")
@@ -176,20 +176,20 @@ func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interfac
 			Cols:   cols,
 			Values: vals,
 		}
-	case "bulk_insert":
+	case database.ActionBulkInsert:
 		cudRequestData, err = helper.ConstructColNameAndValueBulk(ctx, data)
 		if err != nil {
 			return nil, err
 		}
-	case "update":
+	case database.ActionUpdate:
 		cudRequestData = helper.ConstructColNameAndValueForUpdate(ctx, data)
-	case "update_by_id":
+	case database.ActionUpdateById:
 		cudRequestData = helper.ConstructColNameAndValueForUpdate(ctx, data, condition["id = ?"])
 		condition = nil
-	case "upsert":
+	case database.ActionUpsert:
 		cudRequestData = helper.ConstructColNameAndValueForUpdate(ctx, data)
 		cudRequestData.Values = append(cudRequestData.Values, cudRequestData.Values...)
-	case "delete":
+	case database.ActionDelete:
 		cudRequestData = data.(*database.CUDConstructData)
 	default:
 		return nil, errors.New("undefined action")
