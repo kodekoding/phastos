@@ -216,11 +216,12 @@ func readField(_ context.Context, reflectVal reflect.Value, isNullStruct ...bool
 			containsNullStruct = true
 		}
 
-		if value == nil {
-			continue
-		}
-
 		if field.Kind() == reflect.Ptr {
+			// to check nil pointer of data type
+			if reflect.Indirect(field).Kind() == reflect.Invalid {
+				continue
+			}
+
 			field = field.Elem()
 		}
 		if field.Kind() == reflect.Struct {
