@@ -87,7 +87,6 @@ func (resp *Response) SetError(err error) *Response {
 
 func (resp *Response) SetHTTPError(err *HttpError) *Response {
 	resp.Err = err
-	resp.InternalError = err
 	return resp
 }
 
