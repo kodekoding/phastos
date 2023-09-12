@@ -2,7 +2,6 @@ package helper
 
 import (
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/kodekoding/phastos/v2/go/common"
 	"github.com/kodekoding/phastos/v2/go/entity"
 	"github.com/pkg/errors"
 	"os"
@@ -29,7 +28,7 @@ func GenerateJWTToken(data interface{}, expireTime ...time.Duration) (string, er
 	}
 
 	tokenClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, claimData)
-	token, err := tokenClaims.SignedString([]byte(os.Getenv(common.EnvJWTSigningKey)))
+	token, err := tokenClaims.SignedString([]byte(os.Getenv("JWT_SIGNING_KEY")))
 	if err != nil {
 		return "", errors.Wrap(err, "lib.helper.jwt.GenerateJWTToken.SignedString")
 	}
