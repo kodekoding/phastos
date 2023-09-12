@@ -167,6 +167,7 @@ type (
 		NotContainsDeletedCol bool          `json:"-"`
 		MainTableAlias        string        `json:"-"`
 		IsDeleted             string        `json:"is_deleted,omitempty" schema:"is_deleted"`
+		engine                string
 	}
 
 	CUDConstructData struct {

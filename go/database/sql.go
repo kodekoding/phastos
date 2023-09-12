@@ -123,6 +123,7 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 
 	if opts.SelectRequest != nil {
 		var addOnParams []interface{}
+		opts.SelectRequest.engine = this.engine
 		addOnQuery, addOnParams, err = GenerateAddOnQuery(ctx, opts.SelectRequest)
 		if err != nil {
 			_, err = sendNilResponse(err, "phastos.database.db.Read.GenerateAddOnQuery", opts.SelectRequest)
@@ -440,7 +441,11 @@ func checkCreatedDateParam(_ context.Context, reqData *TableRequest, addOnBuilde
 		}
 		startDate := fmt.Sprintf("%s 00:00:00", reqData.CreatedStart)
 
-		addOnBuilder.WriteString(fmt.Sprintf("DATE_FORMAT(%s, '%%Y-%%m-%%d %%H:%%i:%%s') >= STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s')", col))
+		if reqData.engine == MySQLEngine {
+			addOnBuilder.WriteString(fmt.Sprintf("DATE_FORMAT(%s, '%%Y-%%m-%%d %%H:%%i:%%s') >= STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s')", col))
+		} else {
+			addOnBuilder.WriteString(fmt.Sprintf("%s >= ?", col))
+		}
 		*addOnParams = append(*addOnParams, startDate)
 	}
 
@@ -455,7 +460,11 @@ func checkCreatedDateParam(_ context.Context, reqData *TableRequest, addOnBuilde
 		}
 		endDate := fmt.Sprintf("%s 23:59:59", reqData.CreatedEnd)
 
-		addOnBuilder.WriteString(fmt.Sprintf("DATE_FORMAT(%s, '%%Y-%%m-%%d %%H:%%i:%%s') <= STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s')", col))
+		if reqData.engine == MySQLEngine {
+			addOnBuilder.WriteString(fmt.Sprintf("DATE_FORMAT(%s, '%%Y-%%m-%%d %%H:%%i:%%s') <= STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s')", col))
+		} else {
+			addOnBuilder.WriteString(fmt.Sprintf("%s <= ?", col))
+		}
 		*addOnParams = append(*addOnParams, endDate)
 	}
 
