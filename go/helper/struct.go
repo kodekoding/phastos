@@ -224,8 +224,13 @@ func readField(_ context.Context, reflectVal reflect.Value, isNullStruct ...bool
 
 			field = field.Elem()
 		}
-		if field.Kind() == reflect.Struct {
 
+		switch field.Kind() {
+		case reflect.Map:
+			cols = append(cols, colName)
+			values = append(values, value)
+			continue
+		case reflect.Struct:
 			embeddedCols, embeddedVals := ConstructColNameAndValue(nil, field.Interface(), containsNullStruct)
 
 			if colTagVal == "json" && embeddedVals != nil {
