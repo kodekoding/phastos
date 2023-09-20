@@ -161,6 +161,7 @@ type (
 		GroupBy               string        `json:"group_by,omitempty,omitempty" schema:"group_by"`
 		CreatedStart          string        `json:"date_start,omitempty" schema:"date_start"`
 		CreatedEnd            string        `json:"date_end,omitempty" schema:"date_end"`
+		CustomDateColFilter   string        `json:"-"` // specify this field manually at each of usecase services
 		InitiateWhere         []string      `json:"-"` // will be defined manually at each of usecase services
 		InitiateWhereValues   []interface{} `json:"-"` // will be defined manually at each of usecase services
 		IncludeDeleted        bool          `json:"-"`

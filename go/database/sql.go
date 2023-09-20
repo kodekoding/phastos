@@ -436,6 +436,9 @@ func checkCreatedDateParam(_ context.Context, reqData *TableRequest, addOnBuilde
 		}
 
 		col := "created_at"
+		if reqData.CustomDateColFilter != "" {
+			col = reqData.CustomDateColFilter
+		}
 		if reqData.MainTableAlias != "" {
 			col = fmt.Sprintf("%s.%s", reqData.MainTableAlias, col)
 		}
