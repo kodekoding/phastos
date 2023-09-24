@@ -70,7 +70,7 @@ func SendSlackNotification(ctx context.Context, options ...SentNotifParamOptions
 				iconTitle = ":information_source: "
 			case NotifErrorType:
 				color = "#ff0e0a"
-				iconTitle = "::broken_heart:: "
+				iconTitle = ":broken_heart: "
 			default:
 				color = "#207cf5"
 				iconTitle = ":white_check_mark: "
