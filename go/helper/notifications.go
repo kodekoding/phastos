@@ -80,6 +80,7 @@ func SendSlackNotification(ctx context.Context, options ...SentNotifParamOptions
 				shortTag := true
 				if strings.HasPrefix(key, "-") {
 					shortTag = false
+					key = key[1:]
 				}
 				slackAttachment.AddField(sgw.Field{
 					Title: key,
