@@ -241,6 +241,10 @@ func (app *App) WrapToContext(wrapper Wrapper) {
 	app.wrapper = append(app.wrapper, wrapper)
 }
 
+func (app *App) AddScheduler(pattern string, handler func()) {
+	app.cron.RegisterScheduler(pattern, handler)
+}
+
 func (app *App) Start() error {
 	app.Handler = InitHandler(app.Http)
 	secureMiddleware := secure.New(secure.Options{
