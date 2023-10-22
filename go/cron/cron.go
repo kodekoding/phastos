@@ -1,7 +1,10 @@
 package cron
 
 import (
+	"context"
 	"log"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/robfig/cron/v3"
@@ -13,7 +16,7 @@ type (
 		timezone string
 	}
 
-	handlerFunc func()
+	handlerFunc func(ctx context.Context)
 
 	Engine struct {
 		engine       *cron.Cron
@@ -50,7 +53,17 @@ func (eg *Engine) RegisterScheduler(pattern string, handler handlerFunc) {
 	if eg.engine == nil {
 		log.Fatalln("cron engine is nil")
 	}
-	if _, err := eg.engine.AddFunc(pattern, handler); err != nil {
+	if _, err := eg.engine.AddFunc(pattern, func() {
+		timeoutProcessEnv := os.Getenv("CRON_JOB_TIMEOUT_PROCESS")
+		if timeoutProcessEnv == "" {
+			timeoutProcessEnv = "5"
+		}
+
+		timeoutProcess, _ := strconv.Atoi(timeoutProcessEnv)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutProcess)*time.Minute)
+		defer cancel()
+		handler(ctx)
+	}); err != nil {
 		log.Fatalln("Failed to Register Scheduler Handler: ", err.Error())
 	}
 	eg.handlerTotal++
