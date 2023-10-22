@@ -17,6 +17,7 @@ import (
 	"github.com/unrolled/secure"
 
 	"github.com/kodekoding/phastos/v2/go/common"
+	"github.com/kodekoding/phastos/v2/go/cron"
 	"github.com/kodekoding/phastos/v2/go/helper"
 	"github.com/kodekoding/phastos/v2/go/server"
 )
@@ -35,6 +36,7 @@ type (
 		TotalEndpoints int
 		apiTimeout     int
 		wrapper        []Wrapper
+		cron           *cron.Engine
 	}
 
 	Options func(api *App)
@@ -84,6 +86,16 @@ func WriteTimeout(writeTimeout int) Options {
 func WithAPITimeout(apiTimeout int) Options {
 	return func(app *App) {
 		app.apiTimeout = apiTimeout
+	}
+}
+
+func WithCronJob(timezone ...string) Options {
+	return func(app *App) {
+		cronOpts := cron.WithTimeZone("Asia/Jakarta")
+		if timezone != nil && len(timezone) > 0 {
+			cronOpts = cron.WithTimeZone(timezone[0])
+		}
+		app.cron = cron.New(cronOpts)
 	}
 }
 
@@ -242,5 +254,10 @@ func (app *App) Start() error {
 	}
 
 	log.Info().Msg(fmt.Sprintf("server started on port %d, serving %d endpoint(s)", app.Port, app.TotalEndpoints))
+
+	if app.cron != nil {
+		defer app.cron.Stop()
+		go app.cron.Start()
+	}
 	return server.ServeHTTP(app.Config)
 }
