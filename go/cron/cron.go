@@ -2,6 +2,9 @@ package cron
 
 import (
 	"context"
+	"fmt"
+	"github.com/kodekoding/phastos/v2/go/env"
+	helper2 "github.com/kodekoding/phastos/v2/go/helper"
 	"log"
 	"os"
 	"strconv"
@@ -16,7 +19,7 @@ type (
 		timezone string
 	}
 
-	HandlerFunc func(ctx context.Context)
+	HandlerFunc func(ctx context.Context) *Response
 
 	Engine struct {
 		engine       *cron.Cron
@@ -62,7 +65,48 @@ func (eg *Engine) RegisterScheduler(pattern string, handler HandlerFunc) {
 		timeoutProcess, _ := strconv.Atoi(timeoutProcessEnv)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutProcess)*time.Minute)
 		defer cancel()
-		handler(ctx)
+
+		respChan := make(chan *Response)
+		start := time.Now()
+		go func() {
+			respChan <- handler(ctx)
+		}()
+
+		select {
+		case <-ctx.Done():
+			_ = helper2.SendSlackNotification(context.Background(),
+				helper2.NotifMsgType(helper2.NotifWarnType),
+				helper2.NotifTitle("Cron Job Failed (Timeout)"),
+				helper2.NotifData(map[string]string{
+					"date": start.Format("2006-01-02 15:04:05"),
+				}),
+			)
+		case resp := <-respChan:
+			var notifType helper2.SentNotifParamOptions
+			var msg = "Success"
+			notifChannel := os.Getenv("NOTIFICATION_SLACK_INFO_WEBHOOK")
+			end := time.Since(start)
+			notifData := map[string]string{
+				"Processing Time": fmt.Sprintf("%.2f second(s)", end.Seconds()),
+				"Environment":     env.ServiceEnv(),
+				"Process Name":    resp.processName,
+			}
+			if resp.err != nil {
+				notifType = helper2.NotifMsgType(helper2.NotifErrorType)
+				msg = "Error"
+				notifChannel = os.Getenv("NOTIFICATIONS_SLACK_WEBHOOK_URL")
+				notifData["error"] = resp.err.Error()
+			}
+
+			_ = helper2.SendSlackNotification(ctx,
+				helper2.NotifChannel(notifChannel),
+				helper2.NotifTitle(fmt.Sprintf("Cron Job %s", msg)),
+				helper2.NotifData(notifData),
+				notifType,
+			)
+
+			log.Printf("%s Insert Default Schedule in %.2f second(s)", msg, end.Seconds())
+		}
 	}); err != nil {
 		log.Fatalln("Failed to Register Scheduler Handler: ", err.Error())
 	}
