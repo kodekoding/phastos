@@ -300,50 +300,54 @@ func generateParamArgsForLike(data string) string {
 }
 
 func (this *SQL) checkSQLWarning(ctx context.Context, query string, start time.Time, params ...interface{}) {
-	end := time.Since(start)
+	enabledSQLWarningEnv := os.Getenv("DATABASE_SLOW_QUERY_WARNING")
+	enabledSQLWarning, _ := strconv.ParseBool(enabledSQLWarningEnv)
+	if enabledSQLWarning {
+		end := time.Since(start)
 
-	endSecond := end.Seconds()
-	if endSecond >= this.slowQueryThreshold {
-		defaultWarnMsg := fmt.Sprintf(`
+		endSecond := end.Seconds()
+		if endSecond >= this.slowQueryThreshold {
+			defaultWarnMsg := fmt.Sprintf(`
 			[WARN] SLOW QUERY DETECTED (%s): %s (%#v)
 			Process Query: %.2fs`, env.ServiceEnv(), query, params, end.Seconds())
-		paramsString, _ := json.Marshal(params)
-		notif := context2.GetNotif(ctx)
-		if notif != nil {
-			var attachment interface{}
-			color := "#e8dd0e"
-			for _, platform := range notif.GetAllPlatform() {
-				attachment = nil
-				newWarnMsg := defaultWarnMsg
-				if platform.Type() == "slack" {
-					slackAttachment := &sgw.Attachment{
-						Color: &color,
+			paramsString, _ := json.Marshal(params)
+			notif := context2.GetNotif(ctx)
+			if notif != nil {
+				var attachment interface{}
+				color := "#e8dd0e"
+				for _, platform := range notif.GetAllPlatform() {
+					attachment = nil
+					newWarnMsg := defaultWarnMsg
+					if platform.Type() == "slack" {
+						slackAttachment := &sgw.Attachment{
+							Color: &color,
+						}
+						newWarnMsg = "SLOW QUERY DETECTED"
+						slackAttachment.
+							AddField(sgw.Field{
+								Title: "Query",
+								Value: query,
+							}).AddField(
+							sgw.Field{
+								Short: true,
+								Title: "Parameter",
+								Value: string(paramsString),
+							}).AddField(
+							sgw.Field{
+								Short: true,
+								Title: "Process Time",
+								Value: fmt.Sprintf("%.2f", endSecond),
+							}).AddField(
+							sgw.Field{
+								Short: true,
+								Title: "Environment",
+								Value: env.ServiceEnv(),
+							})
+						attachment = slackAttachment
 					}
-					newWarnMsg = "SLOW QUERY DETECTED"
-					slackAttachment.
-						AddField(sgw.Field{
-							Title: "Query",
-							Value: query,
-						}).AddField(
-						sgw.Field{
-							Short: true,
-							Title: "Parameter",
-							Value: string(paramsString),
-						}).AddField(
-						sgw.Field{
-							Short: true,
-							Title: "Process Time",
-							Value: fmt.Sprintf("%.2f", endSecond),
-						}).AddField(
-						sgw.Field{
-							Short: true,
-							Title: "Environment",
-							Value: env.ServiceEnv(),
-						})
-					attachment = slackAttachment
-				}
-				if platform.IsActive() {
-					_ = platform.Send(ctx, newWarnMsg, attachment)
+					if platform.IsActive() {
+						_ = platform.Send(ctx, newWarnMsg, attachment)
+					}
 				}
 			}
 		}
