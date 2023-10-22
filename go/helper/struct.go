@@ -406,15 +406,7 @@ func GenerateSelectCols(ctx context.Context, source interface{}, opts ...GenSele
 			colTagVal, hasColTag := fieldType.Tag.Lookup("col")
 
 			if strings.Contains(fieldTypeData, "null.") || (hasColTag && colTagVal == "json") {
-				if !includedColsNotNull && !excludedColsNotNull {
-					// condition when include + exclude cols is ""
-					*columns = append(*columns, fieldName)
-				} else if includedColsNotNull && strings.Contains(optionalParams.includedCols, fieldName) {
-					// condition when field name is registered on included cols string
-					*columns = append(*columns, fieldName)
-				} else if excludedColsNotNull && !strings.Contains(optionalParams.excludedCols, fieldName) {
-					*columns = append(*columns, fieldName)
-				}
+				populateColumns(includedColsNotNull, excludedColsNotNull, columns, fieldName, optionalParams)
 				return
 			}
 			if field.Kind() == reflect.Struct {
@@ -423,18 +415,23 @@ func GenerateSelectCols(ctx context.Context, source interface{}, opts ...GenSele
 				return
 			}
 
-			if !includedColsNotNull && !excludedColsNotNull {
-				// condition when include + exclude cols is ""
-				*columns = append(*columns, fieldName)
-			} else if includedColsNotNull && strings.Contains(optionalParams.includedCols, fieldName) {
-				// condition when field name is registered on included cols string
-				*columns = append(*columns, fieldName)
-			} else if excludedColsNotNull && !strings.Contains(optionalParams.excludedCols, fieldName) {
-				*columns = append(*columns, fieldName)
-			}
+			populateColumns(includedColsNotNull, excludedColsNotNull, columns, fieldName, optionalParams)
+
 		}(i, elem, &cols, wg, mtx)
 	}
 
 	wg.Wait()
 	return cols
+}
+
+func populateColumns(includedColsNotNull bool, excludedColsNotNull bool, columns *[]string, fieldName string, optionalParams *GenSelectColsOptionalParams) {
+	if !includedColsNotNull && !excludedColsNotNull {
+		// condition when include + exclude cols is ""
+		*columns = append(*columns, fieldName)
+	} else if includedColsNotNull && strings.Contains(optionalParams.includedCols, fieldName) {
+		// condition when field name is registered on included cols string
+		*columns = append(*columns, fieldName)
+	} else if excludedColsNotNull && !strings.Contains(optionalParams.excludedCols, fieldName) {
+		*columns = append(*columns, fieldName)
+	}
 }
