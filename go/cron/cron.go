@@ -16,7 +16,7 @@ type (
 		timezone string
 	}
 
-	handlerFunc func(ctx context.Context)
+	HandlerFunc func(ctx context.Context)
 
 	Engine struct {
 		engine       *cron.Cron
@@ -49,7 +49,7 @@ func WithTimeZone(timeZone string) Options {
 	}
 }
 
-func (eg *Engine) RegisterScheduler(pattern string, handler handlerFunc) {
+func (eg *Engine) RegisterScheduler(pattern string, handler HandlerFunc) {
 	if eg.engine == nil {
 		log.Fatalln("cron engine is nil")
 	}

@@ -241,7 +241,7 @@ func (app *App) WrapToContext(wrapper Wrapper) {
 	app.wrapper = append(app.wrapper, wrapper)
 }
 
-func (app *App) AddScheduler(pattern string, handler func()) {
+func (app *App) AddScheduler(pattern string, handler cron.HandlerFunc) {
 	app.cron.RegisterScheduler(pattern, handler)
 }
 
