@@ -31,15 +31,19 @@ func (b *BaseRead) getBaseQuery(ctx context.Context, opts *database.QueryOpts) s
 	}
 	newBaseQuery := opts.BaseQuery
 	if newBaseQuery == "" {
-		selectedCols := helper.GenerateSelectCols(
-			ctx,
-			opts.Result,
-			helper.WithExcludedCols(opts.ExcludeColumns),
-			helper.WithIncludedCols(opts.Columns),
-		)
 		selectedColumnStr := "*"
-		if selectedCols != nil {
-			selectedColumnStr = strings.Join(selectedCols, ", ")
+		if opts.ExcludeColumns != "" {
+			selectedCols := helper.GenerateSelectCols(
+				ctx,
+				opts.Result,
+				helper.WithExcludedCols(opts.ExcludeColumns),
+				helper.WithIncludedCols(opts.Columns),
+			)
+			if selectedCols != nil {
+				selectedColumnStr = strings.Join(selectedCols, ", ")
+			}
+		} else if opts.Columns != "" {
+			selectedColumnStr = opts.Columns
 		}
 
 		newBaseQuery = fmt.Sprintf("SELECT %s FROM %s", selectedColumnStr, b.tableName)
