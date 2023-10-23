@@ -245,6 +245,10 @@ func (app *App) AddScheduler(pattern string, handler cron.HandlerFunc) {
 	app.cron.RegisterScheduler(pattern, handler)
 }
 
+func (app *App) WrapScheduler(wrapper cron.Wrapper) {
+	app.cron.Wrap(wrapper)
+}
+
 func (app *App) Start() error {
 	app.Handler = InitHandler(app.Http)
 	secureMiddleware := secure.New(secure.Options{
