@@ -24,6 +24,12 @@ type (
 	Engine struct {
 		engine       *cron.Cron
 		handlerTotal int
+		wrapper      []Wrapper
+		ctx          context.Context
+	}
+
+	Wrapper interface {
+		WrapToContext(ctx context.Context) context.Context
 	}
 )
 
@@ -43,7 +49,10 @@ func New(configOptions ...Options) *Engine {
 		cronOpts = cron.WithLocation(location)
 	}
 	scheduler := cron.New(cronOpts)
-	return &Engine{engine: scheduler}
+	return &Engine{
+		engine: scheduler,
+		ctx:    context.Background(),
+	}
 }
 
 func WithTimeZone(timeZone string) Options {
@@ -63,18 +72,25 @@ func (eg *Engine) RegisterScheduler(pattern string, handler HandlerFunc) {
 		}
 
 		timeoutProcess, _ := strconv.Atoi(timeoutProcessEnv)
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutProcess)*time.Minute)
+		ctx, cancel := context.WithTimeout(eg.ctx, time.Duration(timeoutProcess)*time.Minute)
 		defer cancel()
 
 		respChan := make(chan *Response)
 		start := time.Now()
 		go func() {
+			_ = helper2.SendSlackNotification(ctx,
+				helper2.NotifMsgType(helper2.NotifInfoType),
+				helper2.NotifTitle("Cron Job Started"),
+				helper2.NotifData(map[string]string{
+					"date": start.Format("2006-01-02 15:04:05"),
+				}),
+			)
 			respChan <- handler(ctx)
 		}()
 
 		select {
 		case <-ctx.Done():
-			_ = helper2.SendSlackNotification(context.Background(),
+			_ = helper2.SendSlackNotification(ctx,
 				helper2.NotifMsgType(helper2.NotifWarnType),
 				helper2.NotifTitle("Cron Job Failed (Timeout)"),
 				helper2.NotifData(map[string]string{
@@ -113,7 +129,14 @@ func (eg *Engine) RegisterScheduler(pattern string, handler HandlerFunc) {
 	eg.handlerTotal++
 }
 
+func (eg *Engine) Wrap(wrapper Wrapper) {
+	eg.wrapper = append(eg.wrapper, wrapper)
+}
+
 func (eg *Engine) Start() {
+	for _, wrapper := range eg.wrapper {
+		eg.ctx = wrapper.WrapToContext(eg.ctx)
+	}
 	log.Printf("Cron Job / Scheduler is running, handle %d handler(s)", eg.handlerTotal)
 	eg.engine.Start()
 }

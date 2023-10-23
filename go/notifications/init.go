@@ -93,3 +93,7 @@ func (this *Platform) Handler(next http.Handler) http.Handler {
 		next.ServeHTTP(writer, request)
 	})
 }
+
+func (this *Platform) WrapToContext(ctx context.Context) context.Context {
+	return context.WithValue(ctx, entity.NotifPlatformContext{}, this)
+}
