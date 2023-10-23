@@ -99,6 +99,7 @@ func (eg *Engine) RegisterScheduler(pattern string, handler HandlerFunc) {
 			)
 		case resp := <-respChan:
 			var notifType helper2.SentNotifParamOptions
+			notifType = helper2.NotifMsgType(helper2.NotifInfoType)
 			var msg = "Success"
 			notifChannel := os.Getenv("NOTIFICATION_SLACK_INFO_WEBHOOK")
 			end := time.Since(start)
