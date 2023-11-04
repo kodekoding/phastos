@@ -77,11 +77,15 @@ func (b *BaseRead) GetDetailById(ctx context.Context, resultStruct interface{}, 
 	return b.db.Read(ctx, opts, id)
 }
 
-func (b *BaseRead) Count(ctx context.Context, tableName string, reqData *database.TableRequest) (totalData, totalFiltered int, err error) {
+func (b *BaseRead) Count(ctx context.Context, reqData *database.TableRequest, tableName ...string) (totalData, totalFiltered int, err error) {
 	// TODO: ACTIVATE THIS WHEN USING TRACER
 	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-CountAll")
 	//defer trc.Finish()
-	queryTotal := fmt.Sprintf("SELECT COUNT(1) FROM %s ", tableName)
+	selectedTableName := b.tableName
+	if tableName != nil && len(tableName) > 0 {
+		selectedTableName = tableName[0]
+	}
+	queryTotal := fmt.Sprintf("SELECT COUNT(1) FROM %s ", selectedTableName)
 	opts := &database.QueryOpts{
 		BaseQuery: queryTotal,
 		Result:    &totalData,
