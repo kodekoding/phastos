@@ -40,7 +40,7 @@ type Caches interface {
 	Get(ctx context.Context, key string) (string, error)
 	Del(ctx context.Context, key string) (int64, error)
 	HSet(ctx context.Context, key, field, value string) (string, error)
-	Set(ctx context.Context, key, value string, expire int) (string, error)
+	Set(ctx context.Context, key, value string, expire ...int) (string, error)
 	AddInSet(ctx context.Context, key, value string) (int, error)
 	GetSetMembers(ctx context.Context, key string) ([]string, error)
 	GetSetLength(ctx context.Context, key string) (int, error)
