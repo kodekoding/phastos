@@ -247,6 +247,10 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		if this.engine == PostgresEngine {
 			if err = stmt.QueryRowContext(ctx, data.Values...).Scan(&lastInsertID); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
+				if err == nil {
+					result.RowsAffected = 1
+					result.Status = true
+				}
 				return result, err
 			}
 		} else {
@@ -263,6 +267,10 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 			}
 			if err = this.Master.QueryRowContext(ctx, query, data.Values...).Scan(&lastInsertID); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
+				if err == nil {
+					result.RowsAffected = 1
+					result.Status = true
+				}
 				return result, err
 			}
 		} else {
