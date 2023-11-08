@@ -127,10 +127,10 @@ func (app *App) requestValidator(i interface{}) error {
 	errorResponse := ValidateStruct(i)
 	if errorResponse != nil {
 		return NewErr(
-			WithCode("VALIDATION_ERROR"),
-			WithMessage("validation error"),
-			WithStatus(http.StatusUnprocessableEntity),
-			WithData(errorResponse),
+			WithErrorCode("VALIDATION_ERROR"),
+			WithErrorMessage("validation error"),
+			WithErrorStatus(http.StatusUnprocessableEntity),
+			WithErrorData(errorResponse),
 		)
 	}
 	return nil
@@ -201,7 +201,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 				var respErr *HttpError
 				var ok bool
 				if respErr, ok = response.Err.(*HttpError); !ok {
-					respErr = NewErr(WithMessage(response.Err.Error()))
+					respErr = NewErr(WithErrorMessage(response.Err.Error()))
 					response.SetHTTPError(respErr)
 				}
 				respErr.TraceId = traceId

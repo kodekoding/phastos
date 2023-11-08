@@ -76,7 +76,7 @@ func (resp *Response) SetError(err error) *Response {
 	resp.Err = err
 	if causeErr, isHttpErr := errors.Cause(err).(*HttpError); !isHttpErr {
 		// if not httpError then create new httpError for internal error and sent alert to notification platform
-		resp.InternalError = NewErr(WithCode("INTERNAL_SERVER_ERROR"), WithMessage(err.Error()))
+		resp.InternalError = NewErr(WithErrorCode("INTERNAL_SERVER_ERROR"), WithErrorMessage(err.Error()))
 		resp.Err = errors.New("Internal Server Error")
 	} else {
 		resp.InternalError = causeErr

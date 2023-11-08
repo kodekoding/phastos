@@ -27,25 +27,25 @@ func (e *HttpError) Error() string {
 	return e.Message
 }
 
-func WithCode(code string) ErrorOption {
+func WithErrorCode(code string) ErrorOption {
 	return func(e *HttpError) {
 		e.Code = code
 	}
 }
 
-func WithStatus(status int) ErrorOption {
+func WithErrorStatus(status int) ErrorOption {
 	return func(e *HttpError) {
 		e.Status = status
 	}
 }
 
-func WithMessage(message string) ErrorOption {
+func WithErrorMessage(message string) ErrorOption {
 	return func(e *HttpError) {
 		e.Message = message
 	}
 }
 
-func WithData(data interface{}) ErrorOption {
+func WithErrorData(data interface{}) ErrorOption {
 	return func(e *HttpError) {
 		e.Data = data
 	}
