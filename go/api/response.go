@@ -76,10 +76,13 @@ func (resp *Response) SetError(err error) *Response {
 	resp.Err = err
 	if causeErr, isHttpErr := errors.Cause(err).(*HttpError); !isHttpErr {
 		// if not httpError then create new httpError for internal error and sent alert to notification platform
-		resp.InternalError = NewErr(WithCode("INTERNAL_SERVER_ERROR"), WithMessage(err.Error()), WithStatus(http.StatusInternalServerError))
+		resp.InternalError = NewErr(WithCode("INTERNAL_SERVER_ERROR"), WithMessage(err.Error()))
 		resp.Err = errors.New("Internal Server Error")
 	} else {
 		resp.InternalError = causeErr
+		if causeErr.Status == http.StatusInternalServerError {
+			resp.Err = errors.New("Internal Server Error")
+		}
 	}
 
 	return resp
@@ -104,6 +107,9 @@ func (resp *Response) SentNotif(ctx contextpkg.Context, err *HttpError, r *http.
 					if err.Status == 500 {
 						bodyReq, _ := io.ReadAll(r.Body)
 						r.Body = io.NopCloser(bytes.NewBuffer(bodyReq))
+						if string(bodyReq) == "" || r.Method == http.MethodGet {
+							bodyReq, _ = json.Marshal(r.URL.Query())
+						}
 						slackAttachment := new(sgw.Attachment)
 						color := "#ff0e0a"
 						slackAttachment.Color = &color
