@@ -142,7 +142,16 @@ func (resp *Response) SentNotif(ctx contextpkg.Context, err *HttpError, r *http.
 								Title: "Environment",
 								Value: env.ServiceEnv(),
 							})
-						if err := notif.Send(ctx, "Error Processing Request", slackAttachment); err != nil {
+						if err.Data != nil {
+							errData, _ := json.Marshal(err.Data)
+							slackAttachment.AddField(sgw.Field{
+								Title: "Error Data",
+								Value: string(errData),
+							})
+						}
+
+						notifTitle := fmt.Sprintf("Error Processing Request on %s", env.ServiceEnv())
+						if err := notif.Send(ctx, notifTitle, slackAttachment); err != nil {
 							log.Errorln("error when sent", notif.Type(), " notifications: ", err.Error())
 						}
 					}
