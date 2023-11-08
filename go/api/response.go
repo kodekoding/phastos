@@ -150,6 +150,13 @@ func (resp *Response) SentNotif(ctx contextpkg.Context, err *HttpError, r *http.
 							})
 						}
 
+						if err.CallerPath != "" {
+							slackAttachment.AddField(sgw.Field{
+								Title: "Caller Function / Context",
+								Value: err.CallerPath,
+							})
+						}
+
 						notifTitle := fmt.Sprintf("Error Processing Request on %s", env.ServiceEnv())
 						if err := notif.Send(ctx, notifTitle, slackAttachment); err != nil {
 							log.Errorln("error when sent", notif.Type(), " notifications: ", err.Error())
