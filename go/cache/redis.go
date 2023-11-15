@@ -183,7 +183,7 @@ func (r *Store) Set(ctx context.Context, key, value string, expire ...int) (stri
 	setParams = append(setParams, value)
 	if expire != nil && len(expire) > 0 {
 		setParams = append(setParams, "EX")
-		setParams = append(setParams, expire)
+		setParams = append(setParams, expire[0])
 	}
 	return redigo.String(conn.Do("SET", setParams...))
 }
