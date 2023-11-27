@@ -28,6 +28,6 @@ type Buckets interface {
 	RollbackProcess(ctx context.Context, fileName string) error
 	DeleteFile(ctx context.Context, fileName string) error
 
-	CopyFileToAnotherBucket(ctx context.Context, destBucket, fileName string) error
+	CopyFileToAnotherBucket(ctx context.Context, destFileName, destBucket, sourceBucket string, oldFileName ...string) error
 	Close()
 }

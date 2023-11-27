@@ -244,12 +244,19 @@ func (g *google) DeleteFile(ctx context.Context, fileName string) error {
 	return nil
 }
 
-func (g *google) CopyFileToAnotherBucket(ctx context.Context, destBucket, fileName string) error {
+func (g *google) CopyFileToAnotherBucket(ctx context.Context, destBucket, sourceBucket, destFileName string, oldFileName ...string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
-	src := g.bucket.Object(fileName)
-	dst := g.client.Bucket(destBucket).Object(fileName).If(storage.Conditions{DoesNotExist: true})
+	sourceFileName := destFileName
+	if oldFileName != nil && len(oldFileName) > 0 {
+		sourceFileName = oldFileName[0]
+	}
+
+	gcsCli := *g.client
+
+	src := gcsCli.Bucket(sourceBucket).Object(sourceFileName)
+	dst := gcsCli.Bucket(destBucket).Object(destFileName).If(storage.Conditions{DoesNotExist: true})
 
 	if _, err := dst.CopierFrom(src).Run(ctx); err != nil {
 		return errors.Wrap(err, "phastos.go.storage.google.CopyFileToAnotherBucket")
