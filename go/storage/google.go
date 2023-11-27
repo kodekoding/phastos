@@ -244,7 +244,7 @@ func (g *google) DeleteFile(ctx context.Context, fileName string) error {
 	return nil
 }
 
-func (g *google) CopyFileToAnotherBucket(ctx context.Context, destBucket, sourceBucket, destFileName string, oldFileName ...string) error {
+func (g *google) CopyFileToAnotherBucket(ctx context.Context, destFileName, destBucket, sourceBucket string, oldFileName ...string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
