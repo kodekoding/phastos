@@ -244,13 +244,27 @@ func (g *google) DeleteFile(ctx context.Context, fileName string) error {
 	return nil
 }
 
-func (g *google) CopyFileToAnotherBucket(ctx context.Context, destFileName, destBucket, sourceBucket string, oldFileName ...string) error {
+func (g *google) CopyFileToAnotherBucket(ctx context.Context, destFileName, destBucket, sourceBucket string, optionalParams ...interface{}) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
 
 	sourceFileName := destFileName
-	if oldFileName != nil && len(oldFileName) > 0 {
-		sourceFileName = oldFileName[0]
+	deleteSourceFile := false
+	optionalParamLen := len(optionalParams)
+	if optionalParams != nil && optionalParamLen > 0 {
+		sourceFilePath, str := optionalParams[0].(string)
+		if !str {
+			return errors.Wrap(errors.New("First Param of CopyFileToAnotherBucket should be string"), "phastos.storage.google.CopyFileToAnotherBucket.OptionalParams1")
+		}
+		sourceFileName = sourceFilePath
+
+		if optionalParamLen > 1 {
+			optionDeleteSourceFile, boolean := optionalParams[1].(bool)
+			if !boolean {
+				return errors.Wrap(errors.New("Second Param of CopyFileToAnotherBucket should be boolean"), "phastos.storage.google.CopyFileToAnotherBucket.OptionalParams2")
+			}
+			deleteSourceFile = optionDeleteSourceFile
+		}
 	}
 
 	gcsCli := *g.client
@@ -260,6 +274,12 @@ func (g *google) CopyFileToAnotherBucket(ctx context.Context, destFileName, dest
 
 	if _, err := dst.CopierFrom(src).Run(ctx); err != nil {
 		return errors.Wrap(err, "phastos.go.storage.google.CopyFileToAnotherBucket")
+	}
+
+	if deleteSourceFile {
+		if err := src.Delete(ctx); err != nil {
+			return errors.Wrap(err, "phastos.go.storage.google.CopyFileToAnotherBucket.DeleteSourceFile")
+		}
 	}
 	return nil
 }
