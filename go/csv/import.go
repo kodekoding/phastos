@@ -1,0 +1,186 @@
+package csv
+
+import (
+	"context"
+	"database/sql"
+	"encoding/csv"
+	"io"
+	"mime/multipart"
+	"reflect"
+	"sync"
+	"time"
+
+	"github.com/gocarina/gocsv"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
+
+	"github.com/kodekoding/phastos/go/database"
+	"github.com/kodekoding/phastos/v2/go/api"
+)
+
+type (
+	processFn func(ctx context.Context, singleData interface{}) *api.HttpError
+	importer  struct {
+		ctx             context.Context
+		csvRowsData     interface{}
+		file            multipart.File
+		trx             database.Transactions
+		fn              processFn
+		dataListReflVal reflect.Value
+	}
+	ImportOptions func(reader *importer)
+)
+
+func NewImport(opt ...ImportOptions) *importer {
+	csvReader := new(importer)
+	for _, options := range opt {
+		options(csvReader)
+	}
+
+	return csvReader
+}
+
+func WithFile(file multipart.File) ImportOptions {
+	return func(reader *importer) {
+		reader.file = file
+	}
+}
+
+func WithDataList(dataList interface{}) ImportOptions {
+	return func(reader *importer) {
+		reader.csvRowsData = dataList
+	}
+}
+
+func WithTransaction(trx database.Transactions) ImportOptions {
+	return func(reader *importer) {
+		reader.trx = trx
+	}
+}
+
+func WithProcessFn(fn processFn) ImportOptions {
+	return func(reader *importer) {
+		reader.fn = fn
+	}
+}
+
+func (r *importer) resetField() {
+	r.file = nil
+	r.trx = nil
+	r.csvRowsData = nil
+	r.fn = nil
+}
+
+func (r *importer) validateField() error {
+	if r.file == nil {
+		return errors.New("`File` is null, please provide the file")
+	}
+
+	if r.csvRowsData == nil {
+		return errors.New("`Data List` Variable is null, please provide the variable")
+
+	}
+
+	if r.trx == nil {
+		return errors.New("`Transaction` Variable is null, please provide the transactions")
+	}
+
+	reflectVal := reflect.ValueOf(r.csvRowsData)
+
+	if reflectVal.Kind() == reflect.Ptr {
+		reflectVal = reflectVal.Elem()
+	}
+
+	if reflectVal.Kind() != reflect.Slice {
+		return errors.New("data list should be an array/slice")
+	}
+	r.dataListReflVal = reflectVal
+	return nil
+}
+
+func (r *importer) ProcessData() {
+	defer r.resetField()
+
+	if err := r.validateField(); err != nil {
+		log.Error().Msg(err.Error())
+		return
+	}
+
+	start := time.Now()
+	gocsv.SetCSVReader(func(reader io.Reader) gocsv.CSVReader {
+		r := csv.NewReader(reader)
+		r.LazyQuotes = true
+		return r
+	})
+	if err := gocsv.Unmarshal(r.file, &r.csvRowsData); err != nil {
+		log.Error().Msgf("Failed to marshal the data: %s", err.Error())
+		return
+	}
+
+	log.Info().Msg("will start import the data asynchronously")
+	go r.processData(start)
+}
+
+func (r *importer) processData(start time.Time) {
+
+	asyncContext := context.Background()
+	mtx := new(sync.Mutex)
+	wg := new(sync.WaitGroup)
+
+	trx, err := r.trx.Begin()
+	defer r.trx.Finish(trx, err)
+	errChan := make(chan *api.HttpError, 0)
+
+	// main process each row
+	go r.processEachData(asyncContext, r.dataListReflVal, r.fn, wg, mtx, trx, errChan)
+
+	totalData := 0
+	totalFailed := 0
+	failedList := make(map[string][]interface{})
+	for newErr := range errChan {
+		if newErr.Message != "no error" {
+			if _, exist := failedList[newErr.Message]; !exist {
+				failedList[newErr.Message] = make([]interface{}, 0)
+			}
+			if newErr.Message != "Failed Parsed Single Data" {
+				failedList[newErr.Message] = append(failedList[newErr.Message], newErr.Data.(map[string]interface{}))
+			} else {
+				failedList[newErr.Message] = append(failedList[newErr.Message], "failed")
+			}
+			totalFailed++
+		}
+		totalData++
+	}
+
+	if failedList != nil {
+		for errGroup, errList := range failedList {
+			log.Info().Msgf("%s (%d data) -> %#v\n", errGroup, len(errList), errList)
+
+		}
+	} else {
+		log.Info().Msg("all data successfully inserted")
+	}
+
+	end := time.Since(start)
+	log.Printf("success inserted %d/%d rows in %.2f second(s)", totalData-totalFailed, totalData, end.Seconds())
+}
+
+func (r *importer) processEachData(ctx context.Context, rows reflect.Value, fn processFn, wait *sync.WaitGroup, mute *sync.Mutex, transc *sql.Tx, err chan<- *api.HttpError) {
+	totalData := rows.Len()
+
+	for i := 0; i < totalData; i++ {
+		wait.Add(1)
+		data := rows.Index(i).Interface()
+		go func(dt interface{}, wg *sync.WaitGroup, mtx *sync.Mutex, trx *sql.Tx, errChan chan<- *api.HttpError) {
+			mtx.Lock()
+			defer func() {
+				mtx.Unlock()
+				wg.Done()
+			}()
+			errChan <- fn(ctx, dt)
+		}(data, wait, mute, transc, err)
+	}
+
+	wait.Wait()
+	close(err)
+}
