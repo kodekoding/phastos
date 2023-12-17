@@ -99,7 +99,6 @@ func (r *importer) validateField() error {
 }
 
 func (r *importer) ProcessData() {
-	defer r.resetField()
 
 	if err := r.validateField(); err != nil {
 		log.Error().Msg(err.Error())
@@ -112,7 +111,7 @@ func (r *importer) ProcessData() {
 		r.LazyQuotes = true
 		return r
 	})
-	if err := gocsv.Unmarshal(r.file, &r.csvRowsData); err != nil {
+	if err := gocsv.Unmarshal(r.file, r.csvRowsData); err != nil {
 		log.Error().Msgf("Failed to marshal the data: %s", err.Error())
 		return
 	}
@@ -122,6 +121,7 @@ func (r *importer) ProcessData() {
 }
 
 func (r *importer) processData(start time.Time) {
+	defer r.resetField()
 
 	asyncContext := context.Background()
 	mtx := new(sync.Mutex)
