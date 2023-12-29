@@ -4,8 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/csv"
+	"encoding/json"
+	"fmt"
 	"io"
 	"mime/multipart"
+	"os"
 	"reflect"
 	"sync"
 	"time"
@@ -16,6 +19,7 @@ import (
 
 	"github.com/kodekoding/phastos/go/database"
 	"github.com/kodekoding/phastos/v2/go/api"
+	contextinternal "github.com/kodekoding/phastos/v2/go/context"
 	"github.com/kodekoding/phastos/v2/go/entity"
 	"github.com/kodekoding/phastos/v2/go/helper"
 	"github.com/kodekoding/phastos/v2/go/notifications"
@@ -30,6 +34,7 @@ type (
 		trx             database.Transactions
 		fn              processFn
 		notif           notifications.Platforms
+		jwtData         interface{}
 		dataListReflVal reflect.Value
 	}
 	ImportOptions func(reader *importer)
@@ -43,6 +48,10 @@ func NewImport(opt ...ImportOptions) *importer {
 
 	if csvImporter.ctx != nil {
 		csvImporter.notif = csvImporter.ctx.Value(entity.NotifPlatformContext{}).(notifications.Platforms)
+		jwtCtx := contextinternal.GetJWT(csvImporter.ctx)
+		if jwtCtx != nil {
+			csvImporter.jwtData = jwtCtx.Data
+		}
 	}
 
 	return csvImporter
@@ -169,17 +178,36 @@ func (r *importer) processData(asyncContext context.Context, start time.Time) {
 		totalData++
 	}
 
+	notifData := make(map[string]string)
+	notifType := helper.NotifInfoType
+	notifTitle := fmt.Sprintf("Your Data (%d data) Successfully Imported", totalData)
 	if failedList != nil {
-		_ = helper.SendSlackNotification(asyncContext)
 		for errGroup, errList := range failedList {
-			log.Info().Msgf("%s (%d data) -> %#v\n", errGroup, len(errList), errList)
-
+			errKey := fmt.Sprintf("%s (%d data)", errGroup, len(errList))
+			errData, _ := json.Marshal(errList)
+			notifData[errKey] = string(errData)
 		}
-	} else {
-		log.Info().Msg("all data successfully inserted")
+
+		notifType = helper.NotifErrorType
+		notifTitle = "Your Import Data is something wrong"
+
+	}
+
+	if r.jwtData != nil {
+		jwtData, _ := json.Marshal(r.jwtData)
+		notifData["jwt data"] = string(jwtData)
 	}
 
 	end := time.Since(start)
+	notifData["total_data"] = fmt.Sprintf("%d", totalData)
+	notifData["time_execution"] = fmt.Sprintf("%.2f second(s)", end.Seconds())
+	_ = helper.SendSlackNotification(
+		asyncContext,
+		helper.NotifTitle(notifTitle),
+		helper.NotifMsgType(notifType),
+		helper.NotifData(notifData),
+		helper.NotifChannel(os.Getenv("NOTIFICATION_SLACK_INFO_WEBHOOK")),
+	)
 	log.Printf("success inserted %d/%d rows in %.2f second(s)", totalData-totalFailed, totalData, end.Seconds())
 }
 
