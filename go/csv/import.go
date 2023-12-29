@@ -16,28 +16,36 @@ import (
 
 	"github.com/kodekoding/phastos/go/database"
 	"github.com/kodekoding/phastos/v2/go/api"
+	"github.com/kodekoding/phastos/v2/go/entity"
+	"github.com/kodekoding/phastos/v2/go/helper"
+	"github.com/kodekoding/phastos/v2/go/notifications"
 )
 
 type (
-	processFn func(ctx context.Context, singleData interface{}) *api.HttpError
+	processFn func(ctx context.Context, singleData interface{}, trx *sql.Tx) *api.HttpError
 	importer  struct {
 		ctx             context.Context
 		csvRowsData     interface{}
 		file            multipart.File
 		trx             database.Transactions
 		fn              processFn
+		notif           notifications.Platforms
 		dataListReflVal reflect.Value
 	}
 	ImportOptions func(reader *importer)
 )
 
 func NewImport(opt ...ImportOptions) *importer {
-	csvReader := new(importer)
+	csvImporter := new(importer)
 	for _, options := range opt {
-		options(csvReader)
+		options(csvImporter)
 	}
 
-	return csvReader
+	if csvImporter.ctx != nil {
+		csvImporter.notif = csvImporter.ctx.Value(entity.NotifPlatformContext{}).(notifications.Platforms)
+	}
+
+	return csvImporter
 }
 
 func WithFile(file multipart.File) ImportOptions {
@@ -61,6 +69,12 @@ func WithTransaction(trx database.Transactions) ImportOptions {
 func WithProcessFn(fn processFn) ImportOptions {
 	return func(reader *importer) {
 		reader.fn = fn
+	}
+}
+
+func WithCtx(ctx context.Context) ImportOptions {
+	return func(reader *importer) {
+		reader.ctx = ctx
 	}
 }
 
@@ -117,13 +131,16 @@ func (r *importer) ProcessData() {
 	}
 
 	log.Info().Msg("will start import the data asynchronously")
-	go r.processData(start)
+	asyncContext := context.Background()
+	if r.notif != nil {
+		asyncContext = context.WithValue(asyncContext, entity.NotifPlatformContext{}, r.notif)
+	}
+	go r.processData(asyncContext, start)
 }
 
-func (r *importer) processData(start time.Time) {
+func (r *importer) processData(asyncContext context.Context, start time.Time) {
 	defer r.resetField()
 
-	asyncContext := context.Background()
 	mtx := new(sync.Mutex)
 	wg := new(sync.WaitGroup)
 
@@ -153,6 +170,7 @@ func (r *importer) processData(start time.Time) {
 	}
 
 	if failedList != nil {
+		_ = helper.SendSlackNotification(asyncContext)
 		for errGroup, errList := range failedList {
 			log.Info().Msgf("%s (%d data) -> %#v\n", errGroup, len(errList), errList)
 
@@ -177,7 +195,7 @@ func (r *importer) processEachData(ctx context.Context, rows reflect.Value, fn p
 				mtx.Unlock()
 				wg.Done()
 			}()
-			errChan <- fn(ctx, dt)
+			errChan <- fn(ctx, dt, trx)
 		}(data, wait, mute, transc, err)
 	}
 
