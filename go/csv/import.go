@@ -183,7 +183,7 @@ func (r *importer) processData(asyncContext context.Context, start time.Time) {
 	notifTitle := fmt.Sprintf("Your Data (%d data) Successfully Imported", totalData)
 	if failedList != nil {
 		for errGroup, errList := range failedList {
-			errKey := fmt.Sprintf("%s (%d data)", errGroup, len(errList))
+			errKey := fmt.Sprintf("-%s (%d data)", errGroup, len(errList))
 			errData, _ := json.Marshal(errList)
 			notifData[errKey] = string(errData)
 		}
@@ -195,7 +195,7 @@ func (r *importer) processData(asyncContext context.Context, start time.Time) {
 
 	if r.jwtData != nil {
 		jwtData, _ := json.Marshal(r.jwtData)
-		notifData["jwt data"] = string(jwtData)
+		notifData["-jwt data"] = string(jwtData)
 	}
 
 	end := time.Since(start)
