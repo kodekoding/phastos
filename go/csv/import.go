@@ -181,7 +181,7 @@ func (r *importer) processData(asyncContext context.Context, start time.Time) {
 	notifData := make(map[string]string)
 	notifType := helper.NotifInfoType
 	notifTitle := fmt.Sprintf("Your Data (%d data) Successfully Imported", totalData)
-	if failedList != nil {
+	if failedList != nil && totalFailed > 0 {
 		for errGroup, errList := range failedList {
 			errKey := fmt.Sprintf("-%s (%d data)", errGroup, len(errList))
 			errData, _ := json.Marshal(errList)
