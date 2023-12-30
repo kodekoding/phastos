@@ -21,6 +21,7 @@ import (
 	"github.com/kodekoding/phastos/v2/go/api"
 	contextinternal "github.com/kodekoding/phastos/v2/go/context"
 	"github.com/kodekoding/phastos/v2/go/entity"
+	"github.com/kodekoding/phastos/v2/go/env"
 	"github.com/kodekoding/phastos/v2/go/helper"
 	"github.com/kodekoding/phastos/v2/go/notifications"
 )
@@ -148,13 +149,15 @@ func (r *importer) ProcessData() {
 }
 
 func (r *importer) processData(asyncContext context.Context, start time.Time) {
-	defer r.resetField()
 
 	mtx := new(sync.Mutex)
 	wg := new(sync.WaitGroup)
 
 	trx, err := r.trx.Begin()
-	defer r.trx.Finish(trx, err)
+	defer func() {
+		r.trx.Finish(trx, err)
+		r.resetField()
+	}()
 	errChan := make(chan *api.HttpError, 0)
 
 	// main process each row
@@ -165,6 +168,8 @@ func (r *importer) processData(asyncContext context.Context, start time.Time) {
 	failedList := make(map[string][]interface{})
 	for newErr := range errChan {
 		if newErr.Message != "no error" {
+			// if there is an error, then set `err` variable to roll back the transactions
+			err = errors.New("something went wrong")
 			if _, exist := failedList[newErr.Message]; !exist {
 				failedList[newErr.Message] = make([]interface{}, 0)
 			}
@@ -190,8 +195,9 @@ func (r *importer) processData(asyncContext context.Context, start time.Time) {
 
 		notifType = helper.NotifErrorType
 		notifTitle = "Your Import Data is something wrong"
-
 	}
+
+	notifTitle = fmt.Sprintf("%s on %s", notifTitle, env.ServiceEnv())
 
 	if r.jwtData != nil {
 		jwtData, _ := json.Marshal(r.jwtData)
