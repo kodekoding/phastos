@@ -35,7 +35,7 @@ type (
 		trx             database.Transactions
 		fn              processFn
 		notif           notifications.Platforms
-		jwtData         interface{}
+		jwtData         *entity.JWTClaimData
 		dataListReflVal reflect.Value
 	}
 	ImportOptions func(reader *importer)
@@ -49,10 +49,8 @@ func NewImport(opt ...ImportOptions) *importer {
 
 	if csvImporter.ctx != nil {
 		csvImporter.notif = csvImporter.ctx.Value(entity.NotifPlatformContext{}).(notifications.Platforms)
-		jwtCtx := contextinternal.GetJWT(csvImporter.ctx)
-		if jwtCtx != nil {
-			csvImporter.jwtData = jwtCtx.Data
-		}
+		csvImporter.jwtData = contextinternal.GetJWT(csvImporter.ctx)
+
 	}
 
 	return csvImporter
@@ -145,6 +143,10 @@ func (r *importer) ProcessData() {
 	if r.notif != nil {
 		asyncContext = context.WithValue(asyncContext, entity.NotifPlatformContext{}, r.notif)
 	}
+
+	if r.jwtData != nil {
+		asyncContext = context.WithValue(asyncContext, contextinternal.JwtContext{}, r.jwtData)
+	}
 	go r.processData(asyncContext, start)
 }
 
@@ -200,7 +202,7 @@ func (r *importer) processData(asyncContext context.Context, start time.Time) {
 	notifTitle = fmt.Sprintf("%s on %s", notifTitle, env.ServiceEnv())
 
 	if r.jwtData != nil {
-		jwtData, _ := json.Marshal(r.jwtData)
+		jwtData, _ := json.Marshal(r.jwtData.Data)
 		notifData["-jwt data"] = string(jwtData)
 	}
 

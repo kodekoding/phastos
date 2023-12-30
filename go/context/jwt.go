@@ -8,16 +8,16 @@ import (
 )
 
 type (
-	jwtContext struct{}
+	JwtContext struct{}
 )
 
 func SetJWT(req *http.Request, jwtData *entity.JWTClaimData) {
-	ctx := context.WithValue(req.Context(), jwtContext{}, jwtData)
+	ctx := context.WithValue(req.Context(), JwtContext{}, jwtData)
 	*req = *req.WithContext(ctx)
 }
 
 func GetJWT(ctx context.Context) *entity.JWTClaimData {
-	jwtData, ok := ctx.Value(jwtContext{}).(*entity.JWTClaimData)
+	jwtData, ok := ctx.Value(JwtContext{}).(*entity.JWTClaimData)
 	if !ok {
 		return nil
 	}
