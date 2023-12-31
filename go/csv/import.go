@@ -216,10 +216,10 @@ func (r *importer) processData(asyncContext context.Context, start time.Time) {
 		helper.NotifData(notifData),
 		helper.NotifChannel(os.Getenv("NOTIFICATION_SLACK_INFO_WEBHOOK")),
 	)
-	log.Printf("success inserted %d/%d rows in %.2f second(s)", totalData-totalFailed, totalData, end.Seconds())
+	log.Info().Msgf("success inserted %d/%d rows in %.2f second(s)", totalData-totalFailed, totalData, end.Seconds())
 }
 
-func (r *importer) processEachData(ctx context.Context, rows reflect.Value, fn processFn, wait *sync.WaitGroup, mute *sync.Mutex, transc *sql.Tx, err chan<- *api.HttpError) {
+func (r *importer) processEachData(ctx context.Context, rows reflect.Value, fn processFn, wait *sync.WaitGroup, mute *sync.Mutex, transaction *sql.Tx, err chan<- *api.HttpError) {
 	totalData := rows.Len()
 
 	for i := 0; i < totalData; i++ {
@@ -231,8 +231,14 @@ func (r *importer) processEachData(ctx context.Context, rows reflect.Value, fn p
 				mtx.Unlock()
 				wg.Done()
 			}()
-			errChan <- fn(ctx, dt, trx)
-		}(data, wait, mute, transc, err)
+			errResult := fn(ctx, dt, trx)
+			if errResult == nil {
+				errResult = api.NewErr(
+					api.WithErrorMessage("no error"),
+				)
+			}
+			errChan <- errResult
+		}(data, wait, mute, transaction, err)
 	}
 
 	wait.Wait()
