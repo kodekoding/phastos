@@ -29,14 +29,16 @@ import (
 type (
 	processFn func(ctx context.Context, singleData interface{}, trx *sql.Tx) *api.HttpError
 	importer  struct {
-		ctx             context.Context
-		csvRowsData     interface{}
-		file            multipart.File
-		trx             database.Transactions
-		fn              processFn
-		notif           notifications.Platforms
-		jwtData         *entity.JWTClaimData
-		dataListReflVal reflect.Value
+		ctx               context.Context
+		csvRowsData       interface{}
+		file              multipart.File
+		trx               database.Transactions
+		fn                processFn
+		notif             notifications.Platforms
+		jwtData           *entity.JWTClaimData
+		dataListReflVal   reflect.Value
+		sentNotifToSlack  bool
+		slackNotifChannel string
 	}
 	ImportOptions func(reader *importer)
 )
@@ -80,6 +82,16 @@ func WithProcessFn(fn processFn) ImportOptions {
 	}
 }
 
+func WithSentNotifToSlack(sent bool, channel ...string) ImportOptions {
+	return func(reader *importer) {
+		reader.sentNotifToSlack = sent
+		reader.slackNotifChannel = os.Getenv("NOTIFICATION_SLACK_INFO_WEBHOOK")
+		if channel != nil && len(channel) > 0 {
+			reader.slackNotifChannel = channel[0]
+		}
+	}
+}
+
 func WithCtx(ctx context.Context) ImportOptions {
 	return func(reader *importer) {
 		reader.ctx = ctx
@@ -120,11 +132,11 @@ func (r *importer) validateField() error {
 	return nil
 }
 
-func (r *importer) ProcessData() {
+func (r *importer) ProcessData() map[string][]interface{} {
 
 	if err := r.validateField(); err != nil {
 		log.Error().Msg(err.Error())
-		return
+		return nil
 	}
 
 	start := time.Now()
@@ -135,10 +147,10 @@ func (r *importer) ProcessData() {
 	})
 	if err := gocsv.Unmarshal(r.file, r.csvRowsData); err != nil {
 		log.Error().Msgf("Failed to marshal the data: %s", err.Error())
-		return
+		return nil
 	}
 
-	log.Info().Msg("will start import the data asynchronously")
+	//log.Info().Msg("will start import the data asynchronously")
 	asyncContext := context.Background()
 	if r.notif != nil {
 		asyncContext = context.WithValue(asyncContext, entity.NotifPlatformContext{}, r.notif)
@@ -147,10 +159,49 @@ func (r *importer) ProcessData() {
 	if r.jwtData != nil {
 		asyncContext = context.WithValue(asyncContext, contextinternal.JwtContext{}, r.jwtData)
 	}
-	go r.processData(asyncContext, start)
+
+	result, totalData, totalFailed := r.processData(asyncContext)
+
+	notifData := make(map[string]string)
+	notifType := helper.NotifInfoType
+	notifTitle := fmt.Sprintf("Your Data (%d data) Successfully Imported", totalData)
+	if result != nil && totalFailed > 0 {
+		for errGroup, errList := range result {
+			errKey := fmt.Sprintf("-%s (%d data)", errGroup, len(errList))
+			errData, _ := json.Marshal(errList)
+			notifData[errKey] = string(errData)
+		}
+
+		notifType = helper.NotifErrorType
+		notifTitle = "Your Import Data is something wrong"
+	}
+
+	notifTitle = fmt.Sprintf("%s on %s", notifTitle, env.ServiceEnv())
+
+	if r.jwtData != nil {
+		jwtData, _ := json.Marshal(r.jwtData.Data)
+		notifData["-jwt data"] = string(jwtData)
+	}
+
+	end := time.Since(start)
+	notifData["total_data"] = fmt.Sprintf("%d", totalData)
+	notifData["time_execution"] = fmt.Sprintf("%.2f second(s)", end.Seconds())
+	go func() {
+		if r.sentNotifToSlack {
+			_ = helper.SendSlackNotification(
+				asyncContext,
+				helper.NotifTitle(notifTitle),
+				helper.NotifMsgType(notifType),
+				helper.NotifData(notifData),
+				helper.NotifChannel(r.slackNotifChannel),
+			)
+		}
+	}()
+	log.Info().Msgf("success inserted %d/%d rows in %.2f second(s)", totalData-totalFailed, totalData, end.Seconds())
+	return result
 }
 
-func (r *importer) processData(asyncContext context.Context, start time.Time) {
+func (r *importer) processData(asyncContext context.Context) (map[string][]interface{}, int, int) {
 
 	mtx := new(sync.Mutex)
 	wg := new(sync.WaitGroup)
@@ -185,38 +236,7 @@ func (r *importer) processData(asyncContext context.Context, start time.Time) {
 		totalData++
 	}
 
-	notifData := make(map[string]string)
-	notifType := helper.NotifInfoType
-	notifTitle := fmt.Sprintf("Your Data (%d data) Successfully Imported", totalData)
-	if failedList != nil && totalFailed > 0 {
-		for errGroup, errList := range failedList {
-			errKey := fmt.Sprintf("-%s (%d data)", errGroup, len(errList))
-			errData, _ := json.Marshal(errList)
-			notifData[errKey] = string(errData)
-		}
-
-		notifType = helper.NotifErrorType
-		notifTitle = "Your Import Data is something wrong"
-	}
-
-	notifTitle = fmt.Sprintf("%s on %s", notifTitle, env.ServiceEnv())
-
-	if r.jwtData != nil {
-		jwtData, _ := json.Marshal(r.jwtData.Data)
-		notifData["-jwt data"] = string(jwtData)
-	}
-
-	end := time.Since(start)
-	notifData["total_data"] = fmt.Sprintf("%d", totalData)
-	notifData["time_execution"] = fmt.Sprintf("%.2f second(s)", end.Seconds())
-	_ = helper.SendSlackNotification(
-		asyncContext,
-		helper.NotifTitle(notifTitle),
-		helper.NotifMsgType(notifType),
-		helper.NotifData(notifData),
-		helper.NotifChannel(os.Getenv("NOTIFICATION_SLACK_INFO_WEBHOOK")),
-	)
-	log.Info().Msgf("success inserted %d/%d rows in %.2f second(s)", totalData-totalFailed, totalData, end.Seconds())
+	return failedList, totalData, totalFailed
 }
 
 func (r *importer) processEachData(ctx context.Context, rows reflect.Value, fn processFn, wait *sync.WaitGroup, mute *sync.Mutex, transaction *sql.Tx, err chan<- *api.HttpError) {
