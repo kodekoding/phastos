@@ -2,8 +2,9 @@ package notifications
 
 import (
 	"context"
-	"github.com/rs/zerolog/log"
 	"net/http"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/kodekoding/phastos/v2/go/entity"
 	"github.com/kodekoding/phastos/v2/go/notifications/slack"
