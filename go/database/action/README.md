@@ -55,7 +55,7 @@ type (
 	}
 )
 
-func NewOrangRepo(db *database.SQL) *OrangRepo {
+func NewOrangRepo(db database.ISQL) *OrangRepo {
 	return &OrangRepo{
 		base: action.NewBase(db, "orang"),
 	}

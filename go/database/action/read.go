@@ -13,7 +13,7 @@ type BaseRead struct {
 	*baseAction
 }
 
-func NewBaseRead(db *database.SQL, tableName string, isSoftDelete ...bool) *BaseRead {
+func NewBaseRead(db database.ISQL, tableName string, isSoftDelete ...bool) *BaseRead {
 	sofDelete := true
 	if isSoftDelete != nil && len(isSoftDelete) > 0 {
 		sofDelete = isSoftDelete[0]

@@ -21,7 +21,7 @@ type BaseWrite struct {
 	*baseAction
 }
 
-func NewBaseWrite(db *database.SQL, tableName string, isSoftDelete ...bool) *BaseWrite {
+func NewBaseWrite(db database.ISQL, tableName string, isSoftDelete ...bool) *BaseWrite {
 	sofDelete := true
 	if isSoftDelete != nil && len(isSoftDelete) > 0 {
 		sofDelete = isSoftDelete[0]

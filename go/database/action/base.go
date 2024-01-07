@@ -11,12 +11,12 @@ type Base struct {
 }
 
 type baseAction struct {
-	db           *database.SQL
+	db           database.ISQL
 	tableName    string
 	isSoftDelete bool
 }
 
-func NewBase(db *database.SQL, tableName string, isSoftDelete ...bool) *Base {
+func NewBase(db database.ISQL, tableName string, isSoftDelete ...bool) *Base {
 	sofDelete := true
 	if isSoftDelete != nil && len(isSoftDelete) > 0 {
 		sofDelete = isSoftDelete[0]

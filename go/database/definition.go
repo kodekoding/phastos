@@ -84,6 +84,8 @@ type (
 		Master
 		Follower
 		GetTransaction() Transactions
+		Read(ctx context.Context, opts *QueryOpts, additionalParams ...interface{}) error
+		Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...bool) (*CUDResponse, error)
 	}
 
 	SQL struct {
