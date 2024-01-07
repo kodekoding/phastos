@@ -30,6 +30,7 @@ func newSQL(master, follower *sqlx.DB) *SQL {
 	if envSlowQuery > 0 {
 		slowQueryThreshold = envSlowQuery
 	}
+
 	return &SQL{
 		Master:             master,
 		Follower:           follower,
@@ -37,7 +38,7 @@ func newSQL(master, follower *sqlx.DB) *SQL {
 	}
 }
 
-func Connect() (ISQL, error) {
+func Connect() (*SQL, error) {
 	engine := os.Getenv("DATABASE_ENGINE")
 
 	masterDB, err := connectDB(engine, "MASTER")
@@ -91,6 +92,18 @@ func connectDB(engine string, dbType string) (*sqlx.DB, error) {
 
 func (this *SQL) GetTransaction() Transactions {
 	return NewTransaction(this.Master)
+}
+
+func (this *SQL) QueryRow(query string, args ...interface{}) *sql.Row {
+	return this.Master.QueryRow(query, args...)
+}
+
+func (this *SQL) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
+	return this.Master.QueryRowContext(ctx, query, args...)
+}
+
+func (this *SQL) Rebind(sql string) string {
+	return this.Master.Rebind(sql)
 }
 
 func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...interface{}) error {

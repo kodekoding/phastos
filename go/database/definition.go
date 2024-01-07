@@ -10,6 +10,17 @@ import (
 )
 
 type (
+	commonDB interface {
+		// QueryRow executes QueryRow against follower DB
+		QueryRow(query string, args ...interface{}) *sql.Row
+
+		// QueryRowContext from sql database
+		QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+
+		// Rebind a query from the default bindtype (QUESTION) to the target bindtype.
+		Rebind(sql string) string
+	}
+
 	Master interface {
 		Exec(query string, args ...interface{}) (sql.Result, error)
 
@@ -22,9 +33,6 @@ type (
 		// BeginTx begins transaction on master DB
 		BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
 
-		// Rebind a query from the default bindtype (QUESTION) to the target bindtype.
-		Rebind(sql string) string
-
 		// NamedExec do named exec on master DB
 		NamedExec(query string, arg interface{}) (sql.Result, error)
 
@@ -34,11 +42,7 @@ type (
 		// BindNamed do BindNamed on master DB
 		BindNamed(query string, arg interface{}) (string, []interface{}, error)
 
-		// QueryRow executes QueryRow against follower DB
-		QueryRow(query string, args ...interface{}) *sql.Row
-
-		// QueryRowContext from sql database
-		QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+		commonDB
 	}
 
 	// Follower defines operation that will be executed to follower DB
@@ -52,11 +56,7 @@ type (
 		// Query from follower database
 		Query(query string, args ...interface{}) (*sql.Rows, error)
 
-		// QueryRow executes QueryRow against follower DB
-		QueryRow(query string, args ...interface{}) *sql.Row
-
-		// QueryRowContext from sql database
-		QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+		commonDB
 
 		// NamedQuery do named query on follower DB
 		NamedQuery(query string, arg interface{}) (*sqlx.Rows, error)
@@ -78,9 +78,6 @@ type (
 
 		// NamedQueryContext do named query on follower DB
 		NamedQueryContext(ctx context.Context, query string, arg interface{}) (*sqlx.Rows, error)
-
-		// Rebind a query from the default bindtype (QUESTION) to the target bindtype.
-		Rebind(sql string) string
 	}
 
 	ISQL interface {
