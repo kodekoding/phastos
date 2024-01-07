@@ -13,10 +13,10 @@ import (
 	"time"
 
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
-
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // import postgre driver
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	_ "gorm.io/driver/mysql" // import mysql driver
 
 	context2 "github.com/kodekoding/phastos/v2/go/context"
@@ -33,13 +33,11 @@ func newSQL(master, follower *sqlx.DB) *SQL {
 	return &SQL{
 		Master:             master,
 		Follower:           follower,
-		master:             master,
-		follower:           follower,
 		slowQueryThreshold: slowQueryThreshold,
 	}
 }
 
-func Connect() (*SQL, error) {
+func Connect() (ISQL, error) {
 	engine := os.Getenv("DATABASE_ENGINE")
 
 	masterDB, err := connectDB(engine, "MASTER")
@@ -54,6 +52,8 @@ func Connect() (*SQL, error) {
 
 	db := newSQL(masterDB, followerDB)
 	db.engine = engine
+
+	log.Info().Msg(fmt.Sprintf("Successful connect to DB %s", engine))
 	return db, nil
 }
 
@@ -89,12 +89,8 @@ func connectDB(engine string, dbType string) (*sqlx.DB, error) {
 	return db, nil
 }
 
-func (this *SQL) GetMaster() *sqlx.DB {
-	return this.master
-}
-
-func (this *SQL) GetFollower() *sqlx.DB {
-	return this.follower
+func (this *SQL) GetTransaction() Transactions {
+	return NewTransaction(this.Master)
 }
 
 func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...interface{}) error {
@@ -134,7 +130,7 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	}
 
 	query += addOnQuery
-	query = this.Rebind(query)
+	query = this.Follower.Rebind(query)
 	opts.query = query
 	opts.params = params
 	start := time.Now()
@@ -225,7 +221,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	}
 
 	query += addOnQuery
-	query = this.Rebind(query)
+	query = this.Master.Rebind(query)
 	result := new(CUDResponse)
 	result.query = query
 	result.params = data.Values

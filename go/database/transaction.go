@@ -2,8 +2,6 @@ package database
 
 import (
 	"database/sql"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type Transactions interface {
@@ -12,10 +10,10 @@ type Transactions interface {
 }
 
 type Transaction struct {
-	db *sqlx.DB
+	db Master
 }
 
-func NewTransaction(db *sqlx.DB) *Transaction {
+func NewTransaction(db Master) *Transaction {
 	return &Transaction{db: db}
 }
 

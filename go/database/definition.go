@@ -78,13 +78,20 @@ type (
 
 		// NamedQueryContext do named query on follower DB
 		NamedQueryContext(ctx context.Context, query string, arg interface{}) (*sqlx.Rows, error)
+
+		// Rebind a query from the default bindtype (QUESTION) to the target bindtype.
+		Rebind(sql string) string
+	}
+
+	ISQL interface {
+		Master
+		Follower
+		GetTransaction() Transactions
 	}
 
 	SQL struct {
 		Master
 		Follower
-		master             *sqlx.DB
-		follower           *sqlx.DB
 		timeout            time.Duration
 		slowQueryThreshold float64
 		engine             string
