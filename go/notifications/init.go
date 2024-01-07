@@ -2,11 +2,10 @@ package notifications
 
 import (
 	"context"
-	_log "log"
+	"github.com/rs/zerolog/log"
 	"net/http"
 
 	"github.com/kodekoding/phastos/v2/go/entity"
-	"github.com/kodekoding/phastos/v2/go/log"
 	"github.com/kodekoding/phastos/v2/go/notifications/slack"
 	"github.com/kodekoding/phastos/v2/go/notifications/telegram"
 )
@@ -27,6 +26,8 @@ type (
 		Handler(next http.Handler) http.Handler
 	}
 
+	Options func(platform *Platform)
+
 	Platform struct {
 		telegram Action
 		slack    Action
@@ -39,37 +40,47 @@ type (
 	}
 )
 
-func New(config *Config) *Platform {
+func New(opt ...Options) *Platform {
 	var (
 		telegramService = new(telegram.Service)
 		slackService    = new(slack.Service)
-		err             error
 		listOfPlatform  []Action
 	)
 
-	if config.Telegram != nil && config.Telegram.IsActive {
-		telegramService, err = telegram.New(config.Telegram)
-		if err != nil {
-			log.Error("Telegram Cannot be up, because: ", err.Error())
-			return nil
-		}
-		listOfPlatform = append(listOfPlatform, telegramService)
-		_log.Println("Telegram is up")
-	}
-
-	if config.Slack != nil && config.Slack.IsActive {
-		slackService, err = slack.New(config.Slack)
-		if err != nil {
-			log.Error("Slack Cannot be up, because: ", err.Error())
-			return nil
-		}
-		listOfPlatform = append(listOfPlatform, slackService)
-		_log.Println("Slack is up")
-	}
-	return &Platform{
+	notifPlatform := &Platform{
 		telegram: telegramService,
 		slack:    slackService,
 		list:     listOfPlatform,
+	}
+
+	for _, options := range opt {
+		options(notifPlatform)
+	}
+
+	return notifPlatform
+}
+
+func ActivateSlack(webhookURL string) Options {
+	return func(platform *Platform) {
+		var err error
+		platform.slack, err = slack.New(&slack.SlackConfig{URL: webhookURL, IsActive: true})
+		if err != nil {
+			log.Error().Msgf("slack cannot initialized: %s", err)
+			return
+		}
+		log.Info().Msg("slack notification initialized")
+	}
+}
+
+func ActivateTelegram(botToken string) Options {
+	return func(platform *Platform) {
+		var err error
+		platform.telegram, err = telegram.New(&telegram.TelegramConfig{BotToken: botToken, IsActive: true})
+		if err != nil {
+			log.Error().Msgf("telegram cannot initialized: %s", err)
+			return
+		}
+		log.Info().Msg("telegram notification initialized")
 	}
 }
 
