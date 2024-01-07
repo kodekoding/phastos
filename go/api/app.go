@@ -41,7 +41,7 @@ type (
 		cron           *cron.Engine
 		db             database.ISQL
 		trx            database.Transactions
-		redis          cache.Caches
+		cache          cache.Caches
 	}
 
 	Options func(api *App)
@@ -112,6 +112,18 @@ func (app *App) Init() {
 	// load Notifications if env config is exists
 	app.loadNotification()
 	app.loadResources()
+}
+
+func (app *App) DB() database.ISQL {
+	return app.db
+}
+
+func (app *App) Trx() database.Transactions {
+	return app.trx
+}
+
+func (app *App) Cache() cache.Caches {
+	return app.cache
 }
 
 func (app *App) initPlugins() {
