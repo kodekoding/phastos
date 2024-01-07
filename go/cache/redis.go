@@ -3,12 +3,12 @@ package cache
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 // Store object
@@ -34,7 +34,7 @@ type Handler interface {
 	GetContext(context.Context) (redigo.Conn, error)
 }
 
-const defaultPrefixKey = "coduty:"
+const defaultPrefixKey = "phastos:"
 
 type Caches interface {
 	Get(ctx context.Context, key string) (string, error)
@@ -71,7 +71,7 @@ func New(options ...Options) *Store {
 
 				c, err := redigo.Dial("tcp", cfg.Address, dialOpts...)
 				if err != nil {
-					log.Fatalln("Can't connect to redis: ", err.Error())
+					log.Fatal().Msgf("Can't connect to redis: %s", err.Error())
 				}
 				return c, nil
 			},
@@ -84,7 +84,7 @@ func New(options ...Options) *Store {
 
 	pool := store.Pool.Get()
 	if _, err := redigo.String(pool.Do("PING")); err != nil {
-		log.Fatalln("Cannot connect to redis: " + err.Error())
+		log.Fatal().Msg(fmt.Sprintf("Cannot connect to redis: %s", err.Error()))
 	}
 
 	prefixKey := os.Getenv("REDIS_PREFIX_KEY")
@@ -92,7 +92,7 @@ func New(options ...Options) *Store {
 		prefixKey = defaultPrefixKey
 	}
 	store.prefixKey = prefixKey
-	log.Println("Successful connect to redis")
+	log.Info().Msg("Successful connect to redis")
 
 	return store
 }
