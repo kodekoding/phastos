@@ -62,6 +62,9 @@ func NewApp(opts ...Options) *App {
 		opt(&apiApp)
 	}
 
+	// load Notifications if env config is exists
+	apiApp.loadNotification()
+
 	return &apiApp
 }
 
