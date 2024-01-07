@@ -6,7 +6,7 @@ import (
 	"github.com/kodekoding/phastos/v2/go/notifications"
 )
 
-func (a *App) loadNotification() {
+func (app *App) loadNotification() {
 	slackWebhookURL := os.Getenv("NOTIFICATIONS_SLACK_WEBHOOK_URL")
 	var notifOptions []notifications.Options
 	if slackWebhookURL != "" {
@@ -20,6 +20,6 @@ func (a *App) loadNotification() {
 
 	if notifOptions != nil {
 		notif := notifications.New(notifOptions...)
-		a.WrapToContext(notif)
+		app.WrapToContext(notif)
 	}
 }

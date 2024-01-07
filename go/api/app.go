@@ -16,8 +16,10 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/unrolled/secure"
 
+	"github.com/kodekoding/phastos/v2/go/cache"
 	"github.com/kodekoding/phastos/v2/go/common"
 	"github.com/kodekoding/phastos/v2/go/cron"
+	"github.com/kodekoding/phastos/v2/go/database"
 	"github.com/kodekoding/phastos/v2/go/helper"
 	"github.com/kodekoding/phastos/v2/go/server"
 )
@@ -37,6 +39,9 @@ type (
 		apiTimeout     int
 		wrapper        []Wrapper
 		cron           *cron.Engine
+		db             database.ISQL
+		trx            database.Transactions
+		redis          cache.Caches
 	}
 
 	Options func(api *App)
@@ -61,9 +66,6 @@ func NewApp(opts ...Options) *App {
 	for _, opt := range opts {
 		opt(&apiApp)
 	}
-
-	// load Notifications if env config is exists
-	apiApp.loadNotification()
 
 	return &apiApp
 }
@@ -104,7 +106,12 @@ func WithCronJob(timezone ...string) Options {
 
 func (app *App) Init() {
 	app.Http = chi.NewRouter()
+
 	app.initPlugins()
+
+	// load Notifications if env config is exists
+	app.loadNotification()
+	app.loadResources()
 }
 
 func (app *App) initPlugins() {
