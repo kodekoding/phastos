@@ -134,7 +134,7 @@ func (b *BaseWrite) DeleteById(ctx context.Context, id interface{}, optTrx ...*s
 	return b.db.Write(ctx, qOpts, b.isSoftDelete)
 }
 
-func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, condition map[string]interface{}, optTrx ...*sql.Tx) (*database.CUDResponse, error) {
+func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, condition map[string]interface{}, opts ...interface{}) (*database.CUDResponse, error) {
 	var existingId int64
 	tableRequest := new(database.TableRequest)
 	pointerCondition := &condition
@@ -144,17 +144,23 @@ func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, condition map[
 		}
 		tableRequest.SetWhereCondition(cond, val)
 	}
+
+	var trx *sql.Tx
+	var includeDeleted bool
+	if opts != nil && len(opts) > 0 {
+		trx = opts[0].(*sql.Tx)
+		if len(opts) > 1 {
+			includeDeleted = opts[1].(bool)
+		}
+	}
+
+	tableRequest.IncludeDeleted = includeDeleted
 	if err := b.db.Read(ctx, &database.QueryOpts{
 		BaseQuery:     fmt.Sprintf("SELECT count(1) FROM %s", b.tableName),
 		SelectRequest: tableRequest,
 		Result:        &existingId,
 	}); err != nil {
 		return nil, errors.Wrap(err, "phastos.go.database.action.write.Upsert.GetData")
-	}
-
-	var trx *sql.Tx
-	if optTrx != nil && len(optTrx) > 0 {
-		trx = optTrx[0]
 	}
 
 	if existingId > 0 {
