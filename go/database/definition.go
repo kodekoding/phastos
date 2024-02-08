@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/volatiletech/null"
+	"github.com/kodekoding/phastos/v2/go/null"
 )
 
 type (
