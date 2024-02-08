@@ -8,6 +8,7 @@ import (
 
 type String struct {
 	null.String
+	Value       string
 	NullContent bool
 }
 
@@ -30,18 +31,20 @@ func StringFromPtr(s *string) String {
 }
 
 // NewString creates a new String
-func NewString(s string, valid bool, isNull bool) String {
+func NewString(value string, valid bool, isNull bool) String {
 	return String{
 		String: null.String{
-			String: s,
+			String: value,
 			Valid:  valid,
 		},
 		NullContent: isNull,
+		Value:       value,
 	}
 }
 
 type Int struct {
 	null.Int
+	Value       int
 	NullContent bool
 }
 
@@ -71,11 +74,13 @@ func NewInt(i int, valid bool, isNull bool) Int {
 			Valid: valid,
 		},
 		NullContent: isNull,
+		Value:       i,
 	}
 }
 
 type Int8 struct {
 	null.Int8
+	Value       int8
 	NullContent bool
 }
 
@@ -105,11 +110,13 @@ func NewInt8(i int8, valid bool, isNull bool) Int8 {
 			Valid: valid,
 		},
 		NullContent: isNull,
+		Value:       i,
 	}
 }
 
 type Int16 struct {
 	null.Int16
+	Value       int16
 	NullContent bool
 }
 
@@ -139,11 +146,13 @@ func NewInt16(i int16, valid bool, isNull bool) Int16 {
 			Valid: valid,
 		},
 		NullContent: isNull,
+		Value:       i,
 	}
 }
 
 type Int32 struct {
 	null.Int32
+	Value       int32
 	NullContent bool
 }
 
@@ -173,11 +182,13 @@ func NewInt32(i int32, valid bool, isNull bool) Int32 {
 			Valid: valid,
 		},
 		NullContent: isNull,
+		Value:       i,
 	}
 }
 
 type Int64 struct {
 	null.Int64
+	Value       int64
 	NullContent bool
 }
 
@@ -207,11 +218,13 @@ func NewInt64(i int64, valid bool, isNull bool) Int64 {
 			Valid: valid,
 		},
 		NullContent: isNull,
+		Value:       i,
 	}
 }
 
 type Uint struct {
 	null.Uint
+	Value       uint
 	NullContent bool
 }
 
@@ -241,11 +254,13 @@ func NewUint(i uint, valid bool, isNull bool) Uint {
 			Valid: valid,
 		},
 		NullContent: isNull,
+		Value:       i,
 	}
 }
 
 type Uint8 struct {
 	null.Uint8
+	Value       uint8
 	NullContent bool
 }
 
@@ -275,11 +290,13 @@ func NewUint8(i uint8, valid bool, isNull bool) Uint8 {
 			Valid: valid,
 		},
 		NullContent: isNull,
+		Value:       i,
 	}
 }
 
 type Uint16 struct {
 	null.Uint16
+	Value       uint16
 	NullContent bool
 }
 
@@ -309,11 +326,13 @@ func NewUint16(i uint16, valid bool, isNull bool) Uint16 {
 			Valid:  valid,
 		},
 		NullContent: isNull,
+		Value:       i,
 	}
 }
 
 type Uint32 struct {
 	null.Uint32
+	Value       uint32
 	NullContent bool
 }
 
@@ -343,11 +362,13 @@ func NewUint32(i uint32, valid bool, isNull bool) Uint32 {
 			Valid:  valid,
 		},
 		NullContent: isNull,
+		Value:       i,
 	}
 }
 
 type Uint64 struct {
 	null.Uint64
+	Value       uint64
 	NullContent bool
 }
 
@@ -377,11 +398,13 @@ func NewUint64(i uint64, valid bool, isNull bool) Uint64 {
 			Valid:  valid,
 		},
 		NullContent: isNull,
+		Value:       i,
 	}
 }
 
 type Float32 struct {
 	null.Float32
+	Value       float32
 	NullContent bool
 }
 
@@ -411,11 +434,13 @@ func NewFloat32(i float32, valid bool, isNull bool) Float32 {
 			Valid:   valid,
 		},
 		NullContent: isNull,
+		Value:       i,
 	}
 }
 
 type Float64 struct {
 	null.Float64
+	Value       float64
 	NullContent bool
 }
 
@@ -445,11 +470,13 @@ func NewFloat64(i float64, valid bool, isNull bool) Float64 {
 			Valid:   valid,
 		},
 		NullContent: isNull,
+		Value:       i,
 	}
 }
 
 type Time struct {
 	null.Time
+	Value       time.Time
 	NullContent bool
 }
 
@@ -479,11 +506,13 @@ func NewTime(i time.Time, valid bool, isNull bool) Time {
 			Valid: valid,
 		},
 		NullContent: isNull,
+		Value:       i,
 	}
 }
 
 type Bool struct {
 	null.Bool
+	Value       bool
 	NullContent bool
 }
 
@@ -513,5 +542,6 @@ func NewBool(i bool, valid bool, isNull bool) Bool {
 			Valid: valid,
 		},
 		NullContent: isNull,
+		Value:       i,
 	}
 }
