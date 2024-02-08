@@ -9,10 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/volatiletech/null"
-
 	"github.com/kodekoding/phastos/v2/go/database"
 	"github.com/kodekoding/phastos/v2/go/log"
+	"github.com/kodekoding/phastos/v2/go/null"
 )
 
 func ConstructColNameAndValueBulk(ctx context.Context, arrayOfData interface{}, conditions ...map[string][]interface{}) (*database.CUDConstructData, error) {
@@ -257,6 +256,15 @@ func readField(_ context.Context, reflectVal reflect.Value, isNullStruct ...bool
 			continue
 		}
 
+		if fieldType.Name == "NullContent" {
+			if value.(bool) {
+
+				cols = append(cols, colName)
+				values = append(values, "null")
+			}
+			continue
+		}
+
 		switch field.Kind() {
 		case reflect.String:
 			if str, valid := value.(string); valid && str == "null" {
@@ -292,8 +300,8 @@ func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}
 				haveUpdatedAtCol = true
 			}
 
-			_, valid := vals.(null.String)
-			if vals == nil || valid {
+			content, valid := vals.(null.String)
+			if vals == nil || valid || content.NullContent {
 				*col = *col + "=null"
 				values = Remove(values, index)
 			} else {
