@@ -11,7 +11,7 @@ import (
 
 	"github.com/kodekoding/phastos/v2/go/database"
 	"github.com/kodekoding/phastos/v2/go/log"
-	"github.com/kodekoding/phastos/v2/go/null"
+	"github.com/volatiletech/null"
 )
 
 func ConstructColNameAndValueBulk(ctx context.Context, arrayOfData interface{}, conditions ...map[string][]interface{}) (*database.CUDConstructData, error) {
@@ -300,8 +300,8 @@ func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}
 				haveUpdatedAtCol = true
 			}
 
-			content, valid := vals.(null.String)
-			if vals == nil || valid || content.NullContent {
+			_, valid := vals.(null.String)
+			if vals == nil || valid {
 				*col = *col + "=null"
 				values = Remove(values, index)
 			} else {

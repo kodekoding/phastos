@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/kodekoding/phastos/v2/go/null"
+	"github.com/volatiletech/null"
 )
 
 type (
@@ -135,9 +135,10 @@ type (
 	}
 
 	CUDResponse struct {
-		Status       bool  `json:"status"`
-		RowsAffected int64 `json:"rows_affected"`
-		LastInsertID int64 `json:"last_insert_id"`
+		Status       bool   `json:"status"`
+		RowsAffected int64  `json:"rows_affected"`
+		LastInsertID int64  `json:"last_insert_id"`
+		Message      string `json:"message,omitempty"`
 		executedQuery
 	}
 
