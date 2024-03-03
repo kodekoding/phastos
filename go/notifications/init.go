@@ -69,6 +69,7 @@ func ActivateSlack(webhookURL string) Options {
 			log.Error().Msgf("slack cannot initialized: %s", err)
 			return
 		}
+		platform.list = append(platform.list, platform.slack)
 		log.Info().Msg("slack notification initialized")
 	}
 }
@@ -81,6 +82,7 @@ func ActivateTelegram(botToken string) Options {
 			log.Error().Msgf("telegram cannot initialized: %s", err)
 			return
 		}
+		platform.list = append(platform.list, platform.telegram)
 		log.Info().Msg("telegram notification initialized")
 	}
 }

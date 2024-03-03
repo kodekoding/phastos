@@ -228,9 +228,10 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 				}
 				respErr.TraceId = traceId
 				go func() {
+					// sent error to notification + logs asynchronously
+					response.SentNotif(ctx, response.InternalError, r, traceId)
 					log.Error().Msg(fmt.Sprintf("%s - %s (%s)", response.InternalError.Message, response.InternalError.Code, traceId))
 				}()
-				go response.SentNotif(ctx, response.InternalError, r, traceId)
 			}
 			response.Send(w)
 		}
