@@ -58,6 +58,7 @@ func New(opt ...ImportOptions) *importer {
 
 	// set default worker to 10
 	csvImporter.worker = 10
+	csvImporter.excel.sheetName = "Sheet1"
 
 	for _, options := range opt {
 		options(csvImporter)
