@@ -134,7 +134,7 @@ func WithCtx(ctx context.Context) ImportOptions {
 
 func WithSheetName(sheetName string) ImportOptions {
 	return func(reader *importer) {
-		reader.sheetName = sheetName
+		reader.excel.sheetName = sheetName
 	}
 }
 
