@@ -87,9 +87,9 @@ func WithWorker(totalWorker int) ImportOptions {
 func WithExtFile(ext string) ImportOptions {
 	return func(reader *importer) {
 		switch ext {
-		case "xlsx", "xls":
+		case ".xlsx", ".xls":
 			reader.sourceType = ExcelFileType
-		case "csv":
+		case ".csv":
 			reader.sourceType = CSVFileType
 		default:
 			reader.sourceType = UndefinedFileType
