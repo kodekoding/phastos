@@ -1,19 +1,16 @@
-package csv
+package importer
 
 import (
 	"context"
 	"database/sql"
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"io"
 	"mime/multipart"
 	"os"
 	"reflect"
 	"sync"
 	"time"
 
-	"github.com/gocarina/gocsv"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 
@@ -27,24 +24,41 @@ import (
 )
 
 type (
-	processFn func(ctx context.Context, singleData interface{}, trx *sql.Tx) *api.HttpError
+	processFn func(ctx context.Context, singleData interface{}, trx *sql.Tx, wi int) *api.HttpError
 	importer  struct {
 		ctx               context.Context
-		csvRowsData       interface{}
+		structDestination interface{}
 		file              multipart.File
 		trx               database.Transactions
 		fn                processFn
 		notif             notifications.Platforms
 		jwtData           *entity.JWTClaimData
 		dataListReflVal   reflect.Value
+		structDestReflVal reflect.Value
 		sentNotifToSlack  bool
 		slackNotifChannel string
+		sheetName         string
+		sourceType        string
+		worker            int
+		mapContent        map[string]interface{}
+		excel
+		csv
 	}
 	ImportOptions func(reader *importer)
 )
 
-func NewImport(opt ...ImportOptions) *importer {
+const (
+	ExcelFileType     = "excel"
+	CSVFileType       = "csv"
+	UndefinedFileType = ""
+)
+
+func New(opt ...ImportOptions) *importer {
 	csvImporter := new(importer)
+
+	// set default worker to 10
+	csvImporter.worker = 10
+
 	for _, options := range opt {
 		options(csvImporter)
 	}
@@ -64,9 +78,29 @@ func WithFile(file multipart.File) ImportOptions {
 	}
 }
 
-func WithDataList(dataList interface{}) ImportOptions {
+func WithWorker(totalWorker int) ImportOptions {
 	return func(reader *importer) {
-		reader.csvRowsData = dataList
+		reader.worker = totalWorker
+	}
+}
+
+func WithExtFile(ext string) ImportOptions {
+	return func(reader *importer) {
+		switch ext {
+		case "xlsx", "xls":
+			reader.sourceType = ExcelFileType
+		case "csv":
+			reader.sourceType = CSVFileType
+		default:
+			reader.sourceType = UndefinedFileType
+		}
+	}
+}
+
+func WithStructDestination(structDestination interface{}) ImportOptions {
+	return func(reader *importer) {
+		reader.structDestination = structDestination
+		reader.mapContent = helper.ConvertStructToMap(structDestination)
 	}
 }
 
@@ -98,10 +132,16 @@ func WithCtx(ctx context.Context) ImportOptions {
 	}
 }
 
+func WithSheetName(sheetName string) ImportOptions {
+	return func(reader *importer) {
+		reader.sheetName = sheetName
+	}
+}
+
 func (r *importer) resetField() {
 	r.file = nil
 	r.trx = nil
-	r.csvRowsData = nil
+	r.structDestination = nil
 	r.fn = nil
 }
 
@@ -110,8 +150,8 @@ func (r *importer) validateField() error {
 		return errors.New("`File` is null, please provide the file")
 	}
 
-	if r.csvRowsData == nil {
-		return errors.New("`Data List` Variable is null, please provide the variable")
+	if r.structDestination == nil {
+		return errors.New("`Struct Destination` Variable is null, please provide the variable")
 
 	}
 
@@ -119,16 +159,21 @@ func (r *importer) validateField() error {
 		return errors.New("`Transaction` Variable is null, please provide the transactions")
 	}
 
-	reflectVal := reflect.ValueOf(r.csvRowsData)
+	if r.sourceType == UndefinedFileType {
+		return errors.New("File Type isn't set")
+	}
+
+	reflectVal := reflect.ValueOf(r.structDestination)
 
 	if reflectVal.Kind() == reflect.Ptr {
 		reflectVal = reflectVal.Elem()
 	}
 
-	if reflectVal.Kind() != reflect.Slice {
-		return errors.New("data list should be an array/slice")
+	if reflectVal.Kind() != reflect.Struct {
+		return errors.New("data destination should be a struct")
 	}
-	r.dataListReflVal = reflectVal
+
+	r.structDestReflVal = reflectVal
 	return nil
 }
 
@@ -140,15 +185,15 @@ func (r *importer) ProcessData() map[string][]interface{} {
 	}
 
 	start := time.Now()
-	gocsv.SetCSVReader(func(reader io.Reader) gocsv.CSVReader {
-		r := csv.NewReader(reader)
-		r.LazyQuotes = true
-		return r
-	})
-	if err := gocsv.Unmarshal(r.file, r.csvRowsData); err != nil {
-		log.Error().Msgf("Failed to marshal the data: %s", err.Error())
-		return nil
-	}
+	//gocsv.SetCSVReader(func(reader io.Reader) gocsv.CSVReader {
+	//	r := csv.NewReader(reader)
+	//	r.LazyQuotes = true
+	//	return r
+	//})
+	//if err := gocsv.Unmarshal(r.file, r.structDestination); err != nil {
+	//	log.Error().Msgf("Failed to marshal the data: %s", err.Error())
+	//	return nil
+	//}
 
 	//log.Info().Msg("will start import the data asynchronously")
 	asyncContext := context.Background()
@@ -203,26 +248,27 @@ func (r *importer) ProcessData() map[string][]interface{} {
 
 func (r *importer) processData(asyncContext context.Context) (map[string][]interface{}, int, int) {
 
-	mtx := new(sync.Mutex)
-	wg := new(sync.WaitGroup)
-
 	trx, err := r.trx.Begin()
 	defer func() {
 		r.trx.Finish(trx, err)
 		r.resetField()
 	}()
-	errChan := make(chan *api.HttpError, 0)
 
-	// main process each row
-	go r.processEachData(asyncContext, r.dataListReflVal, r.fn, wg, mtx, trx, errChan)
+	var chanRowData = make(<-chan interface{})
+	if r.sourceType == ExcelFileType {
+		chanRowData = r.readFromExcel(r.structDestReflVal, r.file, r.mapContent)
+	} else if r.sourceType == CSVFileType {
+		chanRowData = r.readFromCSV(r.structDestReflVal, r.file, r.mapContent)
+	}
+	errChan := r.processEachData(asyncContext, chanRowData, trx)
 
 	totalData := 0
 	totalFailed := 0
 	failedList := make(map[string][]interface{})
 	for newErr := range errChan {
-		if newErr.Message != "no error" {
+		if newErr != nil {
 			// if there is an error, then set `err` variable to roll back the transactions
-			err = errors.New("something went wrong")
+			//err := errors.New("something went wrong")
 			if _, exist := failedList[newErr.Message]; !exist {
 				failedList[newErr.Message] = make([]interface{}, 0)
 			}
@@ -239,28 +285,25 @@ func (r *importer) processData(asyncContext context.Context) (map[string][]inter
 	return failedList, totalData, totalFailed
 }
 
-func (r *importer) processEachData(ctx context.Context, rows reflect.Value, fn processFn, wait *sync.WaitGroup, mute *sync.Mutex, transaction *sql.Tx, err chan<- *api.HttpError) {
-	totalData := rows.Len()
+func (r importer) processEachData(ctx context.Context, data <-chan interface{}, trx *sql.Tx) <-chan *api.HttpError {
+	errChan := make(chan *api.HttpError)
+	wait := new(sync.WaitGroup)
+	wait.Add(r.worker)
+	go func() {
+		for workerIndex := 0; workerIndex < r.worker; workerIndex++ {
+			go func(wi int) {
+				for dt := range data {
+					errChan <- r.fn(ctx, dt, trx, wi)
+				}
+				wait.Done()
+			}(workerIndex)
+		}
+	}()
 
-	for i := 0; i < totalData; i++ {
-		wait.Add(1)
-		data := rows.Index(i).Interface()
-		go func(dt interface{}, wg *sync.WaitGroup, mtx *sync.Mutex, trx *sql.Tx, errChan chan<- *api.HttpError) {
-			mtx.Lock()
-			defer func() {
-				mtx.Unlock()
-				wg.Done()
-			}()
-			errResult := fn(ctx, dt, trx)
-			if errResult == nil {
-				errResult = api.NewErr(
-					api.WithErrorMessage("no error"),
-				)
-			}
-			errChan <- errResult
-		}(data, wait, mute, transaction, err)
-	}
+	go func() {
+		wait.Wait()
+		close(errChan)
+	}()
 
-	wait.Wait()
-	close(err)
+	return errChan
 }
