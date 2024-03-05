@@ -280,6 +280,46 @@ func readField(_ context.Context, reflectVal reflect.Value, isNullStruct ...bool
 	return cols, values
 }
 
+func ConvertStructToMap(structSource interface{}) map[string]interface{} {
+	reflectVal := reflect.ValueOf(structSource)
+	if reflectVal.Kind() == reflect.Ptr {
+		reflectVal = reflectVal.Elem()
+	}
+
+	if reflectVal.Kind() != reflect.Struct {
+		return nil
+	}
+	refType := reflectVal.Type()
+
+	totalField := reflectVal.NumField()
+	result := make(map[string]interface{})
+	for i := 0; i < totalField; i++ {
+		field := reflectVal.Field(i)
+		fieldType := refType.Field(i)
+		colName := fieldType.Tag.Get("csv")
+		if colName == "" {
+			colName = fieldType.Tag.Get("excel")
+		}
+		if colName == "" {
+			// set default colName with field name
+			colName = fieldType.Name
+		}
+		colDataType := fieldType.Type.String()
+		//log.Println(colName, " has type data: ", colDataType)
+		switch colDataType {
+		case "int", "int64", "int16", "int8", "int32":
+			field.SetInt(0)
+		default:
+			// all data type except "int" will be force to string
+			field.SetString("")
+		}
+		result[colName] = field.Interface()
+
+	}
+
+	return result
+}
+
 func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}, anotherValues ...interface{}) *database.CUDConstructData {
 	// tracing
 	//trc, ctx := tracer.StartSpanFromContext(ctx, "Helper-ConstructColNameAndValueForUpdate")
