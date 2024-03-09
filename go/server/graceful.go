@@ -79,8 +79,9 @@ func serveHTTPs(config *Config, secure bool) error {
 	}
 
 	appName := os.Getenv("APP_NAME")
+	environment := os.Getenv("APPS_ENV")
 
-	log.Printf("%s %s Server %s is running on %s", appName, protocol, os.Getenv("APPS_ENV"), listenPort)
+	log.Printf("%s %s Server %s is running on %s", appName, protocol, environment, listenPort)
 
 	isNotifyServiceStatus, err := strconv.ParseBool(os.Getenv("NOTIFY_SERVICE_STATUS"))
 	if err != nil {
@@ -90,7 +91,7 @@ func serveHTTPs(config *Config, secure bool) error {
 		if isNotifyServiceStatus {
 			_ = helper.SendSlackNotification(
 				config.Ctx,
-				helper.NotifTitle(fmt.Sprintf("%s Service is started", appName)),
+				helper.NotifTitle(fmt.Sprintf("[%s] %s Service is started", environment, appName)),
 			)
 
 		}
@@ -102,7 +103,7 @@ func serveHTTPs(config *Config, secure bool) error {
 		if isNotifyServiceStatus {
 			_ = helper.SendSlackNotification(
 				config.Ctx,
-				helper.NotifTitle(fmt.Sprintf("%s Service is Stopped", appName)),
+				helper.NotifTitle(fmt.Sprintf("[%s] %s Service is Stopped", environment, appName)),
 				helper.NotifMsgType(helper.NotifWarnType),
 			)
 		}
