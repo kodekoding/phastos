@@ -9,10 +9,10 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
-	"github.com/kodekoding/phastos/v2/go/env"
 	"github.com/kodekoding/phastos/v2/go/helper"
 )
 
@@ -82,8 +82,12 @@ func serveHTTPs(config *Config, secure bool) error {
 
 	log.Printf("%s %s Server %s is running on %s", appName, protocol, os.Getenv("APPS_ENV"), listenPort)
 
+	isNotifyServiceStatus, err := strconv.ParseBool(os.Getenv("NOTIFY_SERVICE_STATUS"))
+	if err != nil {
+		isNotifyServiceStatus = false
+	}
 	go func() {
-		if !(env.IsLocal() || env.IsDevelopment()) {
+		if isNotifyServiceStatus {
 			_ = helper.SendSlackNotification(
 				config.Ctx,
 				helper.NotifTitle(fmt.Sprintf("%s Service is started", appName)),
@@ -95,7 +99,7 @@ func serveHTTPs(config *Config, secure bool) error {
 
 	log.Printf("%s Server stopped", protocol)
 	go func() {
-		if !(env.IsLocal() || env.IsDevelopment()) {
+		if isNotifyServiceStatus {
 			_ = helper.SendSlackNotification(
 				config.Ctx,
 				helper.NotifTitle(fmt.Sprintf("%s Service is Stopped", appName)),
