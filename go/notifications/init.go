@@ -99,7 +99,7 @@ func (this *Platform) GetAllPlatform() []Action {
 	return this.list
 }
 
-func (this *Platform) Handler(next http.Handler) http.Handler {
+func (this *Platform) WrapToHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		ctx := context.WithValue(request.Context(), entity.NotifPlatformContext{}, this)
 		*request = *request.WithContext(ctx)
