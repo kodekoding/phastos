@@ -15,6 +15,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/unrolled/secure"
+	"golang.org/x/net/context"
 
 	"github.com/kodekoding/phastos/v2/go/cache"
 	"github.com/kodekoding/phastos/v2/go/common"
@@ -47,7 +48,8 @@ type (
 	Options func(api *App)
 
 	Wrapper interface {
-		Handler(handler http.Handler) http.Handler
+		WrapToHandler(handler http.Handler) http.Handler
+		WrapToContext(ctx context.Context) context.Context
 	}
 )
 
@@ -57,7 +59,7 @@ func NewApp(opts ...Options) *App {
 	}
 
 	apiApp.Config = new(server.Config)
-
+	apiApp.Config.Ctx = contextpkg.Background()
 	apiApp.Port = 8000
 	apiApp.ReadTimeout = 3
 	apiApp.WriteTimeout = 3
@@ -281,7 +283,8 @@ func (app *App) Start() error {
 	app.Handler = secureMiddleware.Handler(app.Handler)
 
 	for _, wrapper := range app.wrapper {
-		app.Handler = wrapper.Handler(app.Handler)
+		app.Handler = wrapper.WrapToHandler(app.Handler)
+		app.Config.Ctx = wrapper.WrapToContext(app.Config.Ctx)
 	}
 
 	log.Info().Msg(fmt.Sprintf("server started on port %d, serving %d endpoint(s)", app.Port, app.TotalEndpoints))
@@ -290,5 +293,6 @@ func (app *App) Start() error {
 		defer app.cron.Stop()
 		go app.cron.Start()
 	}
+
 	return server.ServeHTTP(app.Config)
 }
