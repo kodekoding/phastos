@@ -24,7 +24,8 @@ type (
 		Telegram() Action
 		Slack() Action
 		GetAllPlatform() []Action
-		Handler(next http.Handler) http.Handler
+		WrapToHandler(next http.Handler) http.Handler
+		WrapToContext(ctx context.Context) context.Context
 	}
 
 	Options func(platform *Platform)
