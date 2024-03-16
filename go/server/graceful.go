@@ -39,7 +39,7 @@ func serveHTTPs(config *Config, secure bool) error {
 		return err
 	}
 
-	sign := WaitTermSig(func(ctx context.Context) error {
+	sign := WaitTermSig(config.Ctx, func(ctx context.Context) error {
 
 		<-ctx.Done()
 
@@ -83,11 +83,11 @@ func serveHTTPs(config *Config, secure bool) error {
 
 	log.Printf("%s %s Server %s is running on %s", appName, protocol, environment, listenPort)
 
-	isNotifyServiceStatus, err := strconv.ParseBool(os.Getenv("NOTIFY_SERVICE_STATUS"))
-	if err != nil {
-		isNotifyServiceStatus = false
-	}
 	go func() {
+		isNotifyServiceStatus, err := strconv.ParseBool(os.Getenv("NOTIFY_SERVICE_STATUS"))
+		if err != nil {
+			isNotifyServiceStatus = false
+		}
 		if isNotifyServiceStatus {
 			_ = helper.SendSlackNotification(
 				config.Ctx,
@@ -99,21 +99,13 @@ func serveHTTPs(config *Config, secure bool) error {
 	<-sign
 
 	log.Printf("%s Server stopped", protocol)
-	go func() {
-		if isNotifyServiceStatus {
-			_ = helper.SendSlackNotification(
-				config.Ctx,
-				helper.NotifTitle(fmt.Sprintf("[%s] %s Service is Stopped", environment, appName)),
-				helper.NotifMsgType(helper.NotifWarnType),
-			)
-		}
-	}()
+
 	return nil
 }
 
-func WaitTermSig(handler func(context.Context) error) <-chan struct{} {
+func WaitTermSig(ctx context.Context, handler func(context.Context) error) <-chan struct{} {
 	stopedChannel := make(chan struct{})
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 
 	go func() {
 		c := make(chan os.Signal, 1)
@@ -128,6 +120,21 @@ func WaitTermSig(handler func(context.Context) error) <-chan struct{} {
 			log.Printf("graceful shutdown  failed: %v", err)
 		} else {
 			log.Println("gracefull shutdown succeed")
+			go func() {
+				isNotifyServiceStatus, err := strconv.ParseBool(os.Getenv("NOTIFY_SERVICE_STATUS"))
+				if err != nil {
+					isNotifyServiceStatus = false
+				}
+				appName := os.Getenv("APP_NAME")
+				environment := os.Getenv("APPS_ENV")
+				if isNotifyServiceStatus {
+					_ = helper.SendSlackNotification(
+						ctx,
+						helper.NotifTitle(fmt.Sprintf("[%s] %s Service is Stopped", environment, appName)),
+						helper.NotifMsgType(helper.NotifWarnType),
+					)
+				}
+			}()
 		}
 
 		close(stopedChannel)
