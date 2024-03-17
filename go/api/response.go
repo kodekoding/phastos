@@ -18,19 +18,27 @@ import (
 )
 
 type Response struct {
-	Message       string                     `json:"message,omitempty"`
-	Data          interface{}                `json:"data,omitempty"`
-	Err           error                      `json:"error,omitempty"`
+	Message       string      `json:"message,omitempty"`
+	Data          interface{} `json:"data,omitempty"`
+	Err           error       `json:"error,omitempty"`
+	statusCode    int
 	InternalError *HttpError                 `json:"-"`
 	MetaData      *database.ResponseMetaData `json:"metadata,omitempty"`
 }
 
 func NewResponse() *Response {
-	return &Response{}
+	return &Response{
+		statusCode: http.StatusOK,
+	}
 }
 
 func (resp *Response) SetMessage(msg string) *Response {
 	resp.Message = msg
+	return resp
+}
+
+func (resp *Response) SetStatusCode(statusCode int) *Response {
+	resp.statusCode = statusCode
 	return resp
 }
 
@@ -57,7 +65,7 @@ func (resp *Response) Send(w http.ResponseWriter) {
 			dataToMarshal = respErr
 		}
 	} else {
-		responseStatus = http.StatusOK
+		responseStatus = resp.statusCode
 		if resp.Data != nil {
 			dataToMarshal = resp.Data
 		} else if resp.Message != "" {
