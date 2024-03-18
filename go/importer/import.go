@@ -41,6 +41,7 @@ type (
 		sourceType        string
 		worker            int
 		mapContent        map[string]interface{}
+		processName       string
 		excel
 		csv
 	}
@@ -114,6 +115,12 @@ func WithTransaction(trx database.Transactions) ImportOptions {
 func WithProcessFn(fn processFn) ImportOptions {
 	return func(reader *importer) {
 		reader.fn = fn
+	}
+}
+
+func WithProcessName(processName string) ImportOptions {
+	return func(reader *importer) {
+		reader.processName = processName
 	}
 }
 
@@ -228,6 +235,7 @@ func (r *importer) ProcessData() map[string][]interface{} {
 		jwtData, _ := json.Marshal(r.jwtData.Data)
 		notifData["-jwt data"] = string(jwtData)
 	}
+	notifData["-process name"] = fmt.Sprintf("Import Data %s from %s", r.processName, r.sourceType)
 
 	end := time.Since(start)
 	notifData["total_data"] = fmt.Sprintf("%d", totalData)
