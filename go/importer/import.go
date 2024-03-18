@@ -294,7 +294,11 @@ func (r importer) processEachData(ctx context.Context, data <-chan interface{}, 
 		for workerIndex := 0; workerIndex < r.worker; workerIndex++ {
 			go func(wi int) {
 				for dt := range data {
-					errChan <- r.fn(ctx, dt, trx, wi)
+					if err := api.ValidateStruct(dt); err != nil {
+						errChan <- api.NewErr(api.WithErrorData(err), api.WithErrorStatus(400))
+					} else {
+						errChan <- r.fn(ctx, dt, trx, wi)
+					}
 				}
 				wait.Done()
 			}(workerIndex)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"mime/multipart"
 	"reflect"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 	"github.com/xuri/excelize/v2"
@@ -41,7 +42,8 @@ func (e excel) readFromExcel(structSource reflect.Value, file multipart.File, ma
 			destStruct := reflect.New(structSource.Type()).Interface()
 
 			for x, rowData := range row {
-				mapContent[rows[0][x]] = rowData
+				headerName := strings.Replace(rows[0][x], "*", "", -1)
+				mapContent[headerName] = rowData
 			}
 			dt, _ := json.Marshal(mapContent)
 			_ = json.Unmarshal(dt, destStruct)

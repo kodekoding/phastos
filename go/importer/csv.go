@@ -7,6 +7,7 @@ import (
 	"io"
 	"mime/multipart"
 	"reflect"
+	"strings"
 )
 
 type (
@@ -33,7 +34,8 @@ func (e excel) readFromCSV(structSource reflect.Value, file multipart.File, mapC
 			destStruct := reflect.New(structSource.Type()).Interface()
 
 			for x, rowData := range row {
-				mapContent[rows[0][x]] = rowData
+				headerName := strings.Replace(rows[0][x], "*", "", -1)
+				mapContent[headerName] = rowData
 			}
 			dt, _ := json.Marshal(mapContent)
 			_ = json.Unmarshal(dt, destStruct)
