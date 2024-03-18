@@ -277,7 +277,7 @@ func (r *importer) processData(asyncContext context.Context) (map[string][]inter
 	for newErr := range errChan {
 		if newErr != nil {
 			// if there is an error, then set `err` variable to roll back the transactions
-			//err := errors.New("something went wrong")
+			err = errors.New("something went wrong")
 			if _, exist := failedList[newErr.Message]; !exist {
 				failedList[newErr.Message] = make([]interface{}, 0)
 			}
