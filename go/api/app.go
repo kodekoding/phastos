@@ -191,8 +191,26 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 				return app.requestValidator(i)
 			},
 			GetBody: func(i interface{}) error {
-				if err := json.NewDecoder(r.Body).Decode(i); err != nil {
-					return BadRequest(err.Error(), "ERROR_PARSING_BODY")
+				contentType := filterFlags(r.Header.Get("Content-Type"))
+				switch contentType {
+				case ContentJSON:
+					if err = json.NewDecoder(r.Body).Decode(i); err != nil {
+						return BadRequest(err.Error(), ErrParsedBodyCode)
+					}
+				case ContentURLEncoded:
+					if err = parseFormRequest(r); err != nil {
+						return BadRequest(err.Error(), ErrParsedBodyCode)
+					}
+					if err = doHandleDecodeSchema(r, i); err != nil {
+						return BadRequest(err.Error(), ErrDecodeBodyCode)
+					}
+				case ContentFormData:
+					if err = parseMultiPartFormRequest(r, 32<<20); err != nil {
+						return BadRequest(err.Error(), ErrParsedBodyCode)
+					}
+					if err = doHandleDecodeSchema(r, i); err != nil {
+						return BadRequest(err.Error(), ErrDecodeBodyCode)
+					}
 				}
 				return app.requestValidator(i)
 			},

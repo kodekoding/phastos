@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"github.com/go-playground/validator"
+	"github.com/gorilla/schema"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -12,7 +13,22 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-var validate = validator.New()
+var (
+	validate                  = validator.New()
+	decodeSchema              = (*schema.Decoder).Decode
+	parseFormRequest          = (*http.Request).ParseForm
+	parseMultiPartFormRequest = (*http.Request).ParseMultipartForm
+	doHandleDecodeSchema      = decodeSchemaRequest
+)
+
+const (
+	ContentURLEncoded string = "application/x-www-form-urlencoded"
+	ContentJSON       string = "application/json"
+	ContentFormData   string = "multipart/form-data"
+
+	ErrParsedBodyCode string = "ERROR_PARSING_BODY"
+	ErrDecodeBodyCode string = "ERROR_DECODE_BODY"
+)
 
 func WriteJson(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -98,33 +114,27 @@ func GenerateQueryComponenFromStruct(model interface{}, skips []string) (string,
 	return strings.Join(fields, ", "), values, strings.Join(binds, ", ")
 }
 
-//func GetUserContext(ctx context.Context) *UserContext {
-//	return ctx.Value(USER_CONTEXT_KEY).(*UserContext)
-//}
-//
-//func StringToDBConnection(conn string) DBConnection {
-//	temp1 := strings.Split(conn, "://")
-//	dialect := temp1[0]
-//
-//	temp2 := strings.Split(temp1[1], "@")
-//
-//	temp3 := strings.Split(temp2[0], ":")
-//	username := temp3[0]
-//	password := temp3[1]
-//
-//	temp4 := strings.Split(temp2[1], "/")
-//	database := temp4[1]
-//
-//	temp5 := strings.Split(temp4[0], ":")
-//	host := temp5[0]
-//	port := temp5[1]
-//
-//	return DBConnection{
-//		Dialect:  dialect,
-//		Username: username,
-//		Password: password,
-//		Host:     host,
-//		Port:     port,
-//		Database: database,
-//	}
-//}
+// filterFlags is a utility to cleanly get a Content-Type header
+// refer to https://github.com/gin-gonic/gin/blob/master/utils.go#L83
+func filterFlags(content string) string {
+	for i, char := range content {
+		if char == ' ' || char == ';' {
+			return content[:i]
+		}
+	}
+	return content
+}
+
+func decodeSchemaRequest(r *http.Request, val interface{}) error {
+	decoder.IgnoreUnknownKeys(true)
+	sourceDecode := r.Form
+
+	if r.Method == http.MethodGet {
+		sourceDecode = r.URL.Query()
+	}
+
+	if err := decodeSchema(decoder, val, sourceDecode); err != nil {
+		return err
+	}
+	return nil
+}
