@@ -103,8 +103,6 @@ func (b *BaseRead) Count(ctx context.Context, reqData *database.TableRequest, ta
 	}
 
 	// for get total filtered data
-	reqData.Page = 0
-	reqData.Limit = 0
 	opts.SelectRequest = reqData
 	opts.Result = &totalFiltered
 
