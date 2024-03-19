@@ -399,8 +399,13 @@ func GenerateAddOnQuery(ctx context.Context, reqData *TableRequest) (string, []i
 	if reqData.Page > 0 && reqData.Limit > 0 {
 		offset := (reqData.Page - 1) * reqData.Limit
 
-		addOnBuilder.WriteString(" LIMIT ?,?")
-		addOnParams = append(addOnParams, offset, reqData.Limit)
+		if reqData.engine == PostgresEngine {
+			addOnBuilder.WriteString(" LIMIT ? OFFSET ?")
+			addOnParams = append(addOnParams, reqData.Limit, offset)
+		} else if reqData.engine == MySQLEngine {
+			addOnBuilder.WriteString(" LIMIT ?,?")
+			addOnParams = append(addOnParams, offset, reqData.Limit)
+		}
 	}
 	whereResult := strings.Replace(addOnBuilder.String(), " OR )", ")", -1)
 	whereResult = " " + whereResult
