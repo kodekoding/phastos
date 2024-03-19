@@ -18,9 +18,9 @@ import (
 )
 
 type Response struct {
-	Message       string      `json:"message,omitempty"`
-	Data          interface{} `json:"data,omitempty"`
-	Err           error       `json:"error,omitempty"`
+	Message       string `json:"message,omitempty"`
+	Data          any    `json:"data,omitempty"`
+	Err           error  `json:"error,omitempty"`
 	statusCode    int
 	InternalError *HttpError                 `json:"-"`
 	MetaData      *database.ResponseMetaData `json:"metadata,omitempty"`
@@ -42,7 +42,7 @@ func (resp *Response) SetStatusCode(statusCode int) *Response {
 	return resp
 }
 
-func (resp *Response) SetData(data interface{}) *Response {
+func (resp *Response) SetData(data any) *Response {
 	resp.Data = data
 	if selectResponseData, valid := data.(*database.SelectResponse); valid {
 		if selectResponseData.ResponseMetaData != nil {
@@ -57,7 +57,7 @@ func (resp *Response) Send(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	var b []byte
 
-	var dataToMarshal interface{}
+	var dataToMarshal any
 	var responseStatus int
 	if resp.Err != nil {
 		if respErr, ok := resp.Err.(*HttpError); ok {
@@ -66,20 +66,22 @@ func (resp *Response) Send(w http.ResponseWriter) {
 		}
 	} else {
 		responseStatus = resp.statusCode
-		responseBody := make(map[string]interface{})
 		if resp.Data != nil {
-			responseBody["data"] = resp.Data
+			dataToMarshal = resp.Data
+			if resp.MetaData != nil {
+				dataToMarshal = map[string]any{
+					"data":     resp.Data,
+					"metadata": resp.MetaData,
+				}
+			}
 		}
 
 		if resp.Message != "" {
-			responseBody["message"] = resp.Message
+			dataToMarshal = map[string]string{
+				"message": resp.Message,
+			}
 		}
 
-		if resp.MetaData != nil {
-			responseBody["metadata"] = resp.MetaData
-		}
-
-		dataToMarshal = responseBody
 	}
 
 	w.WriteHeader(responseStatus)
