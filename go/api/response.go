@@ -66,17 +66,25 @@ func (resp *Response) Send(w http.ResponseWriter) {
 		}
 	} else {
 		responseStatus = resp.statusCode
+		responseBody := make(map[string]interface{})
 		if resp.Data != nil {
-			dataToMarshal = resp.Data
-		} else if resp.Message != "" {
-			dataToMarshal = map[string]string{
-				"message": resp.Message,
-			}
+			responseBody["data"] = resp.Data
 		}
+
+		if resp.Message != "" {
+			responseBody["message"] = resp.Message
+		}
+
+		if resp.MetaData != nil {
+			responseBody["metadata"] = resp.MetaData
+		}
+
+		dataToMarshal = responseBody
 	}
 
 	w.WriteHeader(responseStatus)
 	b, _ = json.Marshal(dataToMarshal)
+
 	_, _ = w.Write(b)
 }
 
