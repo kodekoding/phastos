@@ -211,6 +211,11 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 					if err = doHandleDecodeSchema(r, i); err != nil {
 						return BadRequest(err.Error(), ErrDecodeBodyCode)
 					}
+				default:
+					log.Warn().Msg("Content-Type Header didn't sent, please defined it, will treat as JSON body payload")
+					if err = json.NewDecoder(r.Body).Decode(i); err != nil {
+						return BadRequest(err.Error(), ErrParsedBodyCode)
+					}
 				}
 				return app.requestValidator(i)
 			},
