@@ -74,6 +74,8 @@ func (resp *Response) Send(w http.ResponseWriter) {
 					"metadata": resp.MetaData,
 				}
 			}
+		} else {
+			responseStatus = http.StatusNoContent
 		}
 
 		if resp.Message != "" {
