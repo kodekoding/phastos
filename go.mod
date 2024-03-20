@@ -36,6 +36,8 @@ require (
 	github.com/volatiletech/null v8.0.0+incompatible
 	github.com/xuri/excelize/v2 v2.7.0
 	github.com/yeqown/go-qrcode v1.5.10
+	go.uber.org/mock v0.4.0
+	golang.org/x/net v0.8.0
 	google.golang.org/api v0.114.0
 	gorm.io/driver/mysql v1.3.4
 )
@@ -77,7 +79,6 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/crypto v0.5.0 // indirect
 	golang.org/x/image v0.0.0-20220902085622-e7cb96979f69 // indirect
-	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/oauth2 v0.6.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
