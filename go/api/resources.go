@@ -14,13 +14,16 @@ func (app *App) loadResources() {
 	var err error
 
 	// load DB + transactions
-	app.db, err = database.Connect()
-	if err != nil {
-		log.Fatal().Msgf("Can't load database: %s", err.Error())
-	}
+	connString := os.Getenv("DATABASE_CONN_STRING_MASTER")
+	if connString != "" {
+		app.db, err = database.Connect()
+		if err != nil {
+			log.Fatal().Msgf("Can't load database: %s", err.Error())
+		}
 
-	// get transaction from DB
-	app.trx = app.db.GetTransaction()
+		// get transaction from DB
+		app.trx = app.db.GetTransaction()
+	}
 
 	redisConnection := os.Getenv("REDIS_CONN_STRING")
 	if redisConnection != "" {
