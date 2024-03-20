@@ -7,10 +7,12 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/gorilla/schema"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -304,6 +306,25 @@ func (app *App) Start() error {
 		ContentTypeNosniff: true,
 	})
 	app.Handler = secureMiddleware.Handler(app.Handler)
+
+	corsOptions := cors.Options{
+		AllowedOrigins: []string{"https://*", "http://*"},
+		AllowedMethods: []string{"PATCH", "POST", "DELETE", "GET", "PUT", "OPTIONS"},
+		AllowedHeaders: []string{"Origin", "Referer", "token", "content-type", "Content-Type", "Authorization"},
+		MaxAge:         60 * 60, //1 hour
+	}
+	corsOriginEnv := os.Getenv("CORS_ORIGIN")
+	if corsOriginEnv != "" {
+		corsOptions.AllowedOrigins = strings.Split(corsOriginEnv, ",")
+	}
+
+	corsAllowedHeader := os.Getenv("CORS_HEADER")
+	if corsOriginEnv != "" {
+		corsOptions.AllowedHeaders = append(corsOptions.AllowedHeaders, strings.Split(corsAllowedHeader, ",")...)
+	}
+
+	corsMiddleware := cors.New(corsOptions)
+	app.Handler = corsMiddleware.Handler(app.Handler)
 
 	for _, wrapper := range app.wrapper {
 		app.Handler = wrapper.WrapToHandler(app.Handler)
