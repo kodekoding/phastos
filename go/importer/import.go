@@ -2,7 +2,6 @@ package importer
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"mime/multipart"
@@ -14,9 +13,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 
-	"github.com/kodekoding/phastos/go/database"
+	"github.com/jmoiron/sqlx"
 	"github.com/kodekoding/phastos/v2/go/api"
 	contextinternal "github.com/kodekoding/phastos/v2/go/context"
+	"github.com/kodekoding/phastos/v2/go/database"
 	"github.com/kodekoding/phastos/v2/go/entity"
 	"github.com/kodekoding/phastos/v2/go/env"
 	"github.com/kodekoding/phastos/v2/go/helper"
@@ -24,7 +24,7 @@ import (
 )
 
 type (
-	processFn func(ctx context.Context, singleData interface{}, trx *sql.Tx, wi int) *api.HttpError
+	processFn func(ctx context.Context, singleData interface{}, trx *sqlx.Tx, wi int) *api.HttpError
 	importer  struct {
 		ctx               context.Context
 		structDestination interface{}
