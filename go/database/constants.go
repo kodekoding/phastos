@@ -12,4 +12,7 @@ const (
 
 	MySQLEngine    = "mysql"
 	PostgresEngine = "postgres"
+
+	LockShare  = "share"
+	LockUpdate = "update"
 )

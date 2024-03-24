@@ -143,19 +143,58 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	}
 
 	query += addOnQuery
-	query = this.Follower.Rebind(query)
-	opts.query = query
 	opts.params = params
 	start := time.Now()
-	if opts.IsList {
-		if err = this.Follower.SelectContext(ctx, opts.Result, query, params...); err != nil {
-			_, err = sendNilResponse(err, "phastos.database.Read.SelectContext", query, params)
+
+	if opts.Trx != nil {
+		var lockingType string
+		switch opts.LockingType {
+		case LockShare:
+			lockingType = " FOR SHARE"
+			if this.engine == MySQLEngine {
+				lockingType = " LOCK IN SHARE MODE"
+			}
+		case LockUpdate:
+			lockingType = " FOR UPDATE"
+		default:
+			lockingType = ""
+		}
+
+		query += lockingType
+
+		query = opts.Trx.Rebind(query)
+		opts.query = query
+
+		stmt, err := opts.Trx.PreparexContext(ctx, query)
+		if err != nil {
+			_, err = sendNilResponse(err, "phastos.database.ReadTrx.PrepareContext", query, params)
 			return err
 		}
+
+		if opts.IsList {
+			if err = stmt.SelectContext(ctx, opts.Result, params...); err != nil {
+				_, err = sendNilResponse(err, "phastos.database.ReadTrx.SelectContext", query, params)
+				return err
+			}
+		} else {
+			if err = stmt.GetContext(ctx, opts.Result, params...); err != nil {
+				_, err = sendNilResponse(err, "phastos.database.ReadTrx.GetContext", query, params)
+				return err
+			}
+		}
 	} else {
-		if err = this.Follower.GetContext(ctx, opts.Result, query, params...); err != nil {
-			_, err = sendNilResponse(err, "phastos.database.Read.GetContext", query, params)
-			return err
+		query = this.Follower.Rebind(query)
+		opts.query = query
+		if opts.IsList {
+			if err = this.Follower.SelectContext(ctx, opts.Result, query, params...); err != nil {
+				_, err = sendNilResponse(err, "phastos.database.Read.SelectContext", query, params)
+				return err
+			}
+		} else {
+			if err = this.Follower.GetContext(ctx, opts.Result, query, params...); err != nil {
+				_, err = sendNilResponse(err, "phastos.database.Read.GetContext", query, params)
+				return err
+			}
 		}
 	}
 
