@@ -46,6 +46,13 @@ type (
 		csv
 	}
 	ImportOptions func(reader *importer)
+
+	ImportResult struct {
+		FailedList    map[string][]interface{} `json:"failed_list"`
+		TotalData     int                      `json:"total_data"`
+		TotalFailed   int                      `json:"total_failed"`
+		ExecutionTime float64                  `json:"execution_time"`
+	}
 )
 
 const (
@@ -185,7 +192,7 @@ func (r *importer) validateField() error {
 	return nil
 }
 
-func (r *importer) ProcessData() map[string][]interface{} {
+func (r *importer) ProcessData() *ImportResult {
 
 	if err := r.validateField(); err != nil {
 		log.Error().Msg(err.Error())
@@ -193,17 +200,7 @@ func (r *importer) ProcessData() map[string][]interface{} {
 	}
 
 	start := time.Now()
-	//gocsv.SetCSVReader(func(reader io.Reader) gocsv.CSVReader {
-	//	r := csv.NewReader(reader)
-	//	r.LazyQuotes = true
-	//	return r
-	//})
-	//if err := gocsv.Unmarshal(r.file, r.structDestination); err != nil {
-	//	log.Error().Msgf("Failed to marshal the data: %s", err.Error())
-	//	return nil
-	//}
 
-	//log.Info().Msg("will start import the data asynchronously")
 	asyncContext := context.Background()
 	if r.notif != nil {
 		asyncContext = context.WithValue(asyncContext, entity.NotifPlatformContext{}, r.notif)
@@ -213,13 +210,16 @@ func (r *importer) ProcessData() map[string][]interface{} {
 		asyncContext = context.WithValue(asyncContext, contextinternal.JwtContext{}, r.jwtData)
 	}
 
-	result, totalData, totalFailed := r.processData(asyncContext)
+	result := r.processData(asyncContext)
+
+	totalData := result.TotalData
+	totalFailed := result.TotalFailed
 
 	notifData := make(map[string]string)
 	notifType := helper.NotifInfoType
 	notifTitle := fmt.Sprintf("Your Data (%d data) Successfully Imported", totalData)
 	if result != nil && totalFailed > 0 {
-		for errGroup, errList := range result {
+		for errGroup, errList := range result.FailedList {
 			errKey := fmt.Sprintf("-%s (%d data)", errGroup, len(errList))
 			errData, _ := json.Marshal(errList)
 			notifData[errKey] = string(errData)
@@ -251,33 +251,27 @@ func (r *importer) ProcessData() map[string][]interface{} {
 			)
 		}
 	}()
-	log.Info().Msgf("success inserted %d/%d rows in %.2f second(s)", totalData-totalFailed, totalData, end.Seconds())
+	executionTime := end.Seconds()
+	result.ExecutionTime = executionTime
+	log.Info().Msgf("success inserted %d/%d rows in %.2f second(s)", totalData-totalFailed, totalData, executionTime)
 	return result
 }
 
-func (r *importer) processData(asyncContext context.Context) (map[string][]interface{}, int, int) {
-
-	trx, err := r.trx.Begin()
-	defer func() {
-		r.trx.Finish(trx, err)
-		r.resetField()
-	}()
-
+func (r *importer) processData(asyncContext context.Context) *ImportResult {
 	var chanRowData = make(<-chan interface{})
 	if r.sourceType == ExcelFileType {
 		chanRowData = r.readFromExcel(r.structDestReflVal, r.file, r.mapContent)
 	} else if r.sourceType == CSVFileType {
 		chanRowData = r.readFromCSV(r.structDestReflVal, r.file, r.mapContent)
 	}
-	errChan := r.processEachData(asyncContext, chanRowData, trx)
+	errChan := r.processEachData(asyncContext, chanRowData)
 
 	totalData := 0
 	totalFailed := 0
+	result := new(ImportResult)
 	failedList := make(map[string][]interface{})
 	for newErr := range errChan {
 		if newErr != nil {
-			// if there is an error, then set `err` variable to roll back the transactions
-			err = errors.New("something went wrong")
 			if _, exist := failedList[newErr.Message]; !exist {
 				failedList[newErr.Message] = make([]interface{}, 0)
 			}
@@ -291,10 +285,14 @@ func (r *importer) processData(asyncContext context.Context) (map[string][]inter
 		totalData++
 	}
 
-	return failedList, totalData, totalFailed
+	result.FailedList = failedList
+	result.TotalData = totalData
+	result.TotalFailed = totalFailed
+
+	return result
 }
 
-func (r importer) processEachData(ctx context.Context, data <-chan interface{}, trx *sql.Tx) <-chan *api.HttpError {
+func (r importer) processEachData(ctx context.Context, data <-chan interface{}) <-chan *api.HttpError {
 	errChan := make(chan *api.HttpError)
 	wait := new(sync.WaitGroup)
 	wait.Add(r.worker)
@@ -305,7 +303,11 @@ func (r importer) processEachData(ctx context.Context, data <-chan interface{}, 
 					if err := api.ValidateStruct(dt); err != nil {
 						errChan <- api.NewErr(api.WithErrorData(err), api.WithErrorStatus(400))
 					} else {
-						errChan <- r.fn(ctx, dt, trx, wi)
+						trx, errTrx := r.trx.Begin()
+						errTrx = r.fn(ctx, dt, trx, wi)
+						r.trx.Finish(trx, errTrx)
+
+						errChan <- errors.Cause(errTrx).(*api.HttpError)
 					}
 				}
 				wait.Done()
