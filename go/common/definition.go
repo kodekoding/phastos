@@ -2,8 +2,9 @@ package common
 
 import (
 	"context"
-	"database/sql"
 	"net/http"
+
+	"github.com/jmoiron/sqlx"
 
 	"github.com/kodekoding/phastos/v2/go/database"
 	"github.com/kodekoding/phastos/v2/go/response"
@@ -17,14 +18,14 @@ type ReadRepo interface {
 }
 
 type WriteRepo interface {
-	Insert(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
-	BulkInsert(ctx context.Context, data interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
-	BulkUpdate(ctx context.Context, data interface{}, condition map[string][]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
-	Update(ctx context.Context, data interface{}, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
+	Insert(ctx context.Context, data interface{}, trx ...*sqlx.Tx) (*database.CUDResponse, error)
+	BulkInsert(ctx context.Context, data interface{}, trx ...*sqlx.Tx) (*database.CUDResponse, error)
+	BulkUpdate(ctx context.Context, data interface{}, condition map[string][]interface{}, trx ...*sqlx.Tx) (*database.CUDResponse, error)
+	Update(ctx context.Context, data interface{}, condition map[string]interface{}, trx ...*sqlx.Tx) (*database.CUDResponse, error)
 	Upsert(ctx context.Context, data interface{}, condition map[string]interface{}, opts ...interface{}) (*database.CUDResponse, error)
-	UpdateById(ctx context.Context, data interface{}, id interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
-	Delete(ctx context.Context, condition map[string]interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
-	DeleteById(ctx context.Context, id interface{}, trx ...*sql.Tx) (*database.CUDResponse, error)
+	UpdateById(ctx context.Context, data interface{}, id interface{}, trx ...*sqlx.Tx) (*database.CUDResponse, error)
+	Delete(ctx context.Context, condition map[string]interface{}, trx ...*sqlx.Tx) (*database.CUDResponse, error)
+	DeleteById(ctx context.Context, id interface{}, trx ...*sqlx.Tx) (*database.CUDResponse, error)
 }
 
 type ReadHandler interface {
