@@ -29,6 +29,8 @@ type (
 
 		// Begin transaction on master DB
 		Begin() (*sql.Tx, error)
+		// Begin transaction on master DB
+		Beginx() (*sqlx.Tx, error)
 
 		// BeginTx begins transaction on master DB
 		BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
@@ -130,7 +132,8 @@ type (
 		Result            interface{}
 		IsList            bool
 		UpsertInsertId    int64
-		Trx               *sql.Tx
+		Trx               *sqlx.Tx
+		LockingType       string
 		executedQuery
 	}
 
