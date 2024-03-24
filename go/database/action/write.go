@@ -2,15 +2,15 @@ package action
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
+
+	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 
 	"github.com/kodekoding/phastos/v2/go/common"
 	"github.com/kodekoding/phastos/v2/go/database"
 	"github.com/kodekoding/phastos/v2/go/helper"
-
-	"github.com/pkg/errors"
 )
 
 type BaseWrites interface {
@@ -29,23 +29,23 @@ func NewBaseWrite(db database.ISQL, tableName string, isSoftDelete ...bool) *Bas
 	return &BaseWrite{&baseAction{db, tableName, sofDelete}}
 }
 
-func (b *BaseWrite) Insert(ctx context.Context, data interface{}, optTrx ...*sql.Tx) (*database.CUDResponse, error) {
-	var trx *sql.Tx
+func (b *BaseWrite) Insert(ctx context.Context, data interface{}, optTrx ...*sqlx.Tx) (*database.CUDResponse, error) {
+	var trx *sqlx.Tx
 	if optTrx != nil && len(optTrx) > 0 {
 		trx = optTrx[0]
 	}
 	return b.cudProcess(ctx, database.ActionInsert, data, nil, trx)
 }
 
-func (b *BaseWrite) BulkInsert(ctx context.Context, data interface{}, optTrx ...*sql.Tx) (*database.CUDResponse, error) {
-	var trx *sql.Tx
+func (b *BaseWrite) BulkInsert(ctx context.Context, data interface{}, optTrx ...*sqlx.Tx) (*database.CUDResponse, error) {
+	var trx *sqlx.Tx
 	if optTrx != nil && len(optTrx) > 0 {
 		trx = optTrx[0]
 	}
 	return b.cudProcess(ctx, database.ActionBulkInsert, data, nil, trx)
 }
 
-func (b *BaseWrite) BulkUpdate(ctx context.Context, data interface{}, condition map[string][]interface{}, optTrx ...*sql.Tx) (*database.CUDResponse, error) {
+func (b *BaseWrite) BulkUpdate(ctx context.Context, data interface{}, condition map[string][]interface{}, optTrx ...*sqlx.Tx) (*database.CUDResponse, error) {
 	cudRequestData, err := helper.ConstructColNameAndValueBulk(ctx, data, condition)
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func (b *BaseWrite) BulkUpdate(ctx context.Context, data interface{}, condition 
 		CUDRequest: cudRequestData,
 	}
 	if optTrx != nil && len(optTrx) > 0 {
-		var trx *sql.Tx
+		var trx *sqlx.Tx
 		trx = optTrx[0]
 		qOpts.Trx = trx
 	}
@@ -72,26 +72,26 @@ func (b *BaseWrite) BulkUpdate(ctx context.Context, data interface{}, condition 
 	return result, nil
 }
 
-func (b *BaseWrite) Update(ctx context.Context, data interface{}, condition map[string]interface{}, optTrx ...*sql.Tx) (*database.CUDResponse, error) {
-	var trx *sql.Tx
+func (b *BaseWrite) Update(ctx context.Context, data interface{}, condition map[string]interface{}, optTrx ...*sqlx.Tx) (*database.CUDResponse, error) {
+	var trx *sqlx.Tx
 	if optTrx != nil && len(optTrx) > 0 {
 		trx = optTrx[0]
 	}
 	return b.cudProcess(ctx, database.ActionUpdate, data, condition, trx)
 }
 
-func (b *BaseWrite) UpdateById(ctx context.Context, data interface{}, id interface{}, optTrx ...*sql.Tx) (*database.CUDResponse, error) {
+func (b *BaseWrite) UpdateById(ctx context.Context, data interface{}, id interface{}, optTrx ...*sqlx.Tx) (*database.CUDResponse, error) {
 	condition := map[string]interface{}{
 		"id = ?": id,
 	}
-	var trx *sql.Tx
+	var trx *sqlx.Tx
 	if optTrx != nil && len(optTrx) > 0 {
 		trx = optTrx[0]
 	}
 	return b.cudProcess(ctx, database.ActionUpdateById, data, condition, trx)
 }
 
-func (b *BaseWrite) Delete(ctx context.Context, condition map[string]interface{}, optTrx ...*sql.Tx) (*database.CUDResponse, error) {
+func (b *BaseWrite) Delete(ctx context.Context, condition map[string]interface{}, optTrx ...*sqlx.Tx) (*database.CUDResponse, error) {
 	// soft delete, just update the deleted_at to not null
 	data := &database.CUDConstructData{
 		Cols:      []string{"deleted_at = now()"},
@@ -102,7 +102,7 @@ func (b *BaseWrite) Delete(ctx context.Context, condition map[string]interface{}
 		CUDRequest: data,
 	}
 	if optTrx != nil && len(optTrx) > 0 {
-		var trx *sql.Tx
+		var trx *sqlx.Tx
 		trx = optTrx[0]
 		qOpts.Trx = trx
 	}
@@ -116,7 +116,7 @@ func (b *BaseWrite) Delete(ctx context.Context, condition map[string]interface{}
 	return b.db.Write(ctx, qOpts, b.isSoftDelete)
 }
 
-func (b *BaseWrite) DeleteById(ctx context.Context, id interface{}, optTrx ...*sql.Tx) (*database.CUDResponse, error) {
+func (b *BaseWrite) DeleteById(ctx context.Context, id interface{}, optTrx ...*sqlx.Tx) (*database.CUDResponse, error) {
 	// soft delete, just update the deleted_at to not null
 	data := &database.CUDConstructData{
 		Action:    database.ActionDeleteById,
@@ -127,7 +127,7 @@ func (b *BaseWrite) DeleteById(ctx context.Context, id interface{}, optTrx ...*s
 		CUDRequest: data,
 	}
 	if optTrx != nil && len(optTrx) > 0 {
-		var trx *sql.Tx
+		var trx *sqlx.Tx
 		trx = optTrx[0]
 		qOpts.Trx = trx
 	}
@@ -145,10 +145,10 @@ func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, condition map[
 		tableRequest.SetWhereCondition(cond, val)
 	}
 
-	var trx *sql.Tx
+	var trx *sqlx.Tx
 	var includeDeleted bool
 	if opts != nil && len(opts) > 0 {
-		trx = opts[0].(*sql.Tx)
+		trx = opts[0].(*sqlx.Tx)
 		if len(opts) > 1 {
 			includeDeleted = opts[1].(bool)
 		}
@@ -210,7 +210,7 @@ func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interfac
 
 	totalOpts := len(opts)
 	if opts != nil && totalOpts > 0 {
-		qOpts.Trx = opts[0].(*sql.Tx)
+		qOpts.Trx = opts[0].(*sqlx.Tx)
 		if totalOpts > 1 {
 			qOpts.UpsertInsertId = opts[1].(int64)
 		}
