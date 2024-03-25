@@ -105,7 +105,7 @@ func serveHTTPs(config *Config, secure bool) error {
 
 func WaitTermSig(ctx context.Context, handler func(context.Context) error) <-chan struct{} {
 	stopedChannel := make(chan struct{})
-	ctx, cancel := context.WithCancel(ctx)
+	newCtx, cancel := context.WithCancel(ctx)
 
 	go func() {
 		c := make(chan os.Signal, 1)
@@ -116,25 +116,23 @@ func WaitTermSig(ctx context.Context, handler func(context.Context) error) <-cha
 
 		cancel()
 		// We received an os signal, shut down.
-		if err := handler(ctx); err != nil {
+		if err := handler(newCtx); err != nil {
 			log.Printf("graceful shutdown  failed: %v", err)
 		} else {
 			log.Println("gracefull shutdown succeed")
-			go func() {
-				isNotifyServiceStatus, err := strconv.ParseBool(os.Getenv("NOTIFY_SERVICE_STATUS"))
-				if err != nil {
-					isNotifyServiceStatus = false
-				}
-				appName := os.Getenv("APP_NAME")
-				environment := os.Getenv("APPS_ENV")
-				if isNotifyServiceStatus {
-					_ = helper.SendSlackNotification(
-						ctx,
-						helper.NotifTitle(fmt.Sprintf("[%s] %s Service is Stopped", environment, appName)),
-						helper.NotifMsgType(helper.NotifWarnType),
-					)
-				}
-			}()
+			isNotifyServiceStatus, err := strconv.ParseBool(os.Getenv("NOTIFY_SERVICE_STATUS"))
+			if err != nil {
+				isNotifyServiceStatus = false
+			}
+			appName := os.Getenv("APP_NAME")
+			environment := os.Getenv("APPS_ENV")
+			if isNotifyServiceStatus {
+				_ = helper.SendSlackNotification(
+					ctx,
+					helper.NotifTitle(fmt.Sprintf("[%s] %s Service is Stopped", environment, appName)),
+					helper.NotifMsgType(helper.NotifWarnType),
+				)
+			}
 		}
 
 		close(stopedChannel)
