@@ -18,12 +18,13 @@ import (
 )
 
 type Response struct {
-	Message       string `json:"message,omitempty"`
-	Data          any    `json:"data,omitempty"`
-	Err           error  `json:"error,omitempty"`
-	statusCode    int
-	InternalError *HttpError                 `json:"-"`
-	MetaData      *database.ResponseMetaData `json:"metadata,omitempty"`
+	Message          string `json:"message,omitempty"`
+	Data             any    `json:"data,omitempty"`
+	Err              error  `json:"error,omitempty"`
+	isPaginationData bool
+	statusCode       int
+	InternalError    *HttpError                 `json:"-"`
+	MetaData         *database.ResponseMetaData `json:"metadata,omitempty"`
 }
 
 func NewResponse() *Response {
@@ -42,13 +43,17 @@ func (resp *Response) SetStatusCode(statusCode int) *Response {
 	return resp
 }
 
-func (resp *Response) SetData(data any) *Response {
+func (resp *Response) SetData(data any, isPaginate ...bool) *Response {
 	resp.Data = data
 	if selectResponseData, valid := data.(*database.SelectResponse); valid {
 		if selectResponseData.ResponseMetaData != nil {
 			resp.MetaData = selectResponseData.ResponseMetaData
 		}
 		resp.Data = selectResponseData.Data
+	}
+
+	if isPaginate != nil && len(isPaginate) > 0 {
+		resp.isPaginationData = isPaginate[0]
 	}
 	return resp
 }
@@ -68,7 +73,7 @@ func (resp *Response) Send(w http.ResponseWriter) {
 		responseStatus = resp.statusCode
 		if resp.Data != nil {
 			dataToMarshal = resp.Data
-			if resp.MetaData != nil {
+			if resp.MetaData != nil && resp.isPaginationData {
 				dataToMarshal = map[string]any{
 					"data":     resp.Data,
 					"metadata": resp.MetaData,
