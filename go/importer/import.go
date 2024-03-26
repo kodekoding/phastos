@@ -304,10 +304,14 @@ func (r importer) processEachData(ctx context.Context, data <-chan interface{}) 
 						errChan <- api.NewErr(api.WithErrorData(err), api.WithErrorStatus(400))
 					} else {
 						trx, errTrx := r.trx.Begin()
-						errTrx = r.fn(ctx, dt, trx, wi)
+						errFn := r.fn(ctx, dt, trx, wi)
+						if errFn != nil {
+							// set `errTrx` to rollback the transaction
+							errTrx = errors.New("something went wrong")
+						}
 						r.trx.Finish(trx, errTrx)
 
-						errChan <- errors.Cause(errTrx).(*api.HttpError)
+						errChan <- errFn
 					}
 				}
 				wait.Done()
