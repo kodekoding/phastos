@@ -71,7 +71,9 @@ func (resp *Response) Send(w http.ResponseWriter) {
 		}
 	} else {
 		responseStatus = resp.statusCode
+		bodyContentAvailable := false
 		if resp.Data != nil {
+			bodyContentAvailable = true
 			dataToMarshal = resp.Data
 			if resp.MetaData != nil && resp.isPaginationData {
 				dataToMarshal = map[string]any{
@@ -79,16 +81,19 @@ func (resp *Response) Send(w http.ResponseWriter) {
 					"metadata": resp.MetaData,
 				}
 			}
-		} else {
-			responseStatus = http.StatusNoContent
 		}
 
 		if resp.Message != "" {
+			bodyContentAvailable = true
+
 			dataToMarshal = map[string]string{
 				"message": resp.Message,
 			}
 		}
 
+		if !bodyContentAvailable {
+			resp.statusCode = http.StatusNoContent
+		}
 	}
 
 	w.WriteHeader(responseStatus)
