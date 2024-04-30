@@ -301,7 +301,10 @@ func (r importer) processEachData(ctx context.Context, data <-chan interface{}) 
 			go func(wi int) {
 				for dt := range data {
 					if err := api.ValidateStruct(dt); err != nil {
-						errChan <- api.NewErr(api.WithErrorData(err), api.WithErrorStatus(400))
+						errData := map[string]interface{}{
+							"validation_error": err,
+						}
+						errChan <- api.NewErr(api.WithErrorData(errData), api.WithErrorStatus(400))
 					} else {
 						trx, errTrx := r.trx.Begin()
 						errFn := r.fn(ctx, dt, trx, wi)
