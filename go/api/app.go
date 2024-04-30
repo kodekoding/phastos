@@ -308,7 +308,6 @@ func (app *App) Start() error {
 	app.Handler = secureMiddleware.Handler(app.Handler)
 
 	corsOptions := cors.Options{
-		AllowedOrigins: []string{"https://*", "http://*"},
 		AllowedMethods: []string{"PATCH", "POST", "DELETE", "GET", "PUT", "OPTIONS"},
 		AllowedHeaders: []string{"Origin", "Referer", "token", "content-type", "Content-Type", "Authorization"},
 		MaxAge:         60 * 60, //1 hour
