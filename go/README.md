@@ -2,6 +2,15 @@
 
 ## Features
 
+- [API apps](https://github.com/kodekoding/phastos/tree/master/go#api-apps)
+- [Caches](https://github.com/kodekoding/phastos/tree/master/go#caches)
+- [Database / Query Builder](https://github.com/kodekoding/phastos/tree/master/go#database--query-builder)
+- [Upload File to Cloud Storage Services](https://github.com/kodekoding/phastos/tree/master/go#upload-file-to-cloud-storage-services)
+- [Generator Helper](https://github.com/kodekoding/phastos/tree/master/go#generator-helper)
+- [Importer Helper](https://github.com/kodekoding/phastos/tree/master/go#importer-helper)
+- [Mail Helper](https://github.com/kodekoding/phastos/tree/master/go#mail-helper)
+- [Auth Middleware Helper](https://github.com/kodekoding/phastos/tree/master/go#auth-middleware-helper)
+
 
 ### [API apps](https://github.com/kodekoding/phastos/tree/master/go/api)
 - Auto Connect to DB (MySQL | Postgres) and/or redis (redigo) cache* 
@@ -52,7 +61,7 @@ notes:
 - Support Soft Delete Process
 - Support Pagination
 
-### [Upload File to Cloud Services](https://github.com/kodekoding/phastos/tree/master/go/storage)
+### [Upload File to Cloud Storage Services](https://github.com/kodekoding/phastos/tree/master/go/storage)
 - supports GCS + AWS (soon)
 - interface definition
   - ![img_6.png](img_6.png)
