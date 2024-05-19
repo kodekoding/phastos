@@ -146,7 +146,7 @@ func (app *App) initPlugins() {
 		})
 	})
 
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).With().Str("app", os.Getenv("APP_NAME")).Logger()
 }
 
 func (app *App) requestValidator(i interface{}) error {
