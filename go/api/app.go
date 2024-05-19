@@ -287,6 +287,13 @@ func (app *App) AddController(ctrl Controller) {
 	app.TotalEndpoints += len(config.Routes)
 }
 
+func (app *App) AddControllers(ctrls Controllers) {
+	controllers := ctrls.Register()
+	for _, ctrl := range controllers {
+		app.AddController(ctrl)
+	}
+}
+
 func (app *App) WrapToContext(wrapper Wrapper) {
 	app.wrapper = append(app.wrapper, wrapper)
 }

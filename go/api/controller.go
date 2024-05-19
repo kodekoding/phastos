@@ -77,6 +77,10 @@ type Controller interface {
 	GetConfig() ControllerConfig
 }
 
+type Controllers interface {
+	Register() []Controller
+}
+
 type ControllerImpl struct {
 }
 
