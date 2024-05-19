@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/kodekoding/phastos/v2/go/database"
-	"github.com/kodekoding/phastos/v2/go/log"
 	"github.com/volatiletech/null"
 )
 
@@ -165,7 +165,7 @@ func ConstructColNameAndValue(ctx context.Context, structName interface{}, isNul
 	}
 
 	if reflectVal.Kind() != reflect.Struct {
-		log.Errorln("second parameter should be struct")
+		log.Error().Msg("second parameter should be struct")
 		return nil, nil
 	}
 
