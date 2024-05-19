@@ -16,10 +16,10 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/cors"
+	"github.com/rs/zerolog/log"
 
 	context2 "github.com/kodekoding/phastos/v2/go/context"
 	"github.com/kodekoding/phastos/v2/go/helper"
-	"github.com/kodekoding/phastos/v2/go/log"
 	"github.com/kodekoding/phastos/v2/go/response"
 )
 
@@ -115,12 +115,12 @@ func (cr *ChiRouter) createStaticHandler(pattern, imgStaticDir string) http.Hand
 		fileName := chi.URLParam(r, "name")
 		file, err := fileSystem.Open(fileName)
 		if err != nil {
-			log.Println("error when Open File", err.Error())
+			log.Info().Err(err).Msg("error when Open File")
 			return
 		}
 		_ = file.Close()
 
-		log.Println("done")
+		log.Info().Msg("done")
 		fileServer.ServeHTTP(w, r)
 		return
 	}
@@ -140,7 +140,7 @@ func FileServer(r chi.Router, public string, static string) {
 
 	fs := http.StripPrefix(public, http.FileServer(http.Dir(root)))
 
-	log.Println(public, "->", root)
+	log.Info().Msgf("%s -> %s", public, root)
 	if public != "/" && public[len(public)-1] != '/' {
 		r.Get(public, http.RedirectHandler(public+"/", 301).ServeHTTP)
 		public += "/"
@@ -209,7 +209,7 @@ func (cr *ChiRouter) wrapper(pattern string, handler WrapperFunc) http.HandlerFu
 				writer.WriteHeader(http.StatusGatewayTimeout)
 				_, err := writer.Write([]byte("timeout"))
 				if err != nil {
-					log.Error("context deadline exceed: ", err.Error())
+					log.Error().Err(err).Msg("context deadline exceed")
 				}
 			}
 		case responseFunc := <-respChan:
@@ -218,7 +218,7 @@ func (cr *ChiRouter) wrapper(pattern string, handler WrapperFunc) http.HandlerFu
 				responseFunc.Latency = time.Since(t).Seconds() * 1000
 				responseFunc.Send(writer)
 			} else {
-				log.Infoln(request.URL.Path + ": handler send nil response")
+				log.Info().Msg(request.URL.Path + ": handler send nil response")
 			}
 		}
 	}
@@ -260,12 +260,12 @@ func panicRecover(r *http.Request, path string) {
 			for _, service := range allNotifPlatform {
 				if service.IsActive() {
 					if err := service.Send(ctx, notifMsg, nil); err != nil {
-						log.Errorf("error when send %s notifications: %s", service.Type(), err.Error())
+						log.Error().Err(err).Msgf("error when send %s notifications", service.Type())
 					}
 				}
 
 			}
 		}()
-		log.Error("got panic at handler: ", fields)
+		log.Error().Fields(fields).Msg("got panic at handler")
 	}
 }

@@ -11,12 +11,12 @@ import (
 
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 
 	ctxlib "github.com/kodekoding/phastos/v2/go/context"
 	"github.com/kodekoding/phastos/v2/go/env"
 	cutomerr "github.com/kodekoding/phastos/v2/go/error"
 	"github.com/kodekoding/phastos/v2/go/helper"
-	"github.com/kodekoding/phastos/v2/go/log"
 )
 
 type JSON struct {
@@ -147,7 +147,7 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 			}
 			errData, err := json.Marshal(customErr.GetData())
 			if err != nil {
-				log.Error("error when marshal optional data:", err.Error())
+				log.Error().Err(err).Msg("error when marshal optional data:")
 			} else {
 				optionalData = string(errData)
 			}
@@ -162,12 +162,12 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 			%s`, errMsg, optionalData)
 		go jr.sendNotif(ctx, r, optionalData, notifMsg, usingErr.Error())
 		// print log
-		log.Error(errMsg)
+		log.Error().Msgf(errMsg)
 		return true
 	} else if jr.Code == 200 && r.Method != http.MethodGet {
 		// if the request is CUD (Create Update Delete) and SUCCESS, then log to info file
 		bodyReq, _ := ioutil.ReadAll(r.Body)
-		log.Info(map[string]interface{}{
+		log.Info().Fields(map[string]interface{}{
 			"body":   string(bodyReq),
 			"header": r.Header,
 			"params": r.URL.RawQuery,
@@ -243,7 +243,7 @@ func (jr *JSON) sendNotif(ctx context.Context, r *http.Request, notifMsg, option
 				}
 				if jr.Code == 500 {
 					if err := platform.Send(ctx, notifMsg, attachment); err != nil {
-						log.Errorf("error when send %s notifications: %s", platform.Type(), err.Error())
+						log.Error().Err(err).Msgf("error when send %s notifications", platform.Type())
 					}
 				}
 			}
@@ -264,7 +264,7 @@ func (jr *JSON) Send(w http.ResponseWriter) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, writeErr := w.Write([]byte(`{"errors":["Internal Server Error"]}`))
 		if writeErr != nil {
-			log.Error("Error when Send Response: ", writeErr.Error())
+			log.Error().Err(writeErr).Msg("Error when Send Response")
 		}
 	}
 

@@ -10,11 +10,11 @@ import (
 
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 
 	"github.com/kodekoding/phastos/v2/go/context"
 	"github.com/kodekoding/phastos/v2/go/database"
 	"github.com/kodekoding/phastos/v2/go/env"
-	"github.com/kodekoding/phastos/v2/go/log"
 )
 
 type Response struct {
@@ -189,7 +189,7 @@ func (resp *Response) SentNotif(ctx contextpkg.Context, err *HttpError, r *http.
 
 						notifTitle := fmt.Sprintf("Error Processing Request on %s", env.ServiceEnv())
 						if err := notif.Send(ctx, notifTitle, slackAttachment); err != nil {
-							log.Errorln("error when sent", notif.Type(), " notifications: ", err.Error())
+							log.Error().Err(err).Msgf("error when sent %s notifications", notif.Type())
 						}
 					}
 				}
