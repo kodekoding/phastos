@@ -60,6 +60,7 @@ notes:
 - Support Count Process
 - Support Soft Delete Process
 - Support Pagination
+- Support Slow Query Notification
 
 ### [Upload File to Cloud Storage Services](https://github.com/kodekoding/phastos/tree/master/go/storage)
 - supports GCS + AWS (soon)
