@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/gorilla/schema"
+	logWriter "github.com/newrelic/go-agent/v3/integrations/logcontext-v2/zerologWriter"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -154,8 +156,13 @@ func (app *App) initPlugins() {
 			"message": "pong",
 		})
 	})
+	var writer io.Writer
+	writer = zerolog.ConsoleWriter{Out: writer}
 
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).With().Str("app", os.Getenv("APP_NAME")).Logger()
+	if app.newRelic != nil {
+		writer = logWriter.New(os.Stdout, app.newRelic)
+	}
+	log.Logger = log.Output(writer).With().Str("app", os.Getenv("APP_NAME")).Logger()
 }
 
 func (app *App) requestValidator(i interface{}) error {
