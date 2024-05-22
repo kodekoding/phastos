@@ -10,16 +10,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jmoiron/sqlx"
+	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/kodekoding/phastos/v2/go/api"
 	contextinternal "github.com/kodekoding/phastos/v2/go/context"
 	"github.com/kodekoding/phastos/v2/go/database"
 	"github.com/kodekoding/phastos/v2/go/entity"
 	"github.com/kodekoding/phastos/v2/go/env"
 	"github.com/kodekoding/phastos/v2/go/helper"
+	"github.com/kodekoding/phastos/v2/go/monitoring"
 	"github.com/kodekoding/phastos/v2/go/notifications"
 )
 
@@ -193,7 +195,15 @@ func (r *importer) validateField() error {
 }
 
 func (r *importer) ProcessData() *ImportResult {
-
+	txn := monitoring.BeginTrxFromContext(r.ctx)
+	var importProcessSegment *newrelic.Segment
+	if txn != nil {
+		importProcessSegment = txn.StartSegment("Importer-ProcessImportData")
+		importProcessSegment.AddAttribute("process_name", r.processName)
+		importProcessSegment.AddAttribute("file_type", r.sourceType)
+		importProcessSegment.AddAttribute("executed_by", r.jwtData.Data)
+		defer importProcessSegment.End()
+	}
 	if err := r.validateField(); err != nil {
 		log.Error().Msg(err.Error())
 		return nil
@@ -210,10 +220,15 @@ func (r *importer) ProcessData() *ImportResult {
 		asyncContext = context.WithValue(asyncContext, contextinternal.JwtContext{}, r.jwtData)
 	}
 
-	result := r.processData(asyncContext)
+	result := r.processData(asyncContext, txn)
 
 	totalData := result.TotalData
 	totalFailed := result.TotalFailed
+
+	importProcessSegment.AddAttribute("result", map[string]int{
+		"total_data":   totalData,
+		"total_failed": totalFailed,
+	})
 
 	notifData := make(map[string]string)
 	notifType := helper.NotifInfoType
@@ -257,14 +272,14 @@ func (r *importer) ProcessData() *ImportResult {
 	return result
 }
 
-func (r *importer) processData(asyncContext context.Context) *ImportResult {
+func (r *importer) processData(asyncContext context.Context, nrTrx *newrelic.Transaction) *ImportResult {
 	var chanRowData = make(<-chan interface{})
 	if r.sourceType == ExcelFileType {
 		chanRowData = r.readFromExcel(r.structDestReflVal, r.file, r.mapContent)
 	} else if r.sourceType == CSVFileType {
 		chanRowData = r.readFromCSV(r.structDestReflVal, r.file, r.mapContent)
 	}
-	errChan := r.processEachData(asyncContext, chanRowData)
+	errChan := r.processEachData(asyncContext, chanRowData, nrTrx)
 
 	totalData := 0
 	totalFailed := 0
@@ -292,13 +307,28 @@ func (r *importer) processData(asyncContext context.Context) *ImportResult {
 	return result
 }
 
-func (r importer) processEachData(ctx context.Context, data <-chan interface{}) <-chan *api.HttpError {
+func (r importer) processEachData(ctx context.Context, data <-chan interface{}, nrTx *newrelic.Transaction) <-chan *api.HttpError {
 	errChan := make(chan *api.HttpError)
 	wait := new(sync.WaitGroup)
 	wait.Add(r.worker)
-	go func() {
+	// for backward compatibility, if the user didn't use new relic as monitoring
+	var newAsyncTrx *newrelic.Transaction
+	if nrTx != nil {
+		newAsyncTrx = nrTx.NewGoroutine()
+	}
+	go func(txn *newrelic.Transaction) {
+		// for backward compatibility
+		var workerTrx *newrelic.Transaction
+		if nrTx != nil {
+			workerTrx = txn.NewGoroutine()
+		}
 		for workerIndex := 0; workerIndex < r.worker; workerIndex++ {
-			go func(wi int) {
+			go func(wi int, txnWorker *newrelic.Transaction) {
+				// for backward compatibility
+				if txnWorker != nil {
+					workerSegment := txnWorker.StartSegment(fmt.Sprintf("ImporterProcessEachData-Worker-%d", wi+1))
+					defer workerSegment.End()
+				}
 				for dt := range data {
 					if err := api.ValidateStruct(dt); err != nil {
 						errData := map[string]interface{}{
@@ -318,9 +348,9 @@ func (r importer) processEachData(ctx context.Context, data <-chan interface{}) 
 					}
 				}
 				wait.Done()
-			}(workerIndex)
+			}(workerIndex, workerTrx)
 		}
-	}()
+	}(newAsyncTrx)
 
 	go func() {
 		wait.Wait()
