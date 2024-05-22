@@ -1,6 +1,7 @@
 package monitoring
 
 import (
+	"context"
 	"log"
 	"os"
 
@@ -36,7 +37,9 @@ func InitNewRelic(opts ...NewRelicOpts) *newRelic {
 	app, err := newrelic.NewApplication(
 		newrelic.ConfigAppName(newRelicPlatform.appName),
 		newrelic.ConfigLicense(newRelicPlatform.licenseKey),
-		newrelic.ConfigAppLogForwardingEnabled(true),
+		newrelic.ConfigAppLogDecoratingEnabled(true),
+		newrelic.ConfigAppLogForwardingEnabled(false),
+		newrelic.ConfigCodeLevelMetricsEnabled(true),
 	)
 	newRelicPlatform.app = app
 	if err != nil {
@@ -49,6 +52,14 @@ func InitNewRelic(opts ...NewRelicOpts) *newRelic {
 
 func (n *newRelic) GetApp() *newrelic.Application {
 	return n.app
+}
+
+func BeginTrxFromContext(ctx context.Context) *newrelic.Transaction {
+	return newrelic.FromContext(ctx)
+}
+
+func NewContext(parentCtx context.Context, txn *newrelic.Transaction) context.Context {
+	return newrelic.NewContext(parentCtx, txn)
 }
 
 func WithAppName(appName string) NewRelicOpts {
