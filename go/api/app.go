@@ -1,7 +1,7 @@
 package api
 
 import (
-	contextpkg "context"
+	"context"
 	"encoding/json"
 	"fmt"
 	"mime/multipart"
@@ -14,16 +14,17 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/gorilla/schema"
+	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/unrolled/secure"
-	"golang.org/x/net/context"
 
 	"github.com/kodekoding/phastos/v2/go/cache"
 	"github.com/kodekoding/phastos/v2/go/common"
 	"github.com/kodekoding/phastos/v2/go/cron"
 	"github.com/kodekoding/phastos/v2/go/database"
 	"github.com/kodekoding/phastos/v2/go/helper"
+	"github.com/kodekoding/phastos/v2/go/monitoring"
 	"github.com/kodekoding/phastos/v2/go/server"
 )
 
@@ -45,6 +46,7 @@ type (
 		db             database.ISQL
 		trx            database.Transactions
 		cache          cache.Caches
+		newRelic       *newrelic.Application
 	}
 
 	Options func(api *App)
@@ -61,7 +63,7 @@ func NewApp(opts ...Options) *App {
 	}
 
 	apiApp.Config = new(server.Config)
-	apiApp.Config.Ctx = contextpkg.Background()
+	apiApp.Config.Ctx = context.Background()
 	apiApp.Port = 8000
 	apiApp.ReadTimeout = 3
 	apiApp.WriteTimeout = 3
@@ -105,6 +107,13 @@ func WithCronJob(timezone ...string) Options {
 			cronOpts = cron.WithTimeZone(timezone[0])
 		}
 		app.cron = cron.New(cronOpts)
+	}
+}
+
+func WithNewRelic() Options {
+	return func(app *App) {
+		newRelicPlatform := monitoring.InitNewRelic()
+		app.newRelic = newRelicPlatform.GetApp()
 	}
 }
 
@@ -222,11 +231,11 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 				return app.requestValidator(i)
 			},
 		}
-		ctx, cancel := contextpkg.WithTimeout(r.Context(), time.Second*time.Duration(app.apiTimeout))
+		ctx, cancel := context.WithTimeout(r.Context(), time.Second*time.Duration(app.apiTimeout))
 		defer cancel()
 		traceId := helper.GenerateUUIDV4()
 
-		ctx = contextpkg.WithValue(ctx, common.TraceIdKeyContextStr, traceId)
+		ctx = context.WithValue(ctx, common.TraceIdKeyContextStr, traceId)
 		*r = *r.WithContext(ctx)
 
 		respChan := make(chan *Response)
@@ -237,7 +246,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 
 		select {
 		case <-ctx.Done():
-			if ctx.Err() == contextpkg.DeadlineExceeded {
+			if ctx.Err() == context.DeadlineExceeded {
 				w.WriteHeader(http.StatusGatewayTimeout)
 				_, err = w.Write([]byte("timeout"))
 				if err != nil {
@@ -278,11 +287,15 @@ func (app *App) AddController(ctrl Controller) {
 			middlewares = append(middlewares, *route.Middlewares...)
 		}
 
+		routePath := route.GetVersionedPath(config.Path)
+		handlerFunc := app.wrapHandler(route.Handler)
+		if app.newRelic != nil {
+			routePath, handlerFunc = newrelic.WrapHandleFunc(app.newRelic, routePath, handlerFunc)
+		}
 		handler := chi.
 			Chain(middlewares...).
-			HandlerFunc(app.wrapHandler(route.Handler))
-
-		app.Http.Method(route.Method, route.GetVersionedPath(config.Path), handler)
+			HandlerFunc(handlerFunc)
+		app.Http.Method(route.Method, routePath, handler)
 	}
 	app.TotalEndpoints += len(config.Routes)
 }
