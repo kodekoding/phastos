@@ -8,6 +8,8 @@ import (
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
 	"github.com/pkg/errors"
 	satoriuuid "github.com/satori/go.uuid"
+
+	"github.com/kodekoding/phastos/v2/go/monitoring"
 )
 
 // Service structure
@@ -52,7 +54,11 @@ func (p *Service) SetTraceId(traceId string) {
 }
 
 // Send - Post to Slack
-func (p *Service) Send(_ context.Context, text string, attachment interface{}) error {
+func (p *Service) Send(ctx context.Context, text string, attachment interface{}) error {
+	txn := monitoring.BeginTrxFromContext(ctx)
+	if txn != nil {
+		defer txn.StartSegment("Notification-Slack-Send").End()
+	}
 	defer p.resetURL()
 	var slackAttachment *sgw.Attachment
 	if attachment != nil {

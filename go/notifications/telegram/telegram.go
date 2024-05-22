@@ -2,8 +2,11 @@ package telegram
 
 import (
 	"context"
+
 	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/pkg/errors"
+
+	"github.com/kodekoding/phastos/v2/go/monitoring"
 )
 
 type (
@@ -51,7 +54,11 @@ func New(cfg *TelegramConfig) (*Service, error) {
 	}, nil
 }
 
-func (s *Service) Send(_ context.Context, text string, attachment interface{}) error {
+func (s *Service) Send(ctx context.Context, text string, attachment interface{}) error {
+	txn := monitoring.BeginTrxFromContext(ctx)
+	if txn != nil {
+		defer txn.StartSegment("Notification-Slack-Telegram").End()
+	}
 	defer s.resetChatId()
 	newMessage := tbot.NewMessage(s.chatId, text)
 	if _, err := s.bot.Send(newMessage); err != nil {
