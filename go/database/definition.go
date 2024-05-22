@@ -96,6 +96,7 @@ type (
 		timeout            time.Duration
 		slowQueryThreshold float64
 		engine             string
+		isNR               bool
 	}
 
 	SQLs struct {

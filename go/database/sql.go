@@ -15,6 +15,9 @@ import (
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // import postgre driver
+	_ "github.com/newrelic/go-agent/v3/integrations/nrmysql"
+	_ "github.com/newrelic/go-agent/v3/integrations/nrpq"
+	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	_ "gorm.io/driver/mysql" // import mysql driver
@@ -54,6 +57,10 @@ func Connect() (*SQL, error) {
 	db := newSQL(masterDB, followerDB)
 	db.engine = engine
 
+	if strings.HasPrefix(engine, "nr") {
+		// using NR (New Relic) driver
+		db.isNR = true
+	}
 	log.Info().Msg(fmt.Sprintf("Successful connect to DB %s", engine))
 	return db, nil
 }
@@ -107,6 +114,12 @@ func (this *SQL) Rebind(sql string) string {
 }
 
 func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...interface{}) error {
+	if this.isNR {
+		txn := newrelic.FromContext(ctx)
+		segment := txn.StartSegment("PhastosDB-Read")
+		defer segment.End()
+		ctx = newrelic.NewContext(ctx, txn)
+	}
 	if opts.BaseQuery == "" {
 		return errors.New("Base Query cannot be empty, please defined the base query")
 	}
@@ -202,6 +215,12 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	return nil
 }
 func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...bool) (*CUDResponse, error) {
+	if this.isNR {
+		txn := newrelic.FromContext(ctx)
+		segment := txn.StartSegment("PhastosDB-Write")
+		defer segment.End()
+		ctx = newrelic.NewContext(ctx, txn)
+	}
 	if opts.CUDRequest == nil {
 		return nil, errors.New("CUD Request Struct must be assigned")
 	}
@@ -209,11 +228,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		exec sql.Result
 		err  error
 	)
-	// tracing
-	//trc, ctx := tracer.StartSQLSpanFromContext(ctx, "CommonRepo-ExecTransaction", query)
-	//defer trc.Finish()
-	//marshalParam, _ := json.Marshal(data.Values)
-	//trc.SetTag("sqlQuery.params", string(marshalParam))
+
 	var (
 		addOnQuery string
 	)
@@ -411,6 +426,9 @@ func (this *SQL) checkSQLWarning(ctx context.Context, query string, start time.T
 }
 
 func GenerateAddOnQuery(ctx context.Context, reqData *TableRequest) (string, []interface{}, error) {
+	txn := newrelic.FromContext(ctx)
+	segment := txn.StartSegment("PhastosDB-GeneratingAddOnQuery")
+	defer segment.End()
 	// tracing
 	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-GenerateAddOnQuery")
 	//defer trc.Finish()
