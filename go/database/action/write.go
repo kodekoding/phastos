@@ -11,6 +11,7 @@ import (
 	"github.com/kodekoding/phastos/v2/go/common"
 	"github.com/kodekoding/phastos/v2/go/database"
 	"github.com/kodekoding/phastos/v2/go/helper"
+	"github.com/kodekoding/phastos/v2/go/monitoring"
 )
 
 type BaseWrites interface {
@@ -30,6 +31,11 @@ func NewBaseWrite(db database.ISQL, tableName string, isSoftDelete ...bool) *Bas
 }
 
 func (b *BaseWrite) Insert(ctx context.Context, data interface{}, optTrx ...*sqlx.Tx) (*database.CUDResponse, error) {
+	txn := monitoring.BeginTrxFromContext(ctx)
+	if txn != nil {
+		insertSegment := txn.StartSegment("PhastosDB-Insert")
+		defer insertSegment.End()
+	}
 	var trx *sqlx.Tx
 	if optTrx != nil && len(optTrx) > 0 {
 		trx = optTrx[0]
@@ -38,6 +44,11 @@ func (b *BaseWrite) Insert(ctx context.Context, data interface{}, optTrx ...*sql
 }
 
 func (b *BaseWrite) BulkInsert(ctx context.Context, data interface{}, optTrx ...*sqlx.Tx) (*database.CUDResponse, error) {
+	txn := monitoring.BeginTrxFromContext(ctx)
+	if txn != nil {
+		bulkInsertSegment := txn.StartSegment("PhastosDB-BulkInsert")
+		defer bulkInsertSegment.End()
+	}
 	var trx *sqlx.Tx
 	if optTrx != nil && len(optTrx) > 0 {
 		trx = optTrx[0]
@@ -73,6 +84,11 @@ func (b *BaseWrite) BulkUpdate(ctx context.Context, data interface{}, condition 
 }
 
 func (b *BaseWrite) Update(ctx context.Context, data interface{}, condition map[string]interface{}, optTrx ...*sqlx.Tx) (*database.CUDResponse, error) {
+	txn := monitoring.BeginTrxFromContext(ctx)
+	if txn != nil {
+		updateSegment := txn.StartSegment("PhastosDB-Update")
+		defer updateSegment.End()
+	}
 	var trx *sqlx.Tx
 	if optTrx != nil && len(optTrx) > 0 {
 		trx = optTrx[0]
@@ -81,6 +97,11 @@ func (b *BaseWrite) Update(ctx context.Context, data interface{}, condition map[
 }
 
 func (b *BaseWrite) UpdateById(ctx context.Context, data interface{}, id interface{}, optTrx ...*sqlx.Tx) (*database.CUDResponse, error) {
+	txn := monitoring.BeginTrxFromContext(ctx)
+	if txn != nil {
+		updateByIdSegment := txn.StartSegment("PhastosDB-UpdateByID")
+		defer updateByIdSegment.End()
+	}
 	condition := map[string]interface{}{
 		"id = ?": id,
 	}
@@ -92,6 +113,11 @@ func (b *BaseWrite) UpdateById(ctx context.Context, data interface{}, id interfa
 }
 
 func (b *BaseWrite) Delete(ctx context.Context, condition map[string]interface{}, optTrx ...*sqlx.Tx) (*database.CUDResponse, error) {
+	txn := monitoring.BeginTrxFromContext(ctx)
+	if txn != nil {
+		deleteSegment := txn.StartSegment("PhastosDB-Delete")
+		defer deleteSegment.End()
+	}
 	// soft delete, just update the deleted_at to not null
 	data := &database.CUDConstructData{
 		Cols:      []string{"deleted_at = now()"},
@@ -117,6 +143,11 @@ func (b *BaseWrite) Delete(ctx context.Context, condition map[string]interface{}
 }
 
 func (b *BaseWrite) DeleteById(ctx context.Context, id interface{}, optTrx ...*sqlx.Tx) (*database.CUDResponse, error) {
+	txn := monitoring.BeginTrxFromContext(ctx)
+	if txn != nil {
+		deleteByIdSegment := txn.StartSegment("PhastosDB-DeleteByID")
+		defer deleteByIdSegment.End()
+	}
 	// soft delete, just update the deleted_at to not null
 	data := &database.CUDConstructData{
 		Action:    database.ActionDeleteById,
@@ -135,6 +166,11 @@ func (b *BaseWrite) DeleteById(ctx context.Context, id interface{}, optTrx ...*s
 }
 
 func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, condition map[string]interface{}, opts ...interface{}) (*database.CUDResponse, error) {
+	txn := monitoring.BeginTrxFromContext(ctx)
+	if txn != nil {
+		upsertSegment := txn.StartSegment("PhastosDB-Upsert")
+		defer upsertSegment.End()
+	}
 	var existingId int64
 	tableRequest := new(database.TableRequest)
 	pointerCondition := &condition
