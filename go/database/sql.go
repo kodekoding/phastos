@@ -25,6 +25,7 @@ import (
 	context2 "github.com/kodekoding/phastos/v2/go/context"
 	"github.com/kodekoding/phastos/v2/go/env"
 	custerr "github.com/kodekoding/phastos/v2/go/error"
+	"github.com/kodekoding/phastos/v2/go/monitoring"
 )
 
 func newSQL(master, follower *sqlx.DB) *SQL {
@@ -114,11 +115,12 @@ func (this *SQL) Rebind(sql string) string {
 }
 
 func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...interface{}) error {
+	var segment *newrelic.Segment
 	if this.isNR {
-		txn := newrelic.FromContext(ctx)
-		segment := txn.StartSegment("PhastosDB-Read")
+		txn := monitoring.BeginTrxFromContext(ctx)
+		segment = txn.StartSegment("PhastosDB-Read")
 		defer segment.End()
-		ctx = newrelic.NewContext(ctx, txn)
+		ctx = monitoring.NewContext(ctx, txn)
 	}
 	if opts.BaseQuery == "" {
 		return errors.New("Base Query cannot be empty, please defined the base query")
@@ -177,7 +179,10 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 
 		query = opts.Trx.Rebind(query)
 		opts.query = query
-
+		if segment != nil {
+			segment.AddAttribute(NewRelicAttributeQuery, query)
+			segment.AddAttribute(NewRelicAttributeParams, params)
+		}
 		stmt, err := opts.Trx.PreparexContext(ctx, query)
 		if err != nil {
 			_, err = sendNilResponse(err, "phastos.database.ReadTrx.PrepareContext", query, params)
@@ -198,6 +203,11 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	} else {
 		query = this.Follower.Rebind(query)
 		opts.query = query
+
+		if segment != nil {
+			segment.AddAttribute(NewRelicAttributeQuery, query)
+			segment.AddAttribute(NewRelicAttributeParams, params)
+		}
 		if opts.IsList {
 			if err = this.Follower.SelectContext(ctx, opts.Result, query, params...); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Read.SelectContext", query, params)
@@ -215,11 +225,13 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	return nil
 }
 func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...bool) (*CUDResponse, error) {
+	var segment *newrelic.Segment
 	if this.isNR {
-		txn := newrelic.FromContext(ctx)
-		segment := txn.StartSegment("PhastosDB-Write")
+		txn := monitoring.BeginTrxFromContext(ctx)
+
+		segment = txn.StartSegment("PhastosDB-Write")
 		defer segment.End()
-		ctx = newrelic.NewContext(ctx, txn)
+		ctx = monitoring.NewContext(ctx, txn)
 	}
 	if opts.CUDRequest == nil {
 		return nil, errors.New("CUD Request Struct must be assigned")
@@ -297,6 +309,10 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	lastInsertID := int64(0)
 	rowsAffected := int64(0)
 
+	if segment != nil {
+		segment.AddAttribute(NewRelicAttributeQuery, query)
+		segment.AddAttribute(NewRelicAttributeParams, data.Values)
+	}
 	if trx != nil {
 		if this.engine == PostgresEngine && data.Action == ActionUpdate {
 			query = fmt.Sprintf("%s RETURNING id", query)
@@ -426,9 +442,12 @@ func (this *SQL) checkSQLWarning(ctx context.Context, query string, start time.T
 }
 
 func GenerateAddOnQuery(ctx context.Context, reqData *TableRequest) (string, []interface{}, error) {
-	txn := newrelic.FromContext(ctx)
-	segment := txn.StartSegment("PhastosDB-GeneratingAddOnQuery")
-	defer segment.End()
+	txn := monitoring.BeginTrxFromContext(ctx)
+	if txn != nil {
+		segment := txn.StartSegment("PhastosDB-GeneratingAddOnQuery")
+		segment.AddAttribute("requestData", reqData)
+		defer segment.End()
+	}
 	// tracing
 	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-GenerateAddOnQuery")
 	//defer trc.Finish()
