@@ -7,8 +7,11 @@ import (
 	"time"
 
 	redigo "github.com/gomodule/redigo/redis"
+	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+
+	"github.com/kodekoding/phastos/v2/go/monitoring"
 )
 
 // Store object
@@ -135,6 +138,12 @@ func WithUsername(username string) Options {
 
 // Get string value
 func (r *Store) Get(ctx context.Context, key string) (string, error) {
+	txn := monitoring.BeginTrxFromContext(ctx)
+	if txn != nil {
+		segment := txn.StartSegment("Redis-Get")
+		segment.AddAttribute("key", key)
+		defer segment.End()
+	}
 	conn, err := r.Pool.GetContext(ctx)
 	if err != nil {
 		return "", errors.Wrap(err, "cache.redis.Get.GetContext")
@@ -149,6 +158,12 @@ func (r *Store) Get(ctx context.Context, key string) (string, error) {
 
 // Del key value
 func (r *Store) Del(ctx context.Context, key string) (int64, error) {
+	txn := monitoring.BeginTrxFromContext(ctx)
+	if txn != nil {
+		segment := txn.StartSegment("Redis-Delete")
+		segment.AddAttribute("key", key)
+		defer segment.End()
+	}
 	conn, err := r.Pool.GetContext(ctx)
 	if err != nil {
 		return 0, errors.Wrap(err, "cache.redis.Del.GetContext")
@@ -173,6 +188,13 @@ func (r *Store) HSet(ctx context.Context, key, field, value string) (string, err
 
 // Set ill be used to set the value
 func (r *Store) Set(ctx context.Context, key, value string, expire ...int) (string, error) {
+	txn := monitoring.BeginTrxFromContext(ctx)
+	var segment *newrelic.Segment
+	if txn != nil {
+		segment = txn.StartSegment("Redis-Set")
+		segment.AddAttribute("key", key)
+		defer segment.End()
+	}
 	conn, err := r.Pool.GetContext(ctx)
 	if err != nil {
 		return "", errors.Wrap(err, "cache.redis.Set.GetContext")
@@ -182,6 +204,10 @@ func (r *Store) Set(ctx context.Context, key, value string, expire ...int) (stri
 	setParams = append(setParams, fmt.Sprintf("%s%s", r.prefixKey, key))
 	setParams = append(setParams, value)
 	if expire != nil && len(expire) > 0 {
+		if segment != nil {
+			segment.AddAttribute("expire", expire[0])
+		}
+
 		setParams = append(setParams, "EX")
 		setParams = append(setParams, expire[0])
 	}
