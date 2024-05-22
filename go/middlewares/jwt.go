@@ -3,6 +3,7 @@ package middlewares
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/newrelic/go-agent/v3/newrelic"
 	"net/http"
 	"os"
 	"strings"
@@ -21,7 +22,10 @@ type JWTConfig struct {
 
 func JWTAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
+		txn := newrelic.FromContext(r.Context())
+		if txn != nil {
+			defer txn.StartSegment("Middleware-JWTAuth").End()
+		}
 		traceIdCtx, _ := r.Context().Value(common.TraceIdKeyContextStr).(string)
 
 		var token = ""
