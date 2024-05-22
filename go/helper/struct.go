@@ -4,14 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/kodekoding/phastos/v2/go/database"
+	"github.com/rs/zerolog/log"
 	"github.com/volatiletech/null"
+
+	"github.com/kodekoding/phastos/v2/go/database"
+	"github.com/kodekoding/phastos/v2/go/monitoring"
 )
 
 func ConstructColNameAndValueBulk(ctx context.Context, arrayOfData interface{}, conditions ...map[string][]interface{}) (*database.CUDConstructData, error) {
@@ -156,9 +158,12 @@ func generateBulk(columns []string, columnValues []interface{}, arrayOfValues []
 }
 
 func ConstructColNameAndValue(ctx context.Context, structName interface{}, isNullStruct ...bool) ([]string, []interface{}) {
-	// tracing
-	//trc, ctx := tracer.StartSpanFromContext(ctx, "Helper-ConstructColNameAndValue")
-	//defer trc.Finish()
+	if isNullStruct == nil {
+		txn := monitoring.BeginTrxFromContext(ctx)
+		if txn != nil {
+			defer txn.StartSegment("StructHelper-ConstructColNameAndValue").End()
+		}
+	}
 	reflectVal := reflect.ValueOf(structName)
 	if reflectVal.Kind() == reflect.Ptr {
 		reflectVal = reflectVal.Elem()
@@ -320,11 +325,15 @@ func ConvertStructToMap(structSource interface{}) map[string]interface{} {
 	return result
 }
 
-func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}, anotherValues ...interface{}) *database.CUDConstructData {
+func ConstructColNameAndValueForUpdate(ctx context.Context, structName interface{}, anotherValues ...interface{}) *database.CUDConstructData {
+	txn := monitoring.BeginTrxFromContext(ctx)
+	if txn != nil {
+		defer txn.StartSegment("StructHelper-ConstructColNameAndValueForUpdate").End()
+	}
 	// tracing
 	//trc, ctx := tracer.StartSpanFromContext(ctx, "Helper-ConstructColNameAndValueForUpdate")
 	//defer trc.Finish()
-	cols, values := ConstructColNameAndValue(nil, structName)
+	cols, values := ConstructColNameAndValue(ctx, structName)
 	// change cols list with suffix '=?' using go routine
 	columns := strings.Join(cols, ",")
 
@@ -372,14 +381,14 @@ func ConstructColNameAndValueForUpdate(_ context.Context, structName interface{}
 
 type GenSelectColsOptions func(*GenSelectColsOptionalParams)
 type GenSelectColsOptionalParams struct {
-	isNullStruct bool
-	excludedCols string
-	includedCols string
+	isEmbeddedStruct bool
+	excludedCols     string
+	includedCols     string
 }
 
-func WithIsNullStruct(isNullStruct bool) GenSelectColsOptions {
+func WithIsEmbeddedStruct(isEmbeddedStruct bool) GenSelectColsOptions {
 	return func(params *GenSelectColsOptionalParams) {
-		params.isNullStruct = isNullStruct
+		params.isEmbeddedStruct = isEmbeddedStruct
 	}
 }
 
@@ -395,10 +404,18 @@ func WithIncludedCols(includedCols string) GenSelectColsOptions {
 }
 
 func GenerateSelectCols(ctx context.Context, source interface{}, opts ...GenSelectColsOptions) []string {
+
 	optionalParams := new(GenSelectColsOptionalParams)
 	for _, opt := range opts {
 		opt(optionalParams)
 	}
+	if !optionalParams.isEmbeddedStruct {
+		txn := monitoring.BeginTrxFromContext(ctx)
+		if txn != nil {
+			defer txn.StartSegment("StructHelper-GenerateSelectCols").End()
+		}
+	}
+
 	reflectVal := reflect.ValueOf(source)
 	if reflectVal.Kind() == reflect.Ptr {
 		reflectVal = reflectVal.Elem()
@@ -458,6 +475,7 @@ func GenerateSelectCols(ctx context.Context, source interface{}, opts ...GenSele
 				return
 			}
 			if field.Kind() == reflect.Struct {
+				opts = append(opts, WithIsEmbeddedStruct(true))
 				embeddedCols := GenerateSelectCols(ctx, value, opts...)
 				*columns = append(*columns, embeddedCols...)
 				return
