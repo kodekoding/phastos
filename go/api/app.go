@@ -156,6 +156,8 @@ func (app *App) initPlugins() {
 			"message": "pong",
 		})
 	})
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
 	var writer io.Writer
 	writer = zerolog.ConsoleWriter{Out: writer}
 
@@ -270,11 +272,20 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 					response.SetHTTPError(respErr)
 				}
 				respErr.TraceId = traceId
-				go func() {
+				var asyncTrx *newrelic.Transaction
+				if app.newRelic != nil {
+					asyncTrx = monitoring.BeginTrxFromContext(ctx).NewGoroutine()
+				}
+				go func(asyncTxn *newrelic.Transaction) {
+					asyncCtx := ctx
+					if asyncTxn != nil {
+						asyncCtx = monitoring.NewContext(ctx, asyncTxn)
+						defer asyncTxn.StartSegment("PhastosAPIApp-WrapHandler-AsyncSentNotifAndLogError").End()
+					}
 					// sent error to notification + logs asynchronously
-					response.SentNotif(ctx, response.InternalError, r, traceId)
-					log.Error().Msg(fmt.Sprintf("%s - %s (%s)", response.InternalError.Message, response.InternalError.Code, traceId))
-				}()
+					response.SentNotif(asyncCtx, response.InternalError, r, traceId)
+					log.Error().Err(response.InternalError).Msgf("%s - %s (%s)", response.InternalError.Message, response.InternalError.Code, traceId)
+				}(asyncTrx)
 			}
 			response.Send(w)
 		}
