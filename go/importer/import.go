@@ -201,7 +201,6 @@ func (r *importer) ProcessData() *ImportResult {
 		importProcessSegment = txn.StartSegment("Importer-ProcessImportData")
 		importProcessSegment.AddAttribute("process_name", r.processName)
 		importProcessSegment.AddAttribute("file_type", r.sourceType)
-		importProcessSegment.AddAttribute("executed_by", r.jwtData.Data)
 		defer importProcessSegment.End()
 	}
 	if err := r.validateField(); err != nil {
@@ -249,6 +248,7 @@ func (r *importer) ProcessData() *ImportResult {
 	if r.jwtData != nil {
 		jwtData, _ := json.Marshal(r.jwtData.Data)
 		notifData["-jwt data"] = string(jwtData)
+		importProcessSegment.AddAttribute("executed_by", string(jwtData))
 	}
 	notifData["-process name"] = fmt.Sprintf("Import Data %s from %s", r.processName, r.sourceType)
 
