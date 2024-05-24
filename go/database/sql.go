@@ -161,6 +161,9 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	opts.params = params
 	start := time.Now()
 
+	byteParam, _ := json.Marshal(params)
+	segment.AddAttribute(NewRelicAttributeParams, string(byteParam))
+
 	if opts.Trx != nil {
 		var lockingType string
 		switch opts.LockingType {
@@ -181,7 +184,6 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 		opts.query = query
 		if segment != nil {
 			segment.AddAttribute(NewRelicAttributeQuery, query)
-			segment.AddAttribute(NewRelicAttributeParams, params)
 		}
 		stmt, err := opts.Trx.PreparexContext(ctx, query)
 		if err != nil {
@@ -206,7 +208,6 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 
 		if segment != nil {
 			segment.AddAttribute(NewRelicAttributeQuery, query)
-			segment.AddAttribute(NewRelicAttributeParams, params)
 		}
 		if opts.IsList {
 			if err = this.Follower.SelectContext(ctx, opts.Result, query, params...); err != nil {
@@ -311,7 +312,8 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 
 	if segment != nil {
 		segment.AddAttribute(NewRelicAttributeQuery, query)
-		segment.AddAttribute(NewRelicAttributeParams, data.Values)
+		byteParam, _ := json.Marshal(data.Values)
+		segment.AddAttribute(NewRelicAttributeParams, string(byteParam))
 	}
 	if trx != nil {
 		if this.engine == PostgresEngine && data.Action == ActionUpdate {
@@ -445,7 +447,8 @@ func GenerateAddOnQuery(ctx context.Context, reqData *TableRequest) (string, []i
 	txn := monitoring.BeginTrxFromContext(ctx)
 	if txn != nil {
 		segment := txn.StartSegment("PhastosDB-GeneratingAddOnQuery")
-		segment.AddAttribute("requestData", reqData)
+		byteReqData, _ := json.Marshal(reqData)
+		segment.AddAttribute("requestData", string(byteReqData))
 		defer segment.End()
 	}
 	// tracing
