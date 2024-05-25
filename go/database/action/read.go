@@ -106,16 +106,18 @@ func (b *BaseRead) Count(ctx context.Context, reqData *database.TableRequest, ta
 	}
 	queryTotal := fmt.Sprintf("SELECT COUNT(1) FROM %s ", selectedTableName)
 	opts := &database.QueryOpts{
-		BaseQuery: queryTotal,
-		Result:    &totalData,
-		IsList:    false,
+		BaseQuery:     queryTotal,
+		Result:        &totalFiltered,
+		IsList:        false,
+		SelectRequest: reqData,
 	}
 	if err = b.db.Read(ctx, opts); err != nil {
 		return 0, 0, err
 	}
 
-	opts.SelectRequest = reqData
-	opts.Result = &totalFiltered
+	opts.SelectRequest.Limit = 0
+	opts.SelectRequest.Page = 0
+	opts.Result = &totalData
 
 	if err = b.db.Read(ctx, opts); err != nil {
 		return 0, 0, err
