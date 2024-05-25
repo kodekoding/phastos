@@ -20,6 +20,6 @@ func (app *App) loadNotification() {
 
 	if notifOptions != nil {
 		notif := notifications.New(notifOptions...)
-		app.WrapToContext(notif)
+		app.WrapToApp(notif)
 	}
 }

@@ -21,7 +21,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/unrolled/secure"
 
-	"github.com/kodekoding/phastos/v2/go/cache"
 	"github.com/kodekoding/phastos/v2/go/common"
 	"github.com/kodekoding/phastos/v2/go/cron"
 	"github.com/kodekoding/phastos/v2/go/database"
@@ -47,7 +46,6 @@ type (
 		cron           *cron.Engine
 		db             database.ISQL
 		trx            database.Transactions
-		cache          cache.Caches
 		newRelic       *newrelic.Application
 	}
 
@@ -135,10 +133,6 @@ func (app *App) DB() database.ISQL {
 
 func (app *App) Trx() database.Transactions {
 	return app.trx
-}
-
-func (app *App) Cache() cache.Caches {
-	return app.cache
 }
 
 func (app *App) initPlugins() {
@@ -325,7 +319,7 @@ func (app *App) AddControllers(ctrls Controllers) {
 	}
 }
 
-func (app *App) WrapToContext(wrapper Wrapper) {
+func (app *App) WrapToApp(wrapper Wrapper) {
 	app.wrapper = append(app.wrapper, wrapper)
 }
 
