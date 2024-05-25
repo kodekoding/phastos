@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 
+	"github.com/kodekoding/phastos/v2/go/entity"
 	"github.com/kodekoding/phastos/v2/go/monitoring"
 )
 
@@ -262,4 +264,17 @@ func (r *Store) PushNElementToSet(ctx context.Context, values []interface{}) (in
 	}
 	defer conn.Close()
 	return redigo.Int(conn.Do("SADD", values...))
+}
+
+func (r *Store) WrapToHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		ctx := context.WithValue(request.Context(), entity.CacheContext{}, r)
+		*request = *request.WithContext(ctx)
+
+		next.ServeHTTP(writer, request)
+	})
+}
+
+func (r *Store) WrapToContext(ctx context.Context) context.Context {
+	return context.WithValue(ctx, entity.CacheContext{}, r)
 }
