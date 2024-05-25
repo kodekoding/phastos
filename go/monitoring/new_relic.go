@@ -3,6 +3,7 @@ package monitoring
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/newrelic/go-agent/v3/newrelic"
@@ -40,6 +41,17 @@ func InitNewRelic(opts ...NewRelicOpts) *newRelic {
 		newrelic.ConfigAppLogDecoratingEnabled(true),
 		newrelic.ConfigAppLogForwardingEnabled(false),
 		newrelic.ConfigCodeLevelMetricsEnabled(true),
+		func(config *newrelic.Config) {
+			config.ErrorCollector.IgnoreStatusCodes = []int{
+				http.StatusForbidden,
+				http.StatusUnprocessableEntity,
+				http.StatusUnauthorized,
+				http.StatusNotFound,
+				http.StatusMethodNotAllowed,
+				http.StatusBadRequest,
+				http.StatusTooManyRequests,
+			}
+		},
 	)
 	newRelicPlatform.app = app
 	if err != nil {
