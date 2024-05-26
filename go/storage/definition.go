@@ -21,6 +21,14 @@ type Buckets interface {
 
 	GetSignedURLFile(ctx context.Context, imgPath string) (signedUrl string, err error)
 	GetFileFS(ctx context.Context, filePath string) (fs.File, error)
+
+	// DownloadFileToLocalPath - Download Object From GCS (Google Cloud Storage) bucket to local path
+	//
+	// Please make sure:
+	//
+	// - destination folder path (if you want to store inside the folder) is EXISTS
+	//
+	// - close the `os.File` return after you finished use it
 	DownloadFileToLocalPath(ctx context.Context, objSourcePath, destLocalPath string) (*os.File, error)
 
 	SetFileExpiredTime(minutes int) Buckets

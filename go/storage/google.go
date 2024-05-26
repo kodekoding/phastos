@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-resty/resty/v2"
-	"github.com/kodekoding/phastos/go/helper"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/api/option"
 	"io"
@@ -311,12 +310,15 @@ func (g *google) InitResumableUploads(ctx context.Context, gcsPath *string) (str
 
 // DownloadFileToLocalPath - Download Object From GCS (Google Cloud Storage) bucket to local path
 //
-// Please don't forget to close the file of return !
+// Please make sure:
+//
+// - destination folder path (if you want to store inside the folder) is EXISTS
+//
+// - close the `os.File` return after you finished use it
 func (g *google) DownloadFileToLocalPath(ctx context.Context, srcFilePath, destLocalPath string) (*os.File, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*60)
 	defer cancel()
 
-	helper.CheckFolder(destLocalPath)
 	var localFile *os.File
 	var err error
 	if _, err = os.Stat(destLocalPath); os.IsNotExist(err) {
