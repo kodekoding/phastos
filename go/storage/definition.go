@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/fs"
 	"mime/multipart"
+	"os"
 )
 
 type Buckets interface {
@@ -20,6 +21,7 @@ type Buckets interface {
 
 	GetSignedURLFile(ctx context.Context, imgPath string) (signedUrl string, err error)
 	GetFileFS(ctx context.Context, filePath string) (fs.File, error)
+	DownloadFileToLocalPath(ctx context.Context, objSourcePath, destLocalPath string) (*os.File, error)
 
 	SetFileExpiredTime(minutes int) Buckets
 	SetBucketName(fileName string) Buckets

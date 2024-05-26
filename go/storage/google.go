@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-resty/resty/v2"
+	"github.com/kodekoding/phastos/go/helper"
+	"github.com/rs/zerolog/log"
 	"google.golang.org/api/option"
 	"io"
 	"io/fs"
@@ -305,4 +307,44 @@ func (g *google) InitResumableUploads(ctx context.Context, gcsPath *string) (str
 		return "", errors.Wrap(err, "phastos.go.storage.google.InitResumableUploads.Post")
 	}
 	return sessionURI, nil
+}
+
+// DownloadFileToLocalPath - Download Object From GCS (Google Cloud Storage) bucket to local path
+//
+// Please don't forget to close the file of return !
+func (g *google) DownloadFileToLocalPath(ctx context.Context, srcFilePath, destLocalPath string) (*os.File, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*60)
+	defer cancel()
+
+	helper.CheckFolder(destLocalPath)
+	var localFile *os.File
+	var err error
+	if _, err = os.Stat(destLocalPath); os.IsNotExist(err) {
+		localFile, err = os.Create(destLocalPath)
+	} else {
+		localFile, err = os.Open(destLocalPath)
+	}
+	defer func() {
+		if err != nil {
+			if err = localFile.Close(); err != nil {
+				log.Warn().Msgf("[DownloadFileToLocalPath] Failed to close local file: %s", err.Error())
+			}
+		}
+	}()
+
+	if err != nil {
+		return nil, errors.Wrap(err, "phastos.go.storage.goole.DownloadFileToLocalPath.OpenOrCreateFile")
+	}
+
+	rc, err := g.bucket.Object(srcFilePath).NewReader(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "phastos.go.storage.goole.DownloadFileToLocalPath.CreateNewReader")
+	}
+	defer rc.Close()
+
+	if _, err = io.Copy(localFile, rc); err != nil {
+		return nil, errors.Wrap(err, "phastos.go.storage.goole.DownloadFileToLocalPath.CopyFromSourceToLocal")
+	}
+
+	return localFile, nil
 }
