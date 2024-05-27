@@ -169,7 +169,7 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 		switch opts.LockingType {
 		case LockShare:
 			lockingType = " FOR SHARE"
-			if this.engine == MySQLEngine {
+			if active, valid := mySQLEngineGroup[this.engine]; valid && active {
 				lockingType = " LOCK IN SHARE MODE"
 			}
 		case LockUpdate:
@@ -257,7 +257,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	switch data.Action {
 	case ActionInsert:
 		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s)`, tableName, cols, strings.Repeat(",?", len(data.Cols)-1))
-		if this.engine == PostgresEngine {
+		if active, valid := postgresEngineGroup[this.engine]; valid && active {
 			query = fmt.Sprintf("%s RETURNING id", query)
 		}
 	case ActionBulkInsert:
@@ -316,7 +316,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		segment.AddAttribute(NewRelicAttributeParams, string(byteParam))
 	}
 	if trx != nil {
-		if this.engine == PostgresEngine && data.Action == ActionUpdate {
+		if active, valid := postgresEngineGroup[this.engine]; valid && active && data.Action == ActionUpdate {
 			query = fmt.Sprintf("%s RETURNING id", query)
 		}
 		stmt, err := trx.PrepareContext(ctx, query)
@@ -325,7 +325,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 			return result, err
 		}
 
-		if this.engine == PostgresEngine {
+		if active, valid := postgresEngineGroup[this.engine]; valid && active {
 			if err = stmt.QueryRowContext(ctx, data.Values...).Scan(&lastInsertID); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
 				if err == nil {
@@ -342,7 +342,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 			}
 		}
 	} else {
-		if this.engine == PostgresEngine {
+		if active, valid := postgresEngineGroup[this.engine]; valid && active {
 			if data.Action == ActionUpdate {
 				query = fmt.Sprintf("%s RETURNING id", query)
 			}
@@ -368,7 +368,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 
 	this.checkSQLWarning(ctx, query, start, data.Values)
 
-	if this.engine == MySQLEngine {
+	if active, valid := mySQLEngineGroup[this.engine]; valid && active {
 		lastInsertID, err = exec.LastInsertId()
 		if err == nil {
 			result.LastInsertID = lastInsertID

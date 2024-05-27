@@ -10,12 +10,25 @@ const (
 	ActionUpdateById = "update_by_id"
 	ActionDeleteById = "delete_by_id"
 
-	MySQLEngine    = "mysql"
-	PostgresEngine = "postgres"
+	MySQLEngine      = "mysql"
+	NRMySQLEngine    = "nrmysql"
+	PostgresEngine   = "postgres"
+	NRPostgresEngine = "nrpostgres"
 
 	LockShare  = "share"
 	LockUpdate = "update"
 
 	NewRelicAttributeQuery  = "query"
 	NewRelicAttributeParams = "params"
+)
+
+var (
+	postgresEngineGroup = map[string]bool{
+		PostgresEngine:   true,
+		NRPostgresEngine: true,
+	}
+	mySQLEngineGroup = map[string]bool{
+		MySQLEngine:   true,
+		NRMySQLEngine: true,
+	}
 )
