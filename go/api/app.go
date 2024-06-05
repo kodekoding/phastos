@@ -278,7 +278,17 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 					}
 					// sent error to notification + logs asynchronously
 					response.SentNotif(asyncCtx, response.InternalError, r, traceId)
-					log.Error().Err(response.InternalError).Msgf("%s - %s (%s)", response.InternalError.Message, response.InternalError.Code, traceId)
+					logEvent := log.Error()
+					if response.InternalError.Status < 500 {
+						// re-assign logEvent from 'error' to 'warn'
+						logEvent = log.Warn()
+					}
+					errData := map[string]interface{}{
+						"error":        response.InternalError,
+						"request_path": r.URL.String(),
+						"trace_id":     traceId,
+					}
+					logEvent.Fields(errData).Msg("Failed processing request")
 				}(asyncTrx)
 			}
 			response.Send(w)
