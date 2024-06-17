@@ -153,7 +153,7 @@ func (app *App) initPlugins() {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
 	var writer io.Writer
-	writer = zerolog.ConsoleWriter{Out: writer}
+	writer = zerolog.ConsoleWriter{Out: os.Stderr}
 
 	if app.newRelic != nil {
 		writer = logWriter.New(os.Stdout, app.newRelic)
