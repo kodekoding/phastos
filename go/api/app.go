@@ -24,7 +24,6 @@ import (
 	"github.com/kodekoding/phastos/v2/go/common"
 	"github.com/kodekoding/phastos/v2/go/cron"
 	"github.com/kodekoding/phastos/v2/go/database"
-	"github.com/kodekoding/phastos/v2/go/helper"
 	"github.com/kodekoding/phastos/v2/go/monitoring"
 	"github.com/kodekoding/phastos/v2/go/server"
 )
@@ -176,10 +175,6 @@ func (app *App) requestValidator(i interface{}) error {
 
 func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		requestId := helper.GenerateUUIDV4()
-		ctx := context.WithValue(r.Context(), common.TraceIdKeyContextStr, requestId)
-		*r = *r.WithContext(ctx)
-
 		var response *Response
 		var err error
 
@@ -239,6 +234,9 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 				return app.requestValidator(i)
 			},
 		}
+		ctx := r.Context()
+
+		requestId := ctx.Value(common.TraceIdKeyContextStr).(string)
 
 		timeoutCtx, cancel := context.WithTimeout(r.Context(), time.Second*time.Duration(app.apiTimeout))
 		defer cancel()
@@ -246,7 +244,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 		respChan := make(chan *Response)
 		go func() {
 			defer panicRecover(r, requestId)
-			respChan <- h(request, r.Context())
+			respChan <- h(request, ctx)
 		}()
 
 		select {
