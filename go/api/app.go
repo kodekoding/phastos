@@ -176,6 +176,10 @@ func (app *App) requestValidator(i interface{}) error {
 
 func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		requestId := helper.GenerateUUIDV4()
+		ctx := context.WithValue(r.Context(), common.TraceIdKeyContextStr, requestId)
+		*r = *r.WithContext(ctx)
+
 		var response *Response
 		var err error
 
@@ -198,6 +202,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 				}
 				return app.requestValidator(i)
 			},
+			// GetHeaders
 			GetHeaders: func(i interface{}) error {
 				if err := decoder.Decode(i, r.Header); err != nil {
 					return BadRequest(err.Error(), "ERROR_PARSING_HEADER")
@@ -234,22 +239,19 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 				return app.requestValidator(i)
 			},
 		}
-		ctx, cancel := context.WithTimeout(r.Context(), time.Second*time.Duration(app.apiTimeout))
-		defer cancel()
-		traceId := helper.GenerateUUIDV4()
 
-		ctx = context.WithValue(ctx, common.TraceIdKeyContextStr, traceId)
-		*r = *r.WithContext(ctx)
+		timeoutCtx, cancel := context.WithTimeout(r.Context(), time.Second*time.Duration(app.apiTimeout))
+		defer cancel()
 
 		respChan := make(chan *Response)
 		go func() {
-			defer panicRecover(r, traceId)
-			respChan <- h(request, ctx)
+			defer panicRecover(r, requestId)
+			respChan <- h(request, r.Context())
 		}()
 
 		select {
-		case <-ctx.Done():
-			if ctx.Err() == context.DeadlineExceeded {
+		case <-timeoutCtx.Done():
+			if timeoutCtx.Err() == context.DeadlineExceeded {
 				w.WriteHeader(http.StatusGatewayTimeout)
 				_, err = w.Write([]byte("timeout"))
 				if err != nil {
@@ -265,7 +267,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 					respErr = NewErr(WithErrorMessage(response.Err.Error()))
 					response.SetHTTPError(respErr)
 				}
-				respErr.TraceId = traceId
+				respErr.TraceId = requestId
 				var asyncTrx *newrelic.Transaction
 				if app.newRelic != nil {
 					asyncTrx = monitoring.BeginTrxFromContext(ctx).NewGoroutine()
@@ -277,7 +279,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 						defer asyncTxn.StartSegment("PhastosAPIApp-WrapHandler-AsyncSentNotifAndLogError").End()
 					}
 					// sent error to notification + logs asynchronously
-					response.SentNotif(asyncCtx, response.InternalError, r, traceId)
+					response.SentNotif(asyncCtx, response.InternalError, r, requestId)
 					logEvent := log.Error()
 					if response.InternalError.Status < 500 {
 						// re-assign logEvent from 'error' to 'warn'
@@ -286,7 +288,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 					errData := map[string]interface{}{
 						"error":        response.InternalError,
 						"request_path": r.URL.String(),
-						"trace_id":     traceId,
+						"trace_id":     requestId,
 					}
 					logEvent.Fields(errData).Msg("Failed processing request")
 				}(asyncTrx)
