@@ -7,13 +7,13 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	log2 "github.com/rs/zerolog/log"
 	slackpkg "github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
 
 	"github.com/kodekoding/phastos/v2/go/api"
 	handler2 "github.com/kodekoding/phastos/v2/go/third_party/slack/handler"
+	log2 "github.com/rs/zerolog/log"
 )
 
 type (
@@ -146,7 +146,7 @@ func (app *App) wrapHandler(handler handler2.EventHandler, shouldAck ...bool) so
 		}
 
 		if err := handler(context.Background(), request); err != nil {
-			log2.Error().Err(err).Msg("handler got error")
+			log2.Err(err).Msg("handler got error")
 		} else if needAck {
 			// if not err then ack the request
 			client.Ack(*event.Request)

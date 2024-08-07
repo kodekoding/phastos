@@ -12,9 +12,9 @@ import (
 
 	"github.com/fogleman/gg"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 
 	"github.com/kodekoding/phastos/v2/go/helper"
+	"github.com/rs/zerolog/log"
 )
 
 type (
@@ -94,7 +94,7 @@ func WithBackgroudColor(hexColor string) Options {
 	return func(banner *Banner) {
 		rgba, err := helper.ParseHexColor(hexColor)
 		if err != nil {
-			log.Error().Err(err).Msg("got error when parse hex string")
+			log.Err(err).Msg("got error when parse hex string")
 		}
 		banner.BgColor = rgba
 	}
@@ -129,7 +129,7 @@ func (b *Banner) Generate() Banners {
 
 	for _, label := range b.label {
 		if err := dc.LoadFontFace(label.FontPath, label.Size); err != nil {
-			log.Error().Err(err).Msg("got error when load font face")
+			log.Err(err).Msg("got error when load font face")
 			return nil
 		}
 

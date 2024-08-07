@@ -404,7 +404,6 @@ func WithIncludedCols(includedCols string) GenSelectColsOptions {
 }
 
 func GenerateSelectCols(ctx context.Context, source interface{}, opts ...GenSelectColsOptions) []string {
-
 	optionalParams := new(GenSelectColsOptionalParams)
 	for _, opt := range opts {
 		opt(optionalParams)
