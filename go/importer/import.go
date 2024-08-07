@@ -300,6 +300,10 @@ func (r *importer) processData(asyncContext context.Context, nrTrx *newrelic.Tra
 		totalData++
 	}
 
+	if failedList != nil {
+		log.Error().Interface("error_data", failedList).Msgf("Error when import data from %s", r.sourceType)
+	}
+
 	result.FailedList = failedList
 	result.TotalData = totalData
 	result.TotalFailed = totalFailed
@@ -335,7 +339,7 @@ func (r importer) processEachData(ctx context.Context, data <-chan interface{}, 
 							"validation_error": err,
 							"data":             dt,
 						}
-						errChan <- api.NewErr(api.WithErrorData(errData), api.WithErrorStatus(400))
+						errChan <- api.NewErr(api.WithErrorData(errData), api.WithErrorStatus(400), api.WithErrorMessage("Error Validation Struct"))
 					} else {
 						trx, errTrx := r.trx.Begin()
 						errFn := r.fn(ctx, dt, trx, wi)
