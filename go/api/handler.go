@@ -1,6 +1,12 @@
 package api
 
-import "net/http"
+import (
+	"context"
+	"net/http"
+
+	"github.com/kodekoding/phastos/v2/go/common"
+	"github.com/kodekoding/phastos/v2/go/helper"
+)
 
 type WrittenResponseWriter struct {
 	http.ResponseWriter
@@ -28,6 +34,11 @@ func InitHandler(router http.Handler) http.Handler {
 			written:        false,
 		}
 		w = writtenResponseWriter
+
+		// set request id and store to context
+		requestId := helper.GenerateUUIDV4()
+		ctx := context.WithValue(r.Context(), common.TraceIdKeyContextStr, requestId)
+		*r = *r.WithContext(ctx)
 
 		router.ServeHTTP(w, r)
 	})
