@@ -90,7 +90,7 @@ func (p *Service) Send(ctx context.Context, text string, attachment interface{})
 	}
 	if p.attachment != nil {
 		p.attachment.AddField(sgw.Field{
-			Title: "Slack Trace ID",
+			Title: "Trace/Request ID",
 			Value: p.traceID,
 			Short: true,
 		})
