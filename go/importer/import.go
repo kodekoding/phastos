@@ -333,6 +333,7 @@ func (r importer) processEachData(ctx context.Context, data <-chan interface{}, 
 					if err := api.ValidateStruct(dt); err != nil {
 						errData := map[string]interface{}{
 							"validation_error": err,
+							"data":             dt,
 						}
 						errChan <- api.NewErr(api.WithErrorData(errData), api.WithErrorStatus(400))
 					} else {
