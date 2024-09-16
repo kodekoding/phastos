@@ -124,7 +124,7 @@ type (
 
 	QueryOpts struct {
 		BaseQuery         string
-		Conditions        func(ctx context.Context)
+		Conditions        func(ctx context.Context) `json:"-"`
 		ExcludeColumns    string
 		Columns           string
 		OptionalTableName string // for view name
