@@ -46,6 +46,7 @@ type (
 		db             database.ISQL
 		trx            database.Transactions
 		newRelic       *newrelic.Application
+		commit         string
 	}
 
 	Options func(api *App)
@@ -130,6 +131,10 @@ func (app *App) DB() database.ISQL {
 	return app.db
 }
 
+func (app *App) SetCommit(commit string) {
+	app.commit = commit
+}
+
 func (app *App) Trx() database.Transactions {
 	return app.trx
 }
@@ -144,9 +149,13 @@ func (app *App) initPlugins() {
 	app.Http.MethodNotAllowed(MethodNotAllowedHandler)
 
 	app.Http.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
+		msgString := "pong"
+		if app.commit != "" {
+			msgString = fmt.Sprintf("%s from version: %s", msgString, app.commit)
+		}
 		w.WriteHeader(http.StatusOK)
 		WriteJson(w, Map{
-			"message": "pong",
+			"message": msgString,
 		})
 	})
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
