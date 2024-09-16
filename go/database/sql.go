@@ -482,10 +482,10 @@ func GenerateAddOnQuery(ctx context.Context, reqData *TableRequest) (string, []i
 	if reqData.Page > 0 && reqData.Limit > 0 {
 		offset := (reqData.Page - 1) * reqData.Limit
 
-		if reqData.engine == PostgresEngine {
+		if _, isPostgres := postgresEngineGroup[reqData.engine]; isPostgres {
 			addOnBuilder.WriteString(" LIMIT ? OFFSET ?")
 			addOnParams = append(addOnParams, reqData.Limit, offset)
-		} else if reqData.engine == MySQLEngine {
+		} else if _, isMySQL := mySQLEngineGroup[reqData.engine]; isMySQL {
 			addOnBuilder.WriteString(" LIMIT ?,?")
 			addOnParams = append(addOnParams, offset, reqData.Limit)
 		} else {
@@ -555,7 +555,7 @@ func checkCreatedDateParam(_ context.Context, reqData *TableRequest, addOnBuilde
 		}
 		startDate := fmt.Sprintf("%s 00:00:00", reqData.CreatedStart)
 
-		if reqData.engine == MySQLEngine {
+		if _, isMySQL := mySQLEngineGroup[reqData.engine]; isMySQL {
 			addOnBuilder.WriteString(fmt.Sprintf("DATE_FORMAT(%s, '%%Y-%%m-%%d %%H:%%i:%%s') >= STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s')", col))
 		} else {
 			addOnBuilder.WriteString(fmt.Sprintf("%s >= ?", col))
@@ -578,7 +578,7 @@ func checkCreatedDateParam(_ context.Context, reqData *TableRequest, addOnBuilde
 		}
 		endDate := fmt.Sprintf("%s 23:59:59", reqData.CreatedEnd)
 
-		if reqData.engine == MySQLEngine {
+		if _, isMySQL := mySQLEngineGroup[reqData.engine]; isMySQL {
 			addOnBuilder.WriteString(fmt.Sprintf("DATE_FORMAT(%s, '%%Y-%%m-%%d %%H:%%i:%%s') <= STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s')", col))
 		} else {
 			addOnBuilder.WriteString(fmt.Sprintf("%s <= ?", col))
