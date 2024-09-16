@@ -145,6 +145,9 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 		query      = opts.BaseQuery
 	)
 
+	byteReqData, err := json.Marshal(opts)
+	segment.AddAttribute("query_option_param", fmt.Sprintf("%s - %#v", string(byteReqData), err))
+
 	if opts.SelectRequest != nil {
 		var addOnParams []interface{}
 		opts.SelectRequest.engine = this.engine
