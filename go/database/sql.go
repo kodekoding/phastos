@@ -452,6 +452,7 @@ func GenerateAddOnQuery(ctx context.Context, reqData *TableRequest) (string, []i
 		segment := txn.StartSegment("PhastosDB-GeneratingAddOnQuery")
 		byteReqData, _ := json.Marshal(reqData)
 		segment.AddAttribute("requestData", string(byteReqData))
+		segment.AddAttribute("engine", reqData.engine)
 		defer segment.End()
 	}
 	// tracing
@@ -487,6 +488,8 @@ func GenerateAddOnQuery(ctx context.Context, reqData *TableRequest) (string, []i
 		} else if reqData.engine == MySQLEngine {
 			addOnBuilder.WriteString(" LIMIT ?,?")
 			addOnParams = append(addOnParams, offset, reqData.Limit)
+		} else {
+			log.Warn().Str("engine", reqData.engine).Any("request_data", reqData).Msg("engine not defined !! please check your code again")
 		}
 	}
 	whereResult := strings.Replace(addOnBuilder.String(), " OR )", ")", -1)
