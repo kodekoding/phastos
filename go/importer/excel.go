@@ -3,6 +3,7 @@ package importer
 import (
 	"context"
 	"encoding/json"
+	"github.com/extrame/xls"
 	"mime/multipart"
 	"reflect"
 	"strings"
@@ -16,6 +17,48 @@ type (
 		sheetName string
 	}
 )
+
+func GetDataFromXlsx(file multipart.File, sheetName string) ([][]string, error) {
+	xlsFile, err := excelize.OpenReader(file)
+	if err != nil {
+		log.Err(err).Msg("err when open file")
+		return nil, err
+	}
+
+	defer func(xlsFile *excelize.File) {
+		if err = xlsFile.Close(); err != nil {
+			log.Err(err).Msg("Failed to close xlsx file")
+		}
+	}(xlsFile)
+	defaultSheetName := xlsFile.GetSheetName(0)
+	if sheetName != "" {
+		defaultSheetName = sheetName
+	}
+	return xlsFile.GetRows(defaultSheetName)
+}
+
+func GetDataFromXls(file multipart.File) ([][]string, error) {
+	xlsFile, err := xls.OpenReader(file, "utf-8")
+	if err != nil {
+		log.Err(err).Msg("err when open file")
+		return nil, err
+	}
+
+	sheetData := xlsFile.GetSheet(0)
+	maxRow := int(sheetData.MaxRow)
+	var dataList [][]string
+	for rowIndex := 0; rowIndex < maxRow; rowIndex++ {
+		var rowData []string
+		row := sheetData.Row(rowIndex)
+		lastCol := row.LastCol()
+		for columnIndex := 0; columnIndex < lastCol; columnIndex++ {
+			rowData = append(rowData, row.Col(columnIndex))
+		}
+
+		dataList = append(dataList, rowData)
+	}
+	return dataList, nil
+}
 
 func (e excel) readFromExcel(structSource reflect.Value, file multipart.File, mapContent map[string]interface{}, ctx ...context.Context) <-chan interface{} {
 	chanOut := make(chan interface{})

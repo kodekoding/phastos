@@ -7,6 +7,7 @@ require (
 	github.com/SebastiaanKlippert/go-wkhtmltopdf v1.7.2
 	github.com/ashwanthkumar/slack-go-webhook v0.0.0-20200209025033-430dd4e66960
 	github.com/disintegration/imaging v1.6.2
+	github.com/extrame/xls v0.0.1
 	github.com/fogleman/gg v1.3.0
 	github.com/go-chi/chi v1.5.4
 	github.com/go-chi/chi/v5 v5.0.8
@@ -50,6 +51,7 @@ require (
 	cloud.google.com/go/iam v0.13.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/elazarl/goproxy v0.0.0-20231117061959-7cc037d33fb5 // indirect
+	github.com/extrame/ole2 v0.0.0-20160812065207-d69429661ad7 // indirect
 	github.com/friendsofgo/errors v0.9.2 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
