@@ -135,7 +135,7 @@ func (resp *Response) SentNotif(ctx contextpkg.Context, err *HttpError, r *http.
 
 					notif.SetTraceId(traceId)
 					if err.Status == 500 {
-						bodyReq, _ := io.ReadAll(r.Body)
+						bodyReq, _ := readAllContent(r.Body)
 						r.Body = io.NopCloser(bytes.NewBuffer(bodyReq))
 						if string(bodyReq) == "" || r.Method == http.MethodGet {
 							bodyReq, _ = json.Marshal(r.URL.Query())

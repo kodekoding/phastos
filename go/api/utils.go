@@ -1,9 +1,11 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/go-playground/validator"
 	"github.com/gorilla/schema"
+	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -19,6 +21,8 @@ var (
 	parseFormRequest          = (*http.Request).ParseForm
 	parseMultiPartFormRequest = (*http.Request).ParseMultipartForm
 	doHandleDecodeSchema      = decodeSchemaRequest
+	readAllContent            = ioutil.ReadAll
+	decodeJSON                = (*json.Decoder).Decode
 )
 
 const (
@@ -136,5 +140,21 @@ func decodeSchemaRequest(r *http.Request, val interface{}) error {
 	if err := decodeSchema(decoder, val, sourceDecode); err != nil {
 		return err
 	}
+	return nil
+}
+
+func getBodyFromJSON(r *http.Request, dest interface{}) error {
+	body, err := readAllContent(r.Body)
+	if err != nil {
+		return err
+	}
+
+	ioReader := ioutil.NopCloser(bytes.NewBuffer(body))
+
+	if err = decodeJSON(json.NewDecoder(ioReader), dest); err != nil {
+		return BadRequest(err.Error(), ErrParsedBodyCode)
+	}
+
+	r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
 	return nil
 }

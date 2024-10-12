@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -217,7 +216,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 				contentType := filterFlags(r.Header.Get("Content-Type"))
 				switch contentType {
 				case ContentJSON:
-					if err = json.NewDecoder(r.Body).Decode(i); err != nil {
+					if err = getBodyFromJSON(r, i); err != nil {
 						return BadRequest(err.Error(), ErrParsedBodyCode)
 					}
 				case ContentURLEncoded:
@@ -236,7 +235,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 					}
 				default:
 					log.Warn().Msg("Content-Type Header didn't sent, please defined it, will treat as JSON body payload")
-					if err = json.NewDecoder(r.Body).Decode(i); err != nil {
+					if err = getBodyFromJSON(r, i); err != nil {
 						return BadRequest(err.Error(), ErrParsedBodyCode)
 					}
 				}
@@ -297,7 +296,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 						"request_path": r.URL.String(),
 						"trace_id":     requestId,
 					}
-					logEvent.Fields(errData).Msg("Failed processing request")
+					logEvent.Any("error_data", errData).Msg("Failed processing request")
 				}(asyncTrx)
 			}
 			response.Send(w)
