@@ -15,6 +15,7 @@ import (
 type (
 	excel struct {
 		sheetName string
+		fileType  string
 	}
 )
 
@@ -63,20 +64,19 @@ func GetDataFromXls(file multipart.File) ([][]string, error) {
 func (e excel) readFromExcel(structSource reflect.Value, file multipart.File, mapContent map[string]interface{}, ctx ...context.Context) <-chan interface{} {
 	chanOut := make(chan interface{})
 	go func() {
-
-		xlsFile, err := excelize.OpenReader(file)
-		if err != nil {
-			log.Error().Msgf("err when open file: %s", err.Error())
-			return
+		var rows [][]string
+		var err error
+		if e.fileType == ExcelFileType {
+			rows, err = GetDataFromXls(file)
+		} else {
+			rows, err = GetDataFromXlsx(file, e.sheetName)
 		}
 
-		defer func(xlsFile *excelize.File) {
-			if err = xlsFile.Close(); err != nil {
-				log.Error().Msgf("Failed to close xls file: %s", err.Error())
-			}
-		}(xlsFile)
-
-		rows, err := xlsFile.GetRows(e.sheetName)
+		if err != nil {
+			log.Err(err).Msg("[IMPORTER][PHASTOS] - Get Content From Excel File")
+			close(chanOut)
+			return
+		}
 
 		for rowIndex, row := range rows {
 			if rowIndex == 0 {

@@ -58,17 +58,27 @@ type (
 )
 
 const (
-	ExcelFileType     = "excel"
-	CSVFileType       = "csv"
-	UndefinedFileType = ""
+	ExcelFileType         = "excel"
+	ExcelWorkbookFileType = "excel_workbook"
+	CSVFileType           = "csv"
+	UndefinedFileType     = ""
+
+	ExcelExt         = ".xls"
+	ExcelWorkbookExt = ".xlsx"
+	CSVExt           = ".csv"
 )
+
+var mapFileExt = map[string]string{
+	ExcelExt:         ExcelFileType,
+	ExcelWorkbookExt: ExcelWorkbookFileType,
+	CSVExt:           CSVFileType,
+}
 
 func New(opt ...ImportOptions) *importer {
 	csvImporter := new(importer)
 
 	// set default worker to 10
 	csvImporter.worker = 10
-	csvImporter.excel.sheetName = "Sheet1"
 
 	for _, options := range opt {
 		options(csvImporter)
@@ -97,13 +107,11 @@ func WithWorker(totalWorker int) ImportOptions {
 
 func WithExtFile(ext string) ImportOptions {
 	return func(reader *importer) {
-		switch ext {
-		case ".xlsx", ".xls":
-			reader.sourceType = ExcelFileType
-		case ".csv":
-			reader.sourceType = CSVFileType
-		default:
+		if val, exist := mapFileExt[ext]; !exist {
 			reader.sourceType = UndefinedFileType
+		} else {
+			reader.sourceType = val
+			reader.excel.fileType = val
 		}
 	}
 }
@@ -274,9 +282,10 @@ func (r *importer) ProcessData() *ImportResult {
 
 func (r *importer) processData(asyncContext context.Context, nrTrx *newrelic.Transaction) *ImportResult {
 	var chanRowData = make(<-chan interface{})
-	if r.sourceType == ExcelFileType {
+	switch r.sourceType {
+	case ExcelFileType, ExcelWorkbookFileType:
 		chanRowData = r.readFromExcel(r.structDestReflVal, r.file, r.mapContent)
-	} else if r.sourceType == CSVFileType {
+	case CSVFileType:
 		chanRowData = r.readFromCSV(r.structDestReflVal, r.file, r.mapContent)
 	}
 	errChan := r.processEachData(asyncContext, chanRowData, nrTrx)
