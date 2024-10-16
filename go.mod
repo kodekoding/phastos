@@ -25,7 +25,7 @@ require (
 	github.com/keighl/mandrill v0.0.0-20170605120353-1775dd4b3b41
 	github.com/lib/pq v1.10.2
 	github.com/mauri870/gcsfs v0.0.0-20220203135357-0da01ba4e96d
-	github.com/newrelic/go-agent/v3 v3.33.0
+	github.com/newrelic/go-agent/v3 v3.34.0
 	github.com/newrelic/go-agent/v3/integrations/logcontext-v2/zerologWriter v1.0.2
 	github.com/newrelic/go-agent/v3/integrations/nrmysql v1.2.2
 	github.com/newrelic/go-agent/v3/integrations/nrpq v1.1.1
