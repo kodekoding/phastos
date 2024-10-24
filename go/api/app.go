@@ -45,7 +45,7 @@ type (
 		db             database.ISQL
 		trx            database.Transactions
 		newRelic       *newrelic.Application
-		commit         string
+		version        string
 	}
 
 	Options func(api *App)
@@ -130,8 +130,9 @@ func (app *App) DB() database.ISQL {
 	return app.db
 }
 
-func (app *App) SetCommit(commit string) {
-	app.commit = commit
+func (app *App) SetVersion(version string) {
+	app.version = version
+	app.Config.Version = version
 }
 
 func (app *App) Trx() database.Transactions {
@@ -149,8 +150,8 @@ func (app *App) initPlugins() {
 
 	app.Http.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 		msgString := "pong"
-		if app.commit != "" {
-			msgString = fmt.Sprintf("%s from version: %s", msgString, app.commit)
+		if app.version != "" {
+			msgString = fmt.Sprintf("%s from version: %s", msgString, app.version)
 		}
 		w.WriteHeader(http.StatusOK)
 		WriteJson(w, Map{
