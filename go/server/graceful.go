@@ -92,6 +92,9 @@ func serveHTTPs(config *Config, secure bool) error {
 			_ = helper.SendSlackNotification(
 				config.Ctx,
 				helper.NotifTitle(fmt.Sprintf("[%s] %s Service is started", environment, appName)),
+				helper.NotifData(map[string]string{
+					"version": config.Version,
+				}),
 			)
 
 		}

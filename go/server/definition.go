@@ -32,5 +32,6 @@ type (
 		KeyFile       string
 		EncryptionKey string `yaml:"encryption_key"`
 		Ctx           context.Context
+		Version       string
 	}
 )
