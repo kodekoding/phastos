@@ -28,6 +28,7 @@ import (
 )
 
 var decoder = schema.NewDecoder()
+var TimezoneLocation *time.Location
 
 type (
 	Apps interface {
@@ -46,6 +47,7 @@ type (
 		trx            database.Transactions
 		newRelic       *newrelic.Application
 		version        string
+		timezoneRegion string
 	}
 
 	Options func(api *App)
@@ -68,8 +70,16 @@ func NewApp(opts ...Options) *App {
 	apiApp.WriteTimeout = 3
 	apiApp.apiTimeout = 3
 
+	// set default timezone region
+	apiApp.timezoneRegion = "Asia/Jakarta"
+
 	for _, opt := range opts {
 		opt(&apiApp)
+	}
+	var err error
+	TimezoneLocation, err = time.LoadLocation(apiApp.timezoneRegion)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Load TimeZone Failed")
 	}
 
 	return &apiApp
@@ -96,6 +106,12 @@ func WriteTimeout(writeTimeout int) Options {
 func WithAPITimeout(apiTimeout int) Options {
 	return func(app *App) {
 		app.apiTimeout = apiTimeout
+	}
+}
+
+func WithTimezone(timezone string) Options {
+	return func(app *App) {
+		app.timezoneRegion = timezone
 	}
 }
 
