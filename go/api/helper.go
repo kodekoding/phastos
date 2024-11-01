@@ -10,19 +10,8 @@ const (
 	TimeFormat = "15:04:05"
 )
 
-var timezoneLocation *time.Location
-
-func init() {
-	timezoneLocation = TimezoneLocation
-}
-
-func SetTimezoneLocation(regionName string) (err error) {
-	timezoneLocation, err = time.LoadLocation(regionName)
-	return
-}
-
 func GetTimeNowWithTimezone() time.Time {
-	return time.Now().In(timezoneLocation)
+	return time.Now().In(TimezoneLocation)
 }
 
 func GetDateTimeNowStringWithFormat(layout string) string {
