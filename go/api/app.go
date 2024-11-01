@@ -117,10 +117,11 @@ func WithTimezone(timezone string) Options {
 
 func WithCronJob(timezone ...string) Options {
 	return func(app *App) {
-		cronOpts := cron.WithTimeZone("Asia/Jakarta")
+		cronTimeZone := "Asia/Jakarta"
 		if timezone != nil && len(timezone) > 0 {
-			cronOpts = cron.WithTimeZone(timezone[0])
+			cronTimeZone = timezone[0]
 		}
+		cronOpts := cron.WithTimeZone(cronTimeZone)
 		app.cron = cron.New(cronOpts)
 	}
 }
@@ -169,6 +170,7 @@ func (app *App) initPlugins() {
 		if app.version != "" {
 			msgString = fmt.Sprintf("%s from version: %s", msgString, app.version)
 		}
+		msgString = fmt.Sprintf("%s on datetime: %s", msgString, GetDateTimeNowStringWithTimezone())
 		w.WriteHeader(http.StatusOK)
 		WriteJson(w, Map{
 			"message": msgString,
