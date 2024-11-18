@@ -3,30 +3,34 @@ package storage
 import (
 	"context"
 	"fmt"
-	"github.com/go-resty/resty/v2"
-	"github.com/rs/zerolog/log"
-	"google.golang.org/api/option"
 	"io"
 	"io/fs"
 	"mime/multipart"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/cenkalti/backoff/v4"
+	"github.com/go-resty/resty/v2"
 	"github.com/mauri870/gcsfs"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/api/option"
 
 	"github.com/kodekoding/phastos/go/env"
 )
 
 type google struct {
-	client       *storage.Client
-	bucket       *storage.BucketHandle
-	imageExpTime int
-	contentType  string
-	resty        *resty.Client
-	bucketName   string
+	client         *storage.Client
+	bucket         *storage.BucketHandle
+	imageExpTime   int
+	contentType    string
+	resty          *resty.Client
+	bucketName     string
+	timeoutProcess time.Duration
 }
 
 func (g *google) SetFileExpiredTime(minutes int) Buckets {
@@ -34,7 +38,7 @@ func (g *google) SetFileExpiredTime(minutes int) Buckets {
 	return g
 }
 
-func NewGCS(ctx context.Context, bucketName string) (Buckets, error) {
+func NewGCS(ctx context.Context, bucketName string) (*google, error) {
 	if bucketName == "" {
 		return nil, errors.Wrap(errors.New("bucket name empty"), "phastos.go.storage.google.NewGCS.CheckBucketName")
 	}
@@ -54,12 +58,22 @@ func NewGCS(ctx context.Context, bucketName string) (Buckets, error) {
 		return nil, errors.Wrap(err, "phastos.go.storage.google.NewGCS.NewClient")
 	}
 
+	storageTimeoutProcess := 60 * time.Second
+	storageTimeoutProcessFromEnv := os.Getenv("STORAGE_TIMEOUT_PROCESS")
+	if storageTimeoutProcessFromEnv != "" {
+		if timeoutProcessFromEnv, err := strconv.Atoi(storageTimeoutProcessFromEnv); err != nil {
+			timeoutProcessFromEnv = 0
+		} else {
+			storageTimeoutProcess = time.Duration(timeoutProcessFromEnv) * time.Second
+		}
+	}
 	restyClient := resty.New()
 	return &google{
-		client:     gcsClient,
-		bucket:     gcsClient.Bucket(bucketName),
-		resty:      restyClient,
-		bucketName: bucketName,
+		client:         gcsClient,
+		bucket:         gcsClient.Bucket(bucketName),
+		resty:          restyClient,
+		bucketName:     bucketName,
+		timeoutProcess: storageTimeoutProcess,
 	}, nil
 }
 
@@ -151,7 +165,7 @@ func (g *google) UploadFileFromLocalPathPublic(ctx context.Context, filePath str
 }
 
 func (g *google) uploadProcess(ctx context.Context, file multipart.File, fileName *string, fileType string) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*60)
+	ctx, cancel := context.WithTimeout(ctx, g.timeoutProcess)
 	defer cancel()
 
 	currentEnv := env.ServiceEnv()
@@ -208,7 +222,7 @@ func (g *google) GetFileFS(ctx context.Context, filePath string) (fs.File, error
 }
 
 func (g *google) GetSignedURLFile(ctx context.Context, imgPath string) (signedUrl string, err error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*60)
+	ctx, cancel := context.WithTimeout(ctx, g.timeoutProcess)
 	defer cancel()
 
 	imgExpiredTime := 60
@@ -236,7 +250,7 @@ func (g *google) RollbackProcess(ctx context.Context, fileName string) error {
 }
 
 func (g *google) DeleteFile(ctx context.Context, fileName string) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*60)
+	ctx, cancel := context.WithTimeout(ctx, g.timeoutProcess)
 	defer cancel()
 
 	if err := g.bucket.Object(fileName).Delete(ctx); err != nil {
@@ -246,7 +260,7 @@ func (g *google) DeleteFile(ctx context.Context, fileName string) error {
 }
 
 func (g *google) CopyFileToAnotherBucket(ctx context.Context, destFileName, destBucket, sourceBucket string, optionalParams ...interface{}) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
+	ctx, cancel := context.WithTimeout(ctx, g.timeoutProcess)
 	defer cancel()
 
 	sourceFileName := destFileName
@@ -273,15 +287,38 @@ func (g *google) CopyFileToAnotherBucket(ctx context.Context, destFileName, dest
 	src := gcsCli.Bucket(sourceBucket).Object(sourceFileName)
 	dst := gcsCli.Bucket(destBucket).Object(destFileName).If(storage.Conditions{DoesNotExist: true})
 
-	if _, err := dst.CopierFrom(src).Run(ctx); err != nil {
-		return errors.Wrap(err, "phastos.go.storage.google.CopyFileToAnotherBucket")
+	// Define the operation to retry
+	operation := func() error {
+		_, err := dst.CopierFrom(src).Run(ctx)
+		if err != nil {
+			// Check for specific error types
+			if apiErr, ok := err.(*googleapi.Error); ok && apiErr.Code == 503 {
+				// Log the specific error
+				log.Warn().Any("err_detail", apiErr).Msg("Google API returned 503 error, retrying")
+				return err // This error is retryable
+			}
+			// For other errors, wrap and return
+			return errors.Wrap(err, "phastos.go.storage.google.CopyFileToAnotherBucket")
+		}
+		return nil
+	}
+
+	// Define the retry strategy
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = g.timeoutProcess - 2*time.Second // Set maximum retry time to max timeout process - 2 seconds
+
+	// Perform the operation with retries
+	err := backoff.Retry(operation, b)
+	if err != nil {
+		return errors.Wrap(err, "failed to copy file after retries")
 	}
 
 	if deleteSourceFile {
-		if err := src.Delete(ctx); err != nil {
+		if err = src.Delete(ctx); err != nil {
 			return errors.Wrap(err, "phastos.go.storage.google.CopyFileToAnotherBucket.DeleteSourceFile")
 		}
 	}
+
 	return nil
 }
 
