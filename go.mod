@@ -40,6 +40,7 @@ require (
 	github.com/xuri/excelize/v2 v2.7.0
 	github.com/yeqown/go-qrcode v1.5.10
 	go.uber.org/mock v0.4.0
+	golang.org/x/sync v0.1.0
 	google.golang.org/api v0.114.0
 	gorm.io/driver/mysql v1.3.4
 )
