@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/unrolled/secure"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/kodekoding/phastos/v2/go/common"
 	"github.com/kodekoding/phastos/v2/go/cron"
@@ -48,6 +50,7 @@ type (
 		newRelic       *newrelic.Application
 		version        string
 		timezoneRegion string
+		sf             singleflight.Group
 	}
 
 	Options func(api *App)
@@ -263,15 +266,20 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 		}
 		ctx := r.Context()
 
-		requestId := ctx.Value(common.TraceIdKeyContextStr).(string)
+		requestId := ctx.Value(common.RequestIdContextKey).(string)
 
-		timeoutCtx, cancel := context.WithTimeout(r.Context(), time.Second*time.Duration(app.apiTimeout))
+		timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*time.Duration(app.apiTimeout))
 		defer cancel()
 
 		respChan := make(chan *Response)
 		go func() {
+			uniqueReqKey := generateUniqueRequestKey(r)
 			defer panicRecover(r, requestId)
-			respChan <- h(request, ctx)
+			sfResponse, _, _ := app.sf.Do(uniqueReqKey, func() (interface{}, error) {
+				handlerResp := h(request, ctx)
+				return handlerResp, nil
+			})
+			respChan <- sfResponse.(*Response)
 		}()
 
 		select {
@@ -280,19 +288,21 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 				w.WriteHeader(http.StatusGatewayTimeout)
 				_, err = w.Write([]byte("timeout"))
 				if err != nil {
-
-					log.Error().Msg("context deadline exceed: " + err.Error())
+					log.Err(err).Str("route", r.URL.Path).Str("method", r.Method).Msg("[REQUEST][TIMEOUT] Failed when write to client")
+				} else {
+					log.Info().Str("route", r.URL.Path).Str("method", r.Method).Msg("[REQUEST][TIMEOUT] context deadline exceed")
 				}
+
 			}
 		case response = <-respChan:
+			response.TraceId = requestId
 			if response.Err != nil {
 				var respErr *HttpError
 				var ok bool
 				if respErr, ok = response.Err.(*HttpError); !ok {
-					respErr = NewErr(WithErrorMessage(response.Err.Error()))
+					respErr = NewErr(WithErrorMessage(response.Err.Error()), WithTraceId(requestId))
 					response.SetHTTPError(respErr)
 				}
-				respErr.TraceId = requestId
 				var asyncTrx *newrelic.Transaction
 				if app.newRelic != nil {
 					asyncTrx = monitoring.BeginTrxFromContext(ctx).NewGoroutine()
@@ -321,6 +331,23 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 			response.Send(w)
 		}
 	}
+}
+
+func generateUniqueRequestKey(req *http.Request) string {
+	method := req.Method
+	path := req.URL.Path
+
+	// Sort query parameters to ensure consistent key generation
+	query := req.URL.Query()
+	var queryParams []string
+	for k, v := range query {
+		for _, vv := range v {
+			queryParams = append(queryParams, fmt.Sprintf("%s=%s", k, vv))
+		}
+	}
+	sort.Strings(queryParams)
+
+	return fmt.Sprintf("%s|%s|%s", method, path, strings.Join(queryParams, "&"))
 }
 
 func (app *App) AddController(ctrl Controller) {
