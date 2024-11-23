@@ -20,10 +20,6 @@ func (e *HttpError) Write(w http.ResponseWriter) {
 	WriteJson(w, e)
 }
 
-func (e *HttpError) SetTraceId(traceId string) {
-	e.TraceId = traceId
-}
-
 func (e *HttpError) Error() string {
 	return e.Message
 }
@@ -49,6 +45,12 @@ func WithErrorMessage(message string) ErrorOption {
 func WithErrorData(data interface{}) ErrorOption {
 	return func(e *HttpError) {
 		e.Data = data
+	}
+}
+
+func WithTraceId(traceId string) ErrorOption {
+	return func(e *HttpError) {
+		e.TraceId = traceId
 	}
 }
 
