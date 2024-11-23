@@ -3,11 +3,13 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	context2 "github.com/kodekoding/phastos/v2/go/context"
-	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
 	"runtime/debug"
+
+	"github.com/rs/zerolog/log"
+
+	context2 "github.com/kodekoding/phastos/v2/go/context"
 )
 
 func panicRecover(r *http.Request, traceId string) {
@@ -46,6 +48,6 @@ func panicRecover(r *http.Request, traceId string) {
 
 			}
 		}()
-		log.Error().Msgf("got panic at handler: %v", fields)
+		log.Error().Any("data", fields).Msg("got panic at handler")
 	}
 }
