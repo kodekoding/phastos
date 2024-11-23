@@ -21,6 +21,7 @@ type Response struct {
 	Message          string `json:"message,omitempty"`
 	Data             any    `json:"data,omitempty"`
 	Err              error  `json:"error,omitempty"`
+	TraceId          string `json:"trace_id"`
 	isPaginationData bool
 	statusCode       int
 	InternalError    *HttpError                 `json:"-"`
