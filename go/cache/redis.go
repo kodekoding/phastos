@@ -48,7 +48,7 @@ type Handler interface {
 const defaultPrefixKey = "phastos:"
 
 type Caches interface {
-	Get(ctx context.Context, key string, fallbackFn ...func(ctx context.Context)) (string, error)
+	Get(ctx context.Context, key string, fallbackFn ...FallbackFn) (string, error)
 	Del(ctx context.Context, key string) (int64, error)
 	HSet(ctx context.Context, key, field, value string) (string, error)
 	Set(ctx context.Context, key, value string, expire ...int) (string, error)
@@ -239,22 +239,29 @@ func (r *Store) fallbackAction(ctx context.Context, key string, fallbackFn Fallb
 
 // Del key value
 func (r *Store) Del(ctx context.Context, key string) (int64, error) {
-	txn := monitoring.BeginTrxFromContext(ctx)
-	if txn != nil {
-		segment := txn.StartSegment("Redis-Delete")
-		segment.AddAttribute("key", key)
-		defer segment.End()
-	}
-	conn, err := r.Pool.GetContext(ctx)
+	wrapResult, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
+		txn := monitoring.BeginTrxFromContext(ctx)
+		if txn != nil {
+			segment := txn.StartSegment("Redis-Delete")
+			segment.AddAttribute("key", key)
+			defer segment.End()
+		}
+		conn, err := r.Pool.GetContext(ctx)
+		if err != nil {
+			return 0, errors.Wrap(err, "cache.redis.Del.GetContext")
+		}
+		defer conn.Close()
+		resp, err := redigo.Int64(conn.Do("DEL", fmt.Sprintf("%s%s", r.prefixKey, key)))
+		if err != nil {
+			return int64(0), errors.Wrap(err, "infrastructure.cache.redis.Del")
+		}
+		return resp, err
+	})
 	if err != nil {
-		return 0, errors.Wrap(err, "cache.redis.Del.GetContext")
+		return 0, err
 	}
-	defer conn.Close()
-	resp, err := redigo.Int64(conn.Do("DEL", fmt.Sprintf("%s%s", r.prefixKey, key)))
-	if err == redigo.ErrNil {
-		return 0, errors.Wrap(err, "infrastructure.cache.redis.Del")
-	}
-	return resp, err
+
+	return wrapResult.(int64), nil
 }
 
 // HSet set has map
