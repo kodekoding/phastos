@@ -10,7 +10,7 @@ var (
 )
 
 const (
-	TraceIdKeyContextStr   = "traceId"
+	RequestIdContextKey    = "requestId"
 	ErrInvalidTokenMessage = "invalid token"
 	ErrInvalidTokenCode    = "INVALID_TOKEN"
 
