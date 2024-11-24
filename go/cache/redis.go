@@ -206,7 +206,7 @@ func (r *Store) Get(ctx context.Context, key string, typeDestination any, fallba
 				fallbackAction := fallbackFn[0]
 				return r.fallbackAction(ctx, key, fallbackAction, segment, conn)
 			}
-			return "", nil
+			return "", err
 		}
 		return resp, err
 	})
@@ -217,11 +217,7 @@ func (r *Store) Get(ctx context.Context, key string, typeDestination any, fallba
 
 	resultStr, validStr := wrapResult.(string)
 	if !validStr {
-		return errors.New("[CACHE][REDIS] - Not Valid Type")
-	}
-
-	if resultStr == "" {
-		return errors.Wrap(errors.New("data not found"), "phastos.cache.redis.Get.DataNotFound")
+		return errors.New(fmt.Sprintf("[CACHE][REDIS] - Result is not valid: %v", wrapResult))
 	}
 
 	if err = json.Unmarshal([]byte(resultStr), typeDestination); err != nil {
