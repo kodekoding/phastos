@@ -16,7 +16,6 @@ require (
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/golang-jwt/jwt/v4 v4.5.0
-	github.com/golang/mock v1.6.0
 	github.com/gomodule/redigo v1.8.9
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/schema v1.2.0
@@ -39,7 +38,6 @@ require (
 	github.com/volatiletech/null v8.0.0+incompatible
 	github.com/xuri/excelize/v2 v2.7.0
 	github.com/yeqown/go-qrcode v1.5.10
-	go.uber.org/mock v0.4.0
 	golang.org/x/sync v0.1.0
 	google.golang.org/api v0.114.0
 	gorm.io/driver/mysql v1.3.4
