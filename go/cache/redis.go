@@ -249,7 +249,10 @@ func (r *Store) fallbackAction(ctx context.Context, key string, fallbackFn Fallb
 
 	setParams = append(setParams, "EX")
 	setParams = append(setParams, fallbackExpire)
-	return redigo.String(conn.Do("SET", setParams...))
+	if _, err := redigo.String(conn.Do("SET", setParams...)); err != nil {
+		return "", errors.Wrap(err, "phastos.cache.redis.fallbackAction.Set")
+	}
+	return string(byteFallbackResult), nil
 }
 
 // Del key value
