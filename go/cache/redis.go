@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"reflect"
 	"time"
 
 	redigo "github.com/gomodule/redigo/redis"
@@ -48,10 +49,10 @@ type Handler interface {
 const defaultPrefixKey = "phastos:"
 
 type Caches interface {
-	Get(ctx context.Context, key string, fallbackFn ...FallbackFn) (string, error)
+	Get(ctx context.Context, key string, typeDestination any, fallbackFn ...FallbackFn) error
 	Del(ctx context.Context, key string) (int64, error)
 	HSet(ctx context.Context, key, field, value string) (string, error)
-	Set(ctx context.Context, key, value string, expire ...int) (string, error)
+	Set(ctx context.Context, key string, value any, expire ...int) error
 	AddInSet(ctx context.Context, key, value string) (int, error)
 	GetSetMembers(ctx context.Context, key string) ([]string, error)
 	GetSetLength(ctx context.Context, key string) (int, error)
@@ -176,7 +177,12 @@ func (r *Store) wrapWithRetries(ctx context.Context, actualFn actualRedisActionF
 }
 
 // Get string value
-func (r *Store) Get(ctx context.Context, key string, fallbackFn ...FallbackFn) (string, error) {
+func (r *Store) Get(ctx context.Context, key string, typeDestination any, fallbackFn ...FallbackFn) error {
+	// validate is `typeDestination` is a pointer
+	reflectVal := reflect.ValueOf(typeDestination)
+	if reflectVal.Kind() != reflect.Ptr {
+		return errors.Wrap(errors.New("type destination params should be a pointer"), "phastos.cache.redis.Get.CheckTypeDestinationParam")
+	}
 	wrapResult, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
 		txn := monitoring.BeginTrxFromContext(ctx)
 		segmentName := "Redis-Get"
@@ -206,10 +212,23 @@ func (r *Store) Get(ctx context.Context, key string, fallbackFn ...FallbackFn) (
 	})
 
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	return wrapResult.(string), nil
+	resultStr, validStr := wrapResult.(string)
+	if !validStr {
+		return errors.New("[CACHE][REDIS] - Not Valid Type")
+	}
+
+	if resultStr == "" {
+		return errors.Wrap(errors.New("data not found"), "phastos.cache.redis.Get.DataNotFound")
+	}
+
+	if err = json.Unmarshal([]byte(resultStr), typeDestination); err != nil {
+		return errors.Wrap(err, "phastos.cache.redis.Get.UnmarshalValueToTypeDestination")
+	}
+
+	return nil
 }
 
 func (r *Store) fallbackAction(ctx context.Context, key string, fallbackFn FallbackFn, segment *newrelic.Segment, conn redigo.Conn) (string, error) {
@@ -275,8 +294,8 @@ func (r *Store) HSet(ctx context.Context, key, field, value string) (string, err
 }
 
 // Set ill be used to set the value
-func (r *Store) Set(ctx context.Context, key, value string, expire ...int) (string, error) {
-	wrapResult, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
+func (r *Store) Set(ctx context.Context, key string, value any, expire ...int) error {
+	_, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
 		txn := monitoring.BeginTrxFromContext(ctx)
 		var segment *newrelic.Segment
 		if txn != nil {
@@ -291,7 +310,8 @@ func (r *Store) Set(ctx context.Context, key, value string, expire ...int) (stri
 		defer conn.Close()
 		var setParams []interface{}
 		setParams = append(setParams, fmt.Sprintf("%s%s", r.prefixKey, key))
-		setParams = append(setParams, value)
+		byteValue, _ := json.Marshal(value)
+		setParams = append(setParams, string(byteValue))
 		expireTime := int(10 * time.Minute.Seconds())
 		if expire != nil && len(expire) > 0 {
 			expireTime = expire[0]
@@ -306,10 +326,10 @@ func (r *Store) Set(ctx context.Context, key, value string, expire ...int) (stri
 	})
 
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	return wrapResult.(string), nil
+	return nil
 }
 
 // AddInSet will be used to add value in set
