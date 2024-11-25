@@ -261,7 +261,7 @@ func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackF
 		return "", errors.Wrap(err, "phastos.cache.redis.fallbackAction.Set")
 	}
 
-	if field != "" {
+	if field != "" && fallbackExpire >= 0 {
 		if _, err := conn.Do("EXPIRE", key, fallbackExpire); err != nil {
 			log.Err(err).Str("key", key).Str("field", field).Msg("Failed to set Expire")
 		}
