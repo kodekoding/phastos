@@ -207,7 +207,7 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 			}
 		}
 	} else {
-		finalQuery = opts.Trx.Rebind(query.String())
+		finalQuery = this.Follower.Rebind(query.String())
 		opts.query = finalQuery
 
 		if segment != nil {
