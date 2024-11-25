@@ -313,18 +313,24 @@ func (r *Store) HSet(ctx context.Context, key, field string, value any, expire .
 		defer conn.Close()
 
 		byteValue, _ := json.Marshal(value)
-		_, err = redigo.String(conn.Do("HSET", fmt.Sprintf("%s%s", r.prefixKey, key), field, string(byteValue)))
+		_, err = redigo.Int64(conn.Do("HSET", fmt.Sprintf("%s%s", r.prefixKey, key), field, string(byteValue)))
 		if err != nil {
 			return nil, err
 		}
 
-		expireTime := int(10 * time.Minute.Seconds())
+		expireTime := 0
 		if expire != nil && len(expire) > 0 {
-			expireTime = expire[0]
+			expireTime = int(10 * time.Minute.Seconds())
+			if expire[0] > 0 {
+				expireTime = expire[0]
+			}
 		}
-		_, err = redigo.Int64(conn.Do("EXPIRE", key, expireTime))
-		if err != nil {
-			log.Err(err).Str("key", key).Str("field", field).Str("command", "HSET").Msg("Failed to set Expire")
+
+		if expireTime > 0 {
+			_, err = redigo.Int64(conn.Do("EXPIRE", key, expireTime))
+			if err != nil {
+				log.Err(err).Str("key", key).Str("field", field).Str("command", "HSET").Msg("Failed to set Expire")
+			}
 		}
 		return nil, nil
 	}); err != nil {
