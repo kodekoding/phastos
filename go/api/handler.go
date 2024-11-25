@@ -37,7 +37,7 @@ func InitHandler(router http.Handler) http.Handler {
 
 		// set request id and store to context
 		requestId := r.Header.Get("X-Request-ID")
-		uniqueRequestId := helper.GenerateRandomString(10)
+		uniqueRequestId := helper.GenerateRandomString(15)
 		if requestId == "" {
 			requestId = uniqueRequestId
 		}
