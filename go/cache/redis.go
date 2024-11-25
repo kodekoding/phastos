@@ -234,7 +234,8 @@ func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackF
 		return "", errors.Wrap(marshallErr, "phastos.cache.redis.Get.FallbackFunction.FailedMarshalResult")
 	}
 	var setParams []interface{}
-	setParams = append(setParams, fmt.Sprintf("%s%s", r.prefixKey, key))
+	key = fmt.Sprintf("%s%s", r.prefixKey, key)
+	setParams = append(setParams, key)
 	if field != "" {
 		setParams = append(setParams, field)
 	}
@@ -302,6 +303,7 @@ func (r *Store) HSet(ctx context.Context, key, field string, value any, expire .
 		txn := monitoring.BeginTrxFromContext(ctx)
 		segmentName := "Redis-HSET"
 		segment := txn.StartSegment(segmentName)
+		key = fmt.Sprintf("%s%s", r.prefixKey, key)
 		if txn != nil {
 			segment.AddAttribute("key", key)
 			defer segment.End()
@@ -313,7 +315,7 @@ func (r *Store) HSet(ctx context.Context, key, field string, value any, expire .
 		defer conn.Close()
 
 		byteValue, _ := json.Marshal(value)
-		_, err = redigo.Int64(conn.Do("HSET", fmt.Sprintf("%s%s", r.prefixKey, key), field, string(byteValue)))
+		_, err = redigo.Int64(conn.Do("HSET", key, field, string(byteValue)))
 		if err != nil {
 			return nil, err
 		}
