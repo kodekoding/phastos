@@ -258,8 +258,8 @@ func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackF
 		setParams = append(setParams, fallbackExpire)
 	}
 
-	if _, err := redigo.String(conn.Do(redisCommand, setParams...)); err != nil {
-		return "", errors.Wrap(err, "phastos.cache.redis.fallbackAction.Set")
+	if _, err := conn.Do(redisCommand, setParams...); err != nil {
+		return "", errors.Wrap(err, fmt.Sprintf("phastos.cache.redis.fallbackAction.%s", redisCommand))
 	}
 
 	if field != "" && fallbackExpire >= 0 {
