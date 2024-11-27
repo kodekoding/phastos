@@ -262,7 +262,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	case ActionInsert:
 		query.WriteString(fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s)`, tableName, cols, strings.Repeat(",?", len(data.Cols)-1)))
 		if active, valid := postgresEngineGroup[this.engine]; valid && active {
-			query.WriteString(fmt.Sprintf("%s RETURNING id", query.String()))
+			query.WriteString(" RETURNING id")
 		}
 	case ActionBulkInsert:
 		query.WriteString(fmt.Sprintf(`INSERT INTO %s (%s) VALUES %s`, tableName, data.ColsInsert, data.BulkValues))
@@ -280,6 +280,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	case ActionDeleteById:
 		query.WriteString(fmt.Sprintf(`DELETE FROM %s WHERE id = ?`, tableName))
 		if softDelete {
+			query.Reset()
 			query.WriteString(fmt.Sprintf("UPDATE %s SET deleted_at = now() WHERE id = ?", tableName))
 		}
 	case ActionUpdate:
@@ -287,6 +288,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	case ActionDelete:
 		query.WriteString(fmt.Sprintf(`DELETE FROM %s`, tableName))
 		if softDelete {
+			query.Reset()
 			query.WriteString(fmt.Sprintf("UPDATE %s SET deleted_at = now()", tableName))
 		}
 	default:
@@ -306,8 +308,11 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	}
 
 	finalQuery := this.Master.Rebind(query.String())
+	// reset and replace the final query with rebind-ed query
+	query.Reset()
+	query.WriteString(finalQuery)
 	result := new(CUDResponse)
-	result.query = finalQuery
+	result.query = query.String()
 	result.params = data.Values
 	trx := opts.Trx
 	start := time.Now()
@@ -315,23 +320,23 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	rowsAffected := int64(0)
 
 	if segment != nil {
-		segment.AddAttribute(NewRelicAttributeQuery, finalQuery)
+		segment.AddAttribute(NewRelicAttributeQuery, query.String())
 		byteParam, _ := json.Marshal(data.Values)
 		segment.AddAttribute(NewRelicAttributeParams, string(byteParam))
 	}
 	if trx != nil {
 		if active, valid := postgresEngineGroup[this.engine]; valid && active && data.Action == ActionUpdate {
-			finalQuery = fmt.Sprintf("%s RETURNING id", finalQuery)
+			query.WriteString(" RETURNING id")
 		}
-		stmt, err := trx.PrepareContext(ctx, finalQuery)
+		stmt, err := trx.PrepareContext(ctx, query.String())
 		if err != nil {
-			_, err = sendNilResponse(err, "phastos.database.Write.PrepareContext", finalQuery, data.Values)
+			_, err = sendNilResponse(err, "phastos.database.Write.PrepareContext", query.String(), data.Values)
 			return result, err
 		}
 
 		if active, valid := postgresEngineGroup[this.engine]; valid && active {
 			if err = stmt.QueryRowContext(ctx, data.Values...).Scan(&lastInsertID); err != nil {
-				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", finalQuery, data.Values)
+				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query.String(), data.Values)
 				if err == nil {
 					result.RowsAffected = 1
 					result.Status = true
@@ -341,17 +346,17 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		} else {
 			exec, err = stmt.ExecContext(ctx, data.Values...)
 			if err != nil {
-				_, err = sendNilResponse(err, "phastos.database.Write.ExecContext", finalQuery, data.Values)
+				_, err = sendNilResponse(err, "phastos.database.Write.ExecContext", query.String(), data.Values)
 				return result, err
 			}
 		}
 	} else {
 		if active, valid := postgresEngineGroup[this.engine]; valid && active {
 			if data.Action == ActionUpdate {
-				finalQuery = fmt.Sprintf("%s RETURNING id", finalQuery)
+				query.WriteString(" RETURNING id")
 			}
-			if err = this.Master.QueryRowContext(ctx, finalQuery, data.Values...).Scan(&lastInsertID); err != nil {
-				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", finalQuery, data.Values)
+			if err = this.Master.QueryRowContext(ctx, query.String(), data.Values...).Scan(&lastInsertID); err != nil {
+				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query.String(), data.Values)
 				if err == nil {
 					result.RowsAffected = 1
 					result.Status = true
@@ -359,9 +364,9 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 				return result, err
 			}
 		} else {
-			exec, err = this.Master.ExecContext(ctx, finalQuery, data.Values...)
+			exec, err = this.Master.ExecContext(ctx, query.String(), data.Values...)
 			if err != nil {
-				_, err = sendNilResponse(err, "phastos.database.Write.WithoutTrx.ExecContext", finalQuery, data.Values)
+				_, err = sendNilResponse(err, "phastos.database.Write.WithoutTrx.ExecContext", query.String(), data.Values)
 				return result, err
 			}
 		}
@@ -370,7 +375,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	result.LastInsertID = lastInsertID
 	result.RowsAffected = rowsAffected
 
-	this.checkSQLWarning(ctx, finalQuery, start, data.Values)
+	this.checkSQLWarning(ctx, query.String(), start, data.Values)
 
 	if active, valid := mySQLEngineGroup[this.engine]; valid && active {
 		lastInsertID, err = exec.LastInsertId()
