@@ -262,7 +262,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	case ActionInsert:
 		query.WriteString(fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s)`, tableName, cols, strings.Repeat(",?", len(data.Cols)-1)))
 		if active, valid := postgresEngineGroup[this.engine]; valid && active {
-			query.WriteString(" RETURNING id")
+			query.WriteString(" RETURNING *")
 		}
 	case ActionBulkInsert:
 		query.WriteString(fmt.Sprintf(`INSERT INTO %s (%s) VALUES %s`, tableName, data.ColsInsert, data.BulkValues))
