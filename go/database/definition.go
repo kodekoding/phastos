@@ -143,6 +143,7 @@ type (
 		RowsAffected int64  `json:"rows_affected"`
 		LastInsertID int64  `json:"last_insert_id"`
 		Message      string `json:"message,omitempty"`
+		Return       map[string]any
 		executedQuery
 	}
 
