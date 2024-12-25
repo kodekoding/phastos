@@ -20,9 +20,9 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/schema v1.2.0
 	github.com/iancoleman/strcase v0.2.0
-	github.com/jmoiron/sqlx v1.3.4
+	github.com/jmoiron/sqlx v1.4.0
 	github.com/keighl/mandrill v0.0.0-20170605120353-1775dd4b3b41
-	github.com/lib/pq v1.10.2
+	github.com/lib/pq v1.10.9
 	github.com/mauri870/gcsfs v0.0.0-20220203135357-0da01ba4e96d
 	github.com/newrelic/go-agent/v3 v3.34.0
 	github.com/newrelic/go-agent/v3/integrations/logcontext-v2/zerologWriter v1.0.2
@@ -48,13 +48,14 @@ require (
 	cloud.google.com/go/compute v1.19.1 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v0.13.0 // indirect
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/elazarl/goproxy v0.0.0-20231117061959-7cc037d33fb5 // indirect
 	github.com/extrame/ole2 v0.0.0-20160812065207-d69429661ad7 // indirect
 	github.com/friendsofgo/errors v0.9.2 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
-	github.com/go-sql-driver/mysql v1.6.0 // indirect
+	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/gofrs/uuid v4.2.0+incompatible // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
