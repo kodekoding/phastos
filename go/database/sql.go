@@ -335,7 +335,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		}
 
 		if active, valid := postgresEngineGroup[this.engine]; valid && active {
-			if err = stmt.QueryRowContext(ctx, data.Values...).Scan(&result.Return); err != nil {
+			if err = stmt.QueryRowContext(ctx, data.Values...).Scan(opts.Result); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query.String(), data.Values)
 				if err == nil {
 					result.RowsAffected = 1
@@ -355,7 +355,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 			if data.Action == ActionUpdate {
 				query.WriteString(" RETURNING *")
 			}
-			if err = this.Master.QueryRowContext(ctx, query.String(), data.Values...).Scan(&result.Return); err != nil {
+			if err = this.Master.QueryRowContext(ctx, query.String(), data.Values...).Scan(opts.Result); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query.String(), data.Values)
 				if err == nil {
 					result.RowsAffected = 1
@@ -373,11 +373,6 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	}
 	rowsAffected++
 	result.LastInsertID = lastInsertID
-	if result.Return != nil {
-		if id, valid := result.Return["id"].(int); valid {
-			result.LastInsertID = int64(id)
-		}
-	}
 	result.RowsAffected = rowsAffected
 
 	this.checkSQLWarning(ctx, query.String(), start, data.Values)

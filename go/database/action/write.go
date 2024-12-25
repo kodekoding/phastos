@@ -242,6 +242,7 @@ func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interfac
 
 	qOpts := &database.QueryOpts{
 		CUDRequest: cudRequestData,
+		Result:     data,
 	}
 
 	totalOpts := len(opts)
