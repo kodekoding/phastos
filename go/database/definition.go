@@ -17,6 +17,12 @@ type (
 		// QueryRowContext from sql database
 		QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
 
+		// QueryRow executes QueryRow against follower DB
+		QueryRowx(query string, args ...interface{}) *sqlx.Row
+
+		// QueryRowContext from sql database
+		QueryRowxContext(ctx context.Context, query string, args ...interface{}) *sqlx.Row
+
 		// Rebind a query from the default bindtype (QUESTION) to the target bindtype.
 		Rebind(sql string) string
 	}
@@ -143,7 +149,7 @@ type (
 		RowsAffected int64  `json:"rows_affected"`
 		LastInsertID int64  `json:"last_insert_id"`
 		Message      string `json:"message,omitempty"`
-		Return       map[string]any
+		Return       []any
 		executedQuery
 	}
 

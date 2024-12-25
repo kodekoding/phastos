@@ -110,6 +110,14 @@ func (this *SQL) QueryRowContext(ctx context.Context, query string, args ...inte
 	return this.Master.QueryRowContext(ctx, query, args...)
 }
 
+func (this *SQL) QueryRowx(query string, args ...interface{}) *sqlx.Row {
+	return this.Master.QueryRowx(query, args...)
+}
+
+func (this *SQL) QueryRowxContext(ctx context.Context, query string, args ...interface{}) *sqlx.Row {
+	return this.Master.QueryRowxContext(ctx, query, args...)
+}
+
 func (this *SQL) Rebind(sql string) string {
 	return this.Master.Rebind(sql)
 }
@@ -328,14 +336,15 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		if active, valid := postgresEngineGroup[this.engine]; valid && active && data.Action == ActionUpdate {
 			query.WriteString(" RETURNING *")
 		}
-		stmt, err := trx.PrepareContext(ctx, query.String())
+		stmt, err := trx.PreparexContext(ctx, query.String())
 		if err != nil {
 			_, err = sendNilResponse(err, "phastos.database.Write.PrepareContext", query.String(), data.Values)
 			return result, err
 		}
 
 		if active, valid := postgresEngineGroup[this.engine]; valid && active {
-			if err = stmt.QueryRowContext(ctx, data.Values...).Scan(opts.Result); err != nil {
+
+			if err = stmt.QueryRowxContext(ctx, data.Values...).StructScan(opts.Result); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query.String(), data.Values)
 				if err == nil {
 					result.RowsAffected = 1
@@ -355,7 +364,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 			if data.Action == ActionUpdate {
 				query.WriteString(" RETURNING *")
 			}
-			if err = this.Master.QueryRowContext(ctx, query.String(), data.Values...).Scan(opts.Result); err != nil {
+			if err = this.Master.QueryRowxContext(ctx, query.String(), data.Values...).StructScan(opts.Result); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query.String(), data.Values)
 				if err == nil {
 					result.RowsAffected = 1
