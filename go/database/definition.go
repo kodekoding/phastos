@@ -50,7 +50,7 @@ type (
 		// BindNamed do BindNamed on master DB
 		BindNamed(query string, arg interface{}) (string, []interface{}, error)
 
-		commonDB
+		Follower
 	}
 
 	// Follower defines operation that will be executed to follower DB
@@ -141,6 +141,7 @@ type (
 		UpsertInsertId    int64
 		Trx               *sqlx.Tx
 		LockingType       string
+		UseMaster         bool
 		executedQuery
 	}
 
@@ -210,6 +211,72 @@ type (
 		TimeCol
 	}
 )
+
+func (this *SQL) GetTransaction() Transactions {
+	return NewTransaction(this.Master)
+}
+
+func (this *SQL) Get(dest interface{}, query string, args ...interface{}) error {
+	return this.Master.Get(dest, query, args...)
+}
+
+func (this *SQL) GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+	return this.Master.GetContext(ctx, dest, query, args...)
+}
+
+// Select from follower database
+func (this *SQL) Select(dest interface{}, query string, args ...interface{}) error {
+	return this.Master.Select(dest, query, args...)
+}
+
+// Query from follower database
+func (this *SQL) Query(query string, args ...interface{}) (*sql.Rows, error) {
+	return this.Master.Query(query, args...)
+}
+
+func (this *SQL) QueryRow(query string, args ...interface{}) *sql.Row {
+	return this.Master.QueryRow(query, args...)
+}
+
+func (this *SQL) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
+	return this.Master.QueryRowContext(ctx, query, args...)
+}
+
+func (this *SQL) QueryRowx(query string, args ...interface{}) *sqlx.Row {
+	return this.Master.QueryRowx(query, args...)
+}
+
+func (this *SQL) QueryRowxContext(ctx context.Context, query string, args ...interface{}) *sqlx.Row {
+	return this.Master.QueryRowxContext(ctx, query, args...)
+}
+
+func (this *SQL) Rebind(sql string) string {
+	return this.Master.Rebind(sql)
+}
+
+func (this *SQL) NamedQuery(query string, arg interface{}) (*sqlx.Rows, error) {
+	return this.Master.NamedQuery(query, arg)
+}
+
+// SelectContext from sql database
+func (this *SQL) SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error {
+	return this.Master.SelectContext(ctx, dest, query, args...)
+}
+
+// QueryContext from sql database
+func (this *SQL) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
+	return this.Master.QueryContext(ctx, query, args...)
+}
+
+// QueryxContext queries the database and returns an *sqlx.Rows. Any placeholder parameters are replaced with supplied args.
+func (this *SQL) QueryxContext(ctx context.Context, query string, args ...interface{}) (*sqlx.Rows, error) {
+	return this.Master.QueryxContext(ctx, query, args...)
+}
+
+// NamedQueryContext do named query on follower DB
+func (this *SQL) NamedQueryContext(ctx context.Context, query string, arg interface{}) (*sqlx.Rows, error) {
+	return this.Master.NamedQueryContext(ctx, query, arg)
+}
 
 func (req *TableRequest) SetWhereCondition(condition string, value ...interface{}) {
 	req.InitiateWhere = append(req.InitiateWhere, condition)

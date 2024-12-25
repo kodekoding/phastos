@@ -98,30 +98,6 @@ func connectDB(engine string, dbType string) (*sqlx.DB, error) {
 	return db, nil
 }
 
-func (this *SQL) GetTransaction() Transactions {
-	return NewTransaction(this.Master)
-}
-
-func (this *SQL) QueryRow(query string, args ...interface{}) *sql.Row {
-	return this.Master.QueryRow(query, args...)
-}
-
-func (this *SQL) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
-	return this.Master.QueryRowContext(ctx, query, args...)
-}
-
-func (this *SQL) QueryRowx(query string, args ...interface{}) *sqlx.Row {
-	return this.Master.QueryRowx(query, args...)
-}
-
-func (this *SQL) QueryRowxContext(ctx context.Context, query string, args ...interface{}) *sqlx.Row {
-	return this.Master.QueryRowxContext(ctx, query, args...)
-}
-
-func (this *SQL) Rebind(sql string) string {
-	return this.Master.Rebind(sql)
-}
-
 func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...interface{}) error {
 	var segment *newrelic.Segment
 	if this.isNR {
@@ -215,19 +191,23 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 			}
 		}
 	} else {
-		finalQuery = this.Follower.Rebind(query.String())
+		db := this.Follower
+		if opts.UseMaster {
+			db = this.Master
+		}
+		finalQuery = db.Rebind(query.String())
 		opts.query = finalQuery
 
 		if segment != nil {
 			segment.AddAttribute(NewRelicAttributeQuery, finalQuery)
 		}
 		if opts.IsList {
-			if err = this.Follower.SelectContext(ctx, opts.Result, finalQuery, params...); err != nil {
+			if err = db.SelectContext(ctx, opts.Result, finalQuery, params...); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Read.SelectContext", finalQuery, params)
 				return err
 			}
 		} else {
-			if err = this.Follower.GetContext(ctx, opts.Result, finalQuery, params...); err != nil {
+			if err = db.GetContext(ctx, opts.Result, finalQuery, params...); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Read.GetContext", finalQuery, params)
 				return err
 			}
