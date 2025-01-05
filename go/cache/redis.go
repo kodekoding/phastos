@@ -2,9 +2,11 @@ package cache
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	"reflect"
 	"time"
 
 	redigo "github.com/gomodule/redigo/redis"
@@ -20,9 +22,13 @@ import (
 type Store struct {
 	Pool      Handler
 	prefixKey string
+	maxRetry  int
 }
 
 type Options func(*RedisCfg)
+
+type FallbackFn func(ctx context.Context) (result any, expire int64, err error)
+type actualRedisActionFn func(ctx context.Context) (result any, err error)
 
 type RedisCfg struct {
 	Address   string `yaml:"address"`
@@ -31,6 +37,7 @@ type RedisCfg struct {
 	MaxActive int    `yaml:"max_active"`
 	Password  string `yaml:"password"`
 	Username  string `yaml:"username"`
+	MaxRetry  int
 }
 
 // Handler handler for cache
@@ -42,15 +49,12 @@ type Handler interface {
 const defaultPrefixKey = "phastos:"
 
 type Caches interface {
-	Get(ctx context.Context, key string) (string, error)
+	Get(ctx context.Context, key string, typeDestination any, fallbackFn ...FallbackFn) error
 	Del(ctx context.Context, key string) (int64, error)
-	HSet(ctx context.Context, key, field, value string) (string, error)
-	Set(ctx context.Context, key, value string, expire ...int) (string, error)
-	AddInSet(ctx context.Context, key, value string) (int, error)
-	GetSetMembers(ctx context.Context, key string) ([]string, error)
-	GetSetLength(ctx context.Context, key string) (int, error)
-	GetNElementOfSet(ctx context.Context, key string, n int) ([]string, error)
-	PushNElementToSet(ctx context.Context, values []interface{}) (int, error)
+	Set(ctx context.Context, key string, value any, expire ...int) error
+	HSet(ctx context.Context, key, field string, value any, expire ...int) error
+	HGet(ctx context.Context, key, field string, typeDestination any, fallbackFn ...FallbackFn) error
+	HDel(ctx context.Context, key, field string) error
 }
 
 func New(options ...Options) *Store {
@@ -97,6 +101,11 @@ func New(options ...Options) *Store {
 		prefixKey = defaultPrefixKey
 	}
 	store.prefixKey = prefixKey
+	maxRetry := cfg.MaxRetry
+	if maxRetry == 0 {
+		maxRetry = 10
+	}
+	store.maxRetry = maxRetry
 	log.Info().Msg("Successful connect to redis")
 
 	return store
@@ -126,6 +135,12 @@ func WithMaxIdle(maxIdle int) Options {
 	}
 }
 
+func WithMaxRetry(maxRetry int) Options {
+	return func(cfg *RedisCfg) {
+		cfg.MaxRetry = maxRetry
+	}
+}
+
 func WithPassword(password string) Options {
 	return func(cfg *RedisCfg) {
 		cfg.Password = password
@@ -138,132 +153,305 @@ func WithUsername(username string) Options {
 	}
 }
 
+func (r *Store) wrapWithRetries(ctx context.Context, actualFn actualRedisActionFn) (any, error) {
+	for i := 0; i < r.maxRetry; i++ {
+		result, err := actualFn(ctx)
+		if err != nil {
+			if err == redigo.ErrPoolExhausted {
+				log.Warn().Int("counter", i+1).Msg("[CACHE][REDIS] Connection pool exhausted, retrying...")
+				time.Sleep(time.Second) // Tunggu sebelum mencoba lagi
+				continue                // Coba lagi
+
+			}
+			return nil, err
+		}
+
+		return result, nil
+	}
+
+	errFailedAfterRetry := errors.New(fmt.Sprintf("Failed to get connection pool after %d retries", r.maxRetry))
+	return nil, errors.Wrap(errFailedAfterRetry, "phastos.cache.redis.WrapRetry")
+}
+
 // Get string value
-func (r *Store) Get(ctx context.Context, key string) (string, error) {
-	txn := monitoring.BeginTrxFromContext(ctx)
-	if txn != nil {
-		segment := txn.StartSegment("Redis-Get")
-		segment.AddAttribute("key", key)
-		defer segment.End()
+func (r *Store) Get(ctx context.Context, key string, typeDestination any, fallbackFn ...FallbackFn) error {
+	// validate is `typeDestination` is a pointer
+	reflectVal := reflect.ValueOf(typeDestination)
+	if reflectVal.Kind() != reflect.Ptr {
+		return errors.Wrap(errors.New("type destination params should be a pointer"), "phastos.cache.redis.Get.CheckTypeDestinationParam")
 	}
-	conn, err := r.Pool.GetContext(ctx)
+	wrapResult, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
+		txn := monitoring.BeginTrxFromContext(ctx)
+		segmentName := "Redis-Get"
+		if fallbackFn != nil && len(fallbackFn) > 0 {
+			segmentName = fmt.Sprintf("%sWithFallback", segmentName)
+		}
+		segment := txn.StartSegment(segmentName)
+		if txn != nil {
+			segment.AddAttribute("key", key)
+			defer segment.End()
+		}
+		conn, err := r.Pool.GetContext(ctx)
+		if err != nil {
+			return "", errors.Wrap(err, "cache.redis.Get.GetContext")
+		}
+
+		defer conn.Close()
+		resp, err := redigo.String(conn.Do("GET", fmt.Sprintf("%s%s", r.prefixKey, key)))
+		if err == redigo.ErrNil {
+			if fallbackFn != nil && len(fallbackFn) > 0 {
+				fallbackAction := fallbackFn[0]
+				return r.fallbackAction(ctx, key, "", fallbackAction, segment, conn)
+			}
+			return "", err
+		}
+		return resp, err
+	})
+
 	if err != nil {
-		return "", errors.Wrap(err, "cache.redis.Get.GetContext")
+		return err
 	}
-	defer conn.Close()
-	resp, err := redigo.String(conn.Do("GET", fmt.Sprintf("%s%s", r.prefixKey, key)))
-	if err == redigo.ErrNil {
-		return "", errors.Wrap(err, "infrastructure.cache.redis.Get")
+
+	resultStr, validStr := wrapResult.(string)
+	if !validStr {
+		return errors.New(fmt.Sprintf("[CACHE][REDIS] - Result is not valid: %v", wrapResult))
 	}
-	return resp, err
+
+	if err = json.Unmarshal([]byte(resultStr), typeDestination); err != nil {
+		return errors.Wrap(err, "phastos.cache.redis.Get.UnmarshalValueToTypeDestination")
+	}
+
+	return nil
+}
+
+func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackFn FallbackFn, segment *newrelic.Segment, conn redigo.Conn) (string, error) {
+	fallbackResult, fallbackExpire, fallbackErr := fallbackFn(ctx)
+	if fallbackErr != nil {
+		return "", errors.Wrap(fallbackErr, "phastos.cache.redis.Get.FallbackFunction.Error")
+	}
+	byteFallbackResult, marshallErr := json.Marshal(fallbackResult)
+	if marshallErr != nil {
+		return "", errors.Wrap(marshallErr, "phastos.cache.redis.Get.FallbackFunction.FailedMarshalResult")
+	}
+	var setParams []interface{}
+	key = fmt.Sprintf("%s%s", r.prefixKey, key)
+	setParams = append(setParams, key)
+	if field != "" {
+		setParams = append(setParams, field)
+	}
+	setParams = append(setParams, string(byteFallbackResult))
+	if fallbackExpire == 0 {
+		// set default expired time to 10 minutes
+		fallbackExpire = int64(10 * time.Minute.Seconds())
+	}
+	if segment != nil {
+		segment.AddAttribute("expire", fallbackExpire)
+	}
+
+	redisCommand := "SET"
+	if field != "" {
+		redisCommand = "HSET"
+	}
+
+	if field == "" {
+		setParams = append(setParams, "EX")
+		setParams = append(setParams, fallbackExpire)
+	}
+
+	if _, err := conn.Do(redisCommand, setParams...); err != nil {
+		return "", errors.Wrap(err, fmt.Sprintf("phastos.cache.redis.fallbackAction.%s", redisCommand))
+	}
+
+	if field != "" && fallbackExpire >= 0 {
+		if _, err := conn.Do("EXPIRE", key, fallbackExpire); err != nil {
+			log.Err(err).Str("key", key).Str("field", field).Msg("Failed to set Expire")
+		}
+	}
+	return string(byteFallbackResult), nil
 }
 
 // Del key value
 func (r *Store) Del(ctx context.Context, key string) (int64, error) {
-	txn := monitoring.BeginTrxFromContext(ctx)
-	if txn != nil {
-		segment := txn.StartSegment("Redis-Delete")
-		segment.AddAttribute("key", key)
-		defer segment.End()
-	}
-	conn, err := r.Pool.GetContext(ctx)
+	wrapResult, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
+		txn := monitoring.BeginTrxFromContext(ctx)
+		if txn != nil {
+			segment := txn.StartSegment("Redis-Delete")
+			segment.AddAttribute("key", key)
+			defer segment.End()
+		}
+		conn, err := r.Pool.GetContext(ctx)
+		if err != nil {
+			return 0, errors.Wrap(err, "cache.redis.Del.GetContext")
+		}
+		defer conn.Close()
+		resp, err := redigo.Int64(conn.Do("DEL", fmt.Sprintf("%s%s", r.prefixKey, key)))
+		if err != nil {
+			return int64(0), errors.Wrap(err, "infrastructure.cache.redis.Del")
+		}
+		return resp, err
+	})
 	if err != nil {
-		return 0, errors.Wrap(err, "cache.redis.Del.GetContext")
+		return 0, err
 	}
-	defer conn.Close()
-	resp, err := redigo.Int64(conn.Do("DEL", fmt.Sprintf("%s%s", r.prefixKey, key)))
-	if err == redigo.ErrNil {
-		return 0, errors.Wrap(err, "infrastructure.cache.redis.Del")
-	}
-	return resp, err
+
+	return wrapResult.(int64), nil
 }
 
 // HSet set has map
-func (r *Store) HSet(ctx context.Context, key, field, value string) (string, error) {
-	conn, err := r.Pool.GetContext(ctx)
-	if err != nil {
-		return "", errors.Wrap(err, "cache.redis.HSet.GetContext")
+func (r *Store) HSet(ctx context.Context, key, field string, value any, expire ...int) error {
+	if _, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
+		txn := monitoring.BeginTrxFromContext(ctx)
+		segmentName := "Redis-HSET"
+		segment := txn.StartSegment(segmentName)
+		key = fmt.Sprintf("%s%s", r.prefixKey, key)
+		if txn != nil {
+			segment.AddAttribute("key", key)
+			defer segment.End()
+		}
+		conn, err := r.Pool.GetContext(ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "cache.redis.HSET.GetPoolContext")
+		}
+		defer conn.Close()
+
+		byteValue, _ := json.Marshal(value)
+		_, err = redigo.Int64(conn.Do("HSET", key, field, string(byteValue)))
+		if err != nil {
+			return nil, err
+		}
+
+		expireTime := 0
+		if expire != nil && len(expire) > 0 {
+			expireTime = int(10 * time.Minute.Seconds())
+			if expire[0] > 0 {
+				expireTime = expire[0]
+			}
+		}
+
+		if expireTime > 0 {
+			_, err = redigo.Int64(conn.Do("EXPIRE", key, expireTime))
+			if err != nil {
+				log.Err(err).Str("key", key).Str("field", field).Str("command", "HSET").Msg("Failed to set Expire")
+			}
+		}
+		return nil, nil
+	}); err != nil {
+		return err
 	}
-	defer conn.Close()
-	return redigo.String(conn.Do("HSET", fmt.Sprintf("%s%s", r.prefixKey, key), field, value))
+
+	return nil
+}
+
+// HGet set has map
+func (r *Store) HGet(ctx context.Context, key, field string, typeDestination any, fallbackFn ...FallbackFn) error {
+	// validate is `typeDestination` is a pointer
+	reflectVal := reflect.ValueOf(typeDestination)
+	if reflectVal.Kind() != reflect.Ptr {
+		return errors.Wrap(errors.New("type destination params should be a pointer"), "phastos.cache.redis.Get.CheckTypeDestinationParam")
+	}
+	wrapResult, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
+		txn := monitoring.BeginTrxFromContext(ctx)
+		segmentName := "Redis-HGET"
+		if fallbackFn != nil && len(fallbackFn) > 0 {
+			segmentName = fmt.Sprintf("%sWithFallback", segmentName)
+		}
+		segment := txn.StartSegment(segmentName)
+		if txn != nil {
+			segment.AddAttribute("key", key)
+			defer segment.End()
+		}
+		conn, err := r.Pool.GetContext(ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "cache.redis.HGET.GetPoolContext")
+		}
+		defer conn.Close()
+		resp, err := redigo.String(conn.Do("HGET", fmt.Sprintf("%s%s", r.prefixKey, key), field))
+		if err == redigo.ErrNil && (fallbackFn != nil && len(fallbackFn) > 0) {
+			fallbackAction := fallbackFn[0]
+			return r.fallbackAction(ctx, key, field, fallbackAction, segment, conn)
+		}
+		return resp, err
+	})
+
+	if err != nil {
+		return err
+	}
+
+	resultStr, validStr := wrapResult.(string)
+	if !validStr {
+		return errors.New(fmt.Sprintf("[CACHE][REDIS] - Result is not valid: %v", wrapResult))
+	}
+
+	if err = json.Unmarshal([]byte(resultStr), typeDestination); err != nil {
+		return errors.Wrap(err, "phastos.cache.redis.Get.UnmarshalValueToTypeDestination")
+	}
+	return nil
+}
+
+// HGet set has map
+func (r *Store) HDel(ctx context.Context, key, field string) error {
+	if _, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
+		txn := monitoring.BeginTrxFromContext(ctx)
+		segmentName := "Redis-HDEL"
+		segment := txn.StartSegment(segmentName)
+		if txn != nil {
+			segment.AddAttribute("key", key)
+			defer segment.End()
+		}
+		conn, err := r.Pool.GetContext(ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "cache.redis.HDEL.GetPoolContext")
+		}
+		defer conn.Close()
+		resp, err := redigo.Int64(conn.Do("HDEL", fmt.Sprintf("%s%s", r.prefixKey, key), field))
+		if err != nil {
+			return int64(0), errors.Wrap(err, "phastos.cache.redis.HDEL")
+		}
+		return resp, err
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Set ill be used to set the value
-func (r *Store) Set(ctx context.Context, key, value string, expire ...int) (string, error) {
-	txn := monitoring.BeginTrxFromContext(ctx)
-	var segment *newrelic.Segment
-	if txn != nil {
-		segment = txn.StartSegment("Redis-Set")
-		segment.AddAttribute("key", key)
-		defer segment.End()
-	}
-	conn, err := r.Pool.GetContext(ctx)
-	if err != nil {
-		return "", errors.Wrap(err, "cache.redis.Set.GetContext")
-	}
-	defer conn.Close()
-	var setParams []interface{}
-	setParams = append(setParams, fmt.Sprintf("%s%s", r.prefixKey, key))
-	setParams = append(setParams, value)
-	if expire != nil && len(expire) > 0 {
+func (r *Store) Set(ctx context.Context, key string, value any, expire ...int) error {
+	_, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
+		txn := monitoring.BeginTrxFromContext(ctx)
+		var segment *newrelic.Segment
+		if txn != nil {
+			segment = txn.StartSegment("Redis-Set")
+			segment.AddAttribute("key", key)
+			defer segment.End()
+		}
+		conn, err := r.Pool.GetContext(ctx)
+		if err != nil {
+			return "", errors.Wrap(err, "cache.redis.Set.GetContext")
+		}
+		defer conn.Close()
+		var setParams []interface{}
+		setParams = append(setParams, fmt.Sprintf("%s%s", r.prefixKey, key))
+		byteValue, _ := json.Marshal(value)
+		setParams = append(setParams, string(byteValue))
+		expireTime := int(10 * time.Minute.Seconds())
+		if expire != nil && len(expire) > 0 {
+			expireTime = expire[0]
+		}
 		if segment != nil {
-			segment.AddAttribute("expire", expire[0])
+			segment.AddAttribute("expire", expireTime)
 		}
 
 		setParams = append(setParams, "EX")
-		setParams = append(setParams, expire[0])
-	}
-	return redigo.String(conn.Do("SET", setParams...))
-}
+		setParams = append(setParams, expireTime)
+		return redigo.String(conn.Do("SET", setParams...))
+	})
 
-// AddInSet will be used to add value in set
-func (r *Store) AddInSet(ctx context.Context, key, value string) (int, error) {
-	conn, err := r.Pool.GetContext(ctx)
 	if err != nil {
-		return 0, errors.Wrap(err, "cache.redis.AddInSet.GetContext")
+		return err
 	}
-	defer conn.Close()
-	return redigo.Int(conn.Do("SADD", fmt.Sprintf("%s%s", r.prefixKey, key), value))
-}
 
-// GetSetMembers will be used to get the set memebers
-func (r *Store) GetSetMembers(ctx context.Context, key string) ([]string, error) {
-	conn, err := r.Pool.GetContext(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "cache.redis.GetSetMembers.GetContext")
-	}
-	defer conn.Close()
-	return redigo.Strings(conn.Do("SMEMBERS", fmt.Sprintf("%s%s", r.prefixKey, key)))
-}
-
-// GetSetLength will be used to get the set length
-func (r *Store) GetSetLength(ctx context.Context, key string) (int, error) {
-	conn, err := r.Pool.GetContext(ctx)
-	if err != nil {
-		return 0, errors.Wrap(err, "cache.redis.GetSetLength.GetContext")
-	}
-	defer conn.Close()
-	return redigo.Int(conn.Do("SCARD", fmt.Sprintf("%s%s", r.prefixKey, key)))
-}
-
-// GetNElementOfSet to get the first N elements of set
-func (r *Store) GetNElementOfSet(ctx context.Context, key string, n int) ([]string, error) {
-	conn, err := r.Pool.GetContext(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "cache.redis.GetNElementOfSet.GetContext")
-	}
-	defer conn.Close()
-	return redigo.Strings(conn.Do("SPOP", fmt.Sprintf("%s%s", r.prefixKey, key), n))
-}
-
-// PushNElementToSet will be used to push n elements to set
-func (r *Store) PushNElementToSet(ctx context.Context, values []interface{}) (int, error) {
-	conn, err := r.Pool.GetContext(ctx)
-	if err != nil {
-		return 0, errors.Wrap(err, "cache.redis.PushNElementToSet.GetContext")
-	}
-	defer conn.Close()
-	return redigo.Int(conn.Do("SADD", values...))
+	return nil
 }
 
 func (r *Store) WrapToHandler(next http.Handler) http.Handler {
