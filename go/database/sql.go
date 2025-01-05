@@ -139,11 +139,11 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	}
 
 	var (
-		addOnQuery string
-		params     = additionalParams
-		err        error
-		query      = opts.BaseQuery
+		params = additionalParams
+		query  strings.Builder
 	)
+
+	query.WriteString(opts.BaseQuery)
 
 	byteReqData, err := json.Marshal(opts)
 	segment.AddAttribute("query_option_param", fmt.Sprintf("%s - %#v", string(byteReqData), err))
@@ -151,22 +151,23 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	if opts.SelectRequest != nil {
 		var addOnParams []interface{}
 		opts.SelectRequest.engine = this.engine
-		addOnQuery, addOnParams, err = GenerateAddOnQuery(ctx, opts.SelectRequest)
+		addOnQuery, addOnParams, err := GenerateAddOnQuery(ctx, opts.SelectRequest)
 		if err != nil {
 			_, err = sendNilResponse(err, "phastos.database.db.Read.GenerateAddOnQuery", opts.SelectRequest)
 			return err
 		}
 
+		query.WriteString(addOnQuery)
 		params = append(params, addOnParams...)
 	}
 
-	query += addOnQuery
 	opts.params = params
 	start := time.Now()
 
 	byteParam, _ := json.Marshal(params)
 	segment.AddAttribute(NewRelicAttributeParams, string(byteParam))
 
+	var finalQuery string
 	if opts.Trx != nil {
 		var lockingType string
 		switch opts.LockingType {
@@ -181,51 +182,55 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 			lockingType = ""
 		}
 
-		query += lockingType
+		query.WriteString(lockingType)
 
-		query = opts.Trx.Rebind(query)
-		opts.query = query
+		finalQuery = opts.Trx.Rebind(query.String())
+		opts.query = finalQuery
 		if segment != nil {
-			segment.AddAttribute(NewRelicAttributeQuery, query)
+			segment.AddAttribute(NewRelicAttributeQuery, finalQuery)
 		}
-		stmt, err := opts.Trx.PreparexContext(ctx, query)
+		stmt, err := opts.Trx.PreparexContext(ctx, finalQuery)
 		if err != nil {
-			_, err = sendNilResponse(err, "phastos.database.ReadTrx.PrepareContext", query, params)
+			_, err = sendNilResponse(err, "phastos.database.ReadTrx.PrepareContext", finalQuery, params)
 			return err
 		}
 
 		if opts.IsList {
 			if err = stmt.SelectContext(ctx, opts.Result, params...); err != nil {
-				_, err = sendNilResponse(err, "phastos.database.ReadTrx.SelectContext", query, params)
+				_, err = sendNilResponse(err, "phastos.database.ReadTrx.SelectContext", finalQuery, params)
 				return err
 			}
 		} else {
 			if err = stmt.GetContext(ctx, opts.Result, params...); err != nil {
-				_, err = sendNilResponse(err, "phastos.database.ReadTrx.GetContext", query, params)
+				_, err = sendNilResponse(err, "phastos.database.ReadTrx.GetContext", finalQuery, params)
 				return err
 			}
 		}
 	} else {
-		query = this.Follower.Rebind(query)
-		opts.query = query
+		db := this.Follower
+		if opts.UseMaster {
+			db = this.Master
+		}
+		finalQuery = db.Rebind(query.String())
+		opts.query = finalQuery
 
 		if segment != nil {
-			segment.AddAttribute(NewRelicAttributeQuery, query)
+			segment.AddAttribute(NewRelicAttributeQuery, finalQuery)
 		}
 		if opts.IsList {
-			if err = this.Follower.SelectContext(ctx, opts.Result, query, params...); err != nil {
-				_, err = sendNilResponse(err, "phastos.database.Read.SelectContext", query, params)
+			if err = db.SelectContext(ctx, opts.Result, finalQuery, params...); err != nil {
+				_, err = sendNilResponse(err, "phastos.database.Read.SelectContext", finalQuery, params)
 				return err
 			}
 		} else {
-			if err = this.Follower.GetContext(ctx, opts.Result, query, params...); err != nil {
-				_, err = sendNilResponse(err, "phastos.database.Read.GetContext", query, params)
+			if err = db.GetContext(ctx, opts.Result, finalQuery, params...); err != nil {
+				_, err = sendNilResponse(err, "phastos.database.Read.GetContext", finalQuery, params)
 				return err
 			}
 		}
 	}
 
-	this.checkSQLWarning(ctx, query, start, params)
+	this.checkSQLWarning(ctx, finalQuery, start, params)
 	return nil
 }
 func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...bool) (*CUDResponse, error) {
@@ -255,38 +260,40 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	}
 	data := opts.CUDRequest
 	cols := strings.Join(data.Cols, ",")
-	var query string
+	var query strings.Builder
 	tableName := data.TableName
 	switch data.Action {
 	case ActionInsert:
-		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s)`, tableName, cols, strings.Repeat(",?", len(data.Cols)-1))
+		query.WriteString(fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s)`, tableName, cols, strings.Repeat(",?", len(data.Cols)-1)))
 		if active, valid := postgresEngineGroup[this.engine]; valid && active {
-			query = fmt.Sprintf("%s RETURNING id", query)
+			query.WriteString(" RETURNING id")
 		}
 	case ActionBulkInsert:
-		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES %s`, tableName, data.ColsInsert, data.BulkValues)
+		query.WriteString(fmt.Sprintf(`INSERT INTO %s (%s) VALUES %s`, tableName, data.ColsInsert, data.BulkValues))
 	case ActionBulkUpdate:
-		query = fmt.Sprintf(`UPDATE %s AS main_table JOIN (%s) AS join_table %s`, tableName, data.BulkValues, data.BulkQuery)
+		query.WriteString(fmt.Sprintf(`UPDATE %s AS main_table JOIN (%s) AS join_table %s`, tableName, data.BulkValues, data.BulkQuery))
 	case ActionUpsert:
 		colsUpdate := strings.Join(data.Cols, ",")
-		query = fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s) ON DUPLICATE KEY UPDATE %s`,
+		query.WriteString(fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s) ON DUPLICATE KEY UPDATE %s`,
 			data.TableName,
 			data.ColsInsert,
 			strings.Repeat(",?", len(data.Cols)-1),
-			colsUpdate)
+			colsUpdate))
 	case ActionUpdateById:
-		query = fmt.Sprintf(`UPDATE %s SET %s WHERE id = ?`, tableName, cols)
+		query.WriteString(fmt.Sprintf(`UPDATE %s SET %s WHERE id = ?`, tableName, cols))
 	case ActionDeleteById:
-		query = fmt.Sprintf(`DELETE FROM %s WHERE id = ?`, tableName)
+		query.WriteString(fmt.Sprintf(`DELETE FROM %s WHERE id = ?`, tableName))
 		if softDelete {
-			query = fmt.Sprintf("UPDATE %s SET deleted_at = now() WHERE id = ?", tableName)
+			query.Reset()
+			query.WriteString(fmt.Sprintf("UPDATE %s SET deleted_at = now() WHERE id = ?", tableName))
 		}
 	case ActionUpdate:
-		query = fmt.Sprintf(`UPDATE %s SET %s`, tableName, cols)
+		query.WriteString(fmt.Sprintf(`UPDATE %s SET %s`, tableName, cols))
 	case ActionDelete:
-		query = fmt.Sprintf(`DELETE FROM %s`, tableName)
+		query.WriteString(fmt.Sprintf(`DELETE FROM %s`, tableName))
 		if softDelete {
-			query = fmt.Sprintf("UPDATE %s SET deleted_at = now()", tableName)
+			query.Reset()
+			query.WriteString(fmt.Sprintf("UPDATE %s SET deleted_at = now()", tableName))
 		}
 	default:
 		return nil, errors.Wrap(errors.New("action exec is not defined"), "phastos.database.sql.Write.CheckAction")
@@ -300,13 +307,16 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 			return nil, errors.Wrap(err, "")
 		}
 
+		query.WriteString(addOnQuery)
 		data.Values = append(data.Values, addOnParams...)
 	}
 
-	query += addOnQuery
-	query = this.Master.Rebind(query)
+	finalQuery := this.Master.Rebind(query.String())
+	// reset and replace the final query with rebind-ed query
+	query.Reset()
+	query.WriteString(finalQuery)
 	result := new(CUDResponse)
-	result.query = query
+	result.query = query.String()
 	result.params = data.Values
 	trx := opts.Trx
 	start := time.Now()
@@ -314,17 +324,17 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	rowsAffected := int64(0)
 
 	if segment != nil {
-		segment.AddAttribute(NewRelicAttributeQuery, query)
+		segment.AddAttribute(NewRelicAttributeQuery, query.String())
 		byteParam, _ := json.Marshal(data.Values)
 		segment.AddAttribute(NewRelicAttributeParams, string(byteParam))
 	}
 	if trx != nil {
 		if active, valid := postgresEngineGroup[this.engine]; valid && active && data.Action == ActionUpdate {
-			query = fmt.Sprintf("%s RETURNING id", query)
+			query.WriteString(" RETURNING id")
 		}
-		stmt, err := trx.PrepareContext(ctx, query)
+		stmt, err := trx.PreparexContext(ctx, query.String())
 		if err != nil {
-			_, err = sendNilResponse(err, "phastos.database.Write.PrepareContext", query, data.Values)
+			_, err = sendNilResponse(err, "phastos.database.Write.PrepareContext", query.String(), data.Values)
 			return result, err
 		}
 
@@ -340,16 +350,16 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		} else {
 			exec, err = stmt.ExecContext(ctx, data.Values...)
 			if err != nil {
-				_, err = sendNilResponse(err, "phastos.database.Write.ExecContext", query, data.Values)
+				_, err = sendNilResponse(err, "phastos.database.Write.ExecContext", query.String(), data.Values)
 				return result, err
 			}
 		}
 	} else {
 		if active, valid := postgresEngineGroup[this.engine]; valid && active {
 			if data.Action == ActionUpdate {
-				query = fmt.Sprintf("%s RETURNING id", query)
+				query.WriteString(" RETURNING id")
 			}
-			if err = this.Master.QueryRowContext(ctx, query, data.Values...).Scan(&lastInsertID); err != nil {
+			if err = this.Master.QueryRowContext(ctx, query.String(), data.Values...).Scan(&lastInsertID); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
 				if err == nil {
 					result.RowsAffected = 1
@@ -358,9 +368,9 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 				return result, err
 			}
 		} else {
-			exec, err = this.Master.ExecContext(ctx, query, data.Values...)
+			exec, err = this.Master.ExecContext(ctx, query.String(), data.Values...)
 			if err != nil {
-				_, err = sendNilResponse(err, "phastos.database.Write.WithoutTrx.ExecContext", query, data.Values)
+				_, err = sendNilResponse(err, "phastos.database.Write.WithoutTrx.ExecContext", query.String(), data.Values)
 				return result, err
 			}
 		}
@@ -369,7 +379,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	result.LastInsertID = lastInsertID
 	result.RowsAffected = rowsAffected
 
-	this.checkSQLWarning(ctx, query, start, data.Values)
+	this.checkSQLWarning(ctx, query.String(), start, data.Values)
 
 	if active, valid := mySQLEngineGroup[this.engine]; valid && active {
 		lastInsertID, err = exec.LastInsertId()
