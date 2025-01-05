@@ -98,22 +98,6 @@ func connectDB(engine string, dbType string) (*sqlx.DB, error) {
 	return db, nil
 }
 
-func (this *SQL) GetTransaction() Transactions {
-	return NewTransaction(this.Master)
-}
-
-func (this *SQL) QueryRow(query string, args ...interface{}) *sql.Row {
-	return this.Master.QueryRow(query, args...)
-}
-
-func (this *SQL) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
-	return this.Master.QueryRowContext(ctx, query, args...)
-}
-
-func (this *SQL) Rebind(sql string) string {
-	return this.Master.Rebind(sql)
-}
-
 func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...interface{}) error {
 	var segment *newrelic.Segment
 	if this.isNR {
