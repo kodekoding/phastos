@@ -10,7 +10,7 @@ import (
 
 func StaticAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		traceIdCtx, _ := r.Context().Value(common.TraceIdKeyContextStr).(string)
+		traceIdCtx, _ := r.Context().Value(common.RequestIdContextKey).(string)
 
 		expectedToken := os.Getenv(common.EnvServiceSecret)
 		var token = ""
@@ -32,6 +32,6 @@ func StaticAuth(next http.Handler) http.Handler {
 
 func unauthorizedInvalidToken(w http.ResponseWriter, traceId string) {
 	errUnauthorized := api.Unauthorized(common.ErrInvalidTokenMessage, common.ErrInvalidTokenCode)
-	errUnauthorized.SetTraceId(traceId)
+	errUnauthorized.TraceId = traceId
 	api.NewResponse().SetError(errUnauthorized).Send(w)
 }
