@@ -36,8 +36,12 @@ func InitHandler(router http.Handler) http.Handler {
 		w = writtenResponseWriter
 
 		// set request id and store to context
-		requestId := helper.GenerateUUIDV4()
-		ctx := context.WithValue(r.Context(), common.TraceIdKeyContextStr, requestId)
+		requestId := r.Header.Get("X-Request-ID")
+		uniqueRequestId := helper.GenerateRandomString(15)
+		if requestId == "" {
+			requestId = uniqueRequestId
+		}
+		ctx := context.WithValue(r.Context(), common.RequestIdContextKey, requestId)
 		*r = *r.WithContext(ctx)
 
 		router.ServeHTTP(w, r)
