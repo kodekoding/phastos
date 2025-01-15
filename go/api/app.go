@@ -278,8 +278,8 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 		// close the channel after finished the process
 		defer close(respChan)
 		go func() {
-			defer panicRecover(r, requestId)
 			uniqueReqKey := generateUniqueRequestKey(r)
+			defer panicRecover(r, requestId, uniqueReqKey)
 			sfResponse, err, _ := app.sf.Do(uniqueReqKey, func() (interface{}, error) {
 				handlerResp := h(request, ctx)
 				return handlerResp, nil
