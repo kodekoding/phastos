@@ -32,6 +32,7 @@ import (
 
 var decoder = schema.NewDecoder()
 var TimezoneLocation *time.Location
+var appVersion string
 
 type (
 	Apps interface {
@@ -154,6 +155,7 @@ func (app *App) DB() database.ISQL {
 func (app *App) SetVersion(version string) {
 	app.version = version
 	app.Config.Version = version
+	appVersion = version
 }
 
 func (app *App) Trx() database.Transactions {
@@ -273,13 +275,20 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 		defer cancel()
 
 		respChan := make(chan *Response)
+		// close the channel after finished the process
+		defer close(respChan)
 		go func() {
-			uniqueReqKey := generateUniqueRequestKey(r)
 			defer panicRecover(r, requestId)
-			sfResponse, _, _ := app.sf.Do(uniqueReqKey, func() (interface{}, error) {
+			uniqueReqKey := generateUniqueRequestKey(r)
+			sfResponse, err, _ := app.sf.Do(uniqueReqKey, func() (interface{}, error) {
 				handlerResp := h(request, ctx)
 				return handlerResp, nil
 			})
+			if err != nil {
+				log.Err(err).Msg("[SINGLEFLIGHT] - Error when do singleFlight request")
+				respChan <- NewResponse().SetError(err)
+				return
+			}
 			respChan <- sfResponse.(*Response)
 		}()
 
@@ -300,7 +309,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 			if response.Err != nil {
 				var respErr *HttpError
 				var ok bool
-				if respErr, ok = response.Err.(*HttpError); !ok {
+				if ok = errors.As(response.Err, &respErr); !ok {
 					respErr = NewErr(WithErrorMessage(response.Err.Error()), WithTraceId(requestId))
 					response.SetHTTPError(respErr)
 				}
@@ -354,7 +363,7 @@ func generateUniqueRequestKey(req *http.Request) string {
 func (app *App) AddController(ctrl Controller) {
 	config := ctrl.GetConfig()
 	for _, route := range config.Routes {
-		middlewares := []func(http.Handler) http.Handler{}
+		var middlewares []func(http.Handler) http.Handler
 
 		if config.Middlewares != nil {
 			middlewares = append(middlewares, *config.Middlewares...)
