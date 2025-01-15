@@ -11,12 +11,20 @@ import (
 	context2 "github.com/kodekoding/phastos/v2/go/context"
 )
 
-func panicRecover(r *http.Request, traceId string) {
+func panicRecover(r *http.Request, traceId string, uniqueKey ...string) {
 	if err := recover(); err != nil {
 		stackTrace := string(debug.Stack())
 
 		marshalErr, _ := json.Marshal(err)
 		notifDetail := new(sgw.Attachment)
+		if uniqueKey != nil && len(uniqueKey) > 0 {
+			uniqueKeyReq := uniqueKey[0]
+			notifDetail.AddField(sgw.Field{
+				Title: "Unique Key Request",
+				Value: uniqueKeyReq,
+				Short: true,
+			})
+		}
 		notifDetail.AddField(sgw.Field{
 			Title: "IP",
 			Value: r.RemoteAddr,
