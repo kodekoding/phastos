@@ -292,9 +292,8 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 			singleFlightEnvValue := os.Getenv("SINGLEFLIGHT_ACTIVE")
 			isSingleFlightActive := false
 			if singleFlightEnvValue != "" {
-				isSingleFlightActive, err = strconv.ParseBool(singleFlightEnvValue)
-				if err == nil {
-					isSingleFlightActive = true
+				if isSingleFlightActive, err = strconv.ParseBool(singleFlightEnvValue); err != nil {
+					log.Warn().Msg("[REQUEST][WrapperHandler] Failed to parse single flight active flag")
 				}
 			}
 			if !isSingleFlightActive {
