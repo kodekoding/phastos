@@ -25,9 +25,14 @@ func panicRecover(r *http.Request, traceId string, uniqueKey ...string) {
 				Short: true,
 			})
 		}
+
+		clientIP := r.Header.Get("X-Forwarded-For")
+		if clientIP == "" {
+			clientIP = r.RemoteAddr
+		}
 		notifDetail.AddField(sgw.Field{
 			Title: "IP",
-			Value: r.RemoteAddr,
+			Value: clientIP,
 			Short: true,
 		}).AddField(sgw.Field{
 			Title: "Request Method",
