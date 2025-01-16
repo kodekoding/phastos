@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -284,9 +285,25 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 		// close the channel after finished the process
 		defer close(respChan)
 		go func() {
-			uniqueReqKey := generateUniqueRequestKey(r)
+			var uniqueReqKey string
 			log.Debug().Str("request-key", uniqueReqKey).Msg("[REQUEST] Generating Request Key")
 			defer panicRecover(r, requestId, uniqueReqKey)
+
+			singleFlightEnvValue := os.Getenv("SINGLEFLIGHT_ACTIVE")
+			isSingleFlightActive := false
+			if singleFlightEnvValue != "" {
+				isSingleFlightActive, err = strconv.ParseBool(singleFlightEnvValue)
+				if err == nil {
+					isSingleFlightActive = true
+				}
+			}
+			if !isSingleFlightActive {
+				respChan <- h(request, ctx)
+				return
+			}
+
+			uniqueReqKey = generateUniqueRequestKey(r)
+
 			sfResponse, err, _ := app.sf.Do(uniqueReqKey, func() (interface{}, error) {
 				handlerResp := h(request, ctx)
 				return handlerResp, nil
@@ -449,6 +466,8 @@ func (app *App) Start() error {
 		app.Handler = wrapper.WrapToHandler(app.Handler)
 		app.Config.Ctx = wrapper.WrapToContext(app.Config.Ctx)
 	}
+
+	log.Info().Str("single-flight-active", os.Getenv("SINGLEFLIGHT_ACTIVE")).Msg("[REQUEST][Start]")
 
 	log.Info().Msg(fmt.Sprintf("server started on port %d, serving %d endpoint(s)", app.Port, app.TotalEndpoints))
 
