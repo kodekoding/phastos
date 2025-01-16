@@ -26,6 +26,7 @@ import (
 	"github.com/kodekoding/phastos/v2/go/common"
 	"github.com/kodekoding/phastos/v2/go/cron"
 	"github.com/kodekoding/phastos/v2/go/database"
+	"github.com/kodekoding/phastos/v2/go/env"
 	"github.com/kodekoding/phastos/v2/go/monitoring"
 	"github.com/kodekoding/phastos/v2/go/server"
 )
@@ -182,7 +183,12 @@ func (app *App) initPlugins() {
 			"message": msgString,
 		})
 	})
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
+	if env.ServiceEnv() == env.ProductionEnv {
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	} else {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
 
 	var writer io.Writer
 	writer = zerolog.ConsoleWriter{Out: os.Stderr}
@@ -279,6 +285,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 		defer close(respChan)
 		go func() {
 			uniqueReqKey := generateUniqueRequestKey(r)
+			log.Debug().Str("request-key", uniqueReqKey).Msg("[REQUEST] Generating Request Key")
 			defer panicRecover(r, requestId, uniqueReqKey)
 			sfResponse, err, _ := app.sf.Do(uniqueReqKey, func() (interface{}, error) {
 				handlerResp := h(request, ctx)
@@ -346,6 +353,13 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 func generateUniqueRequestKey(req *http.Request) string {
 	method := req.Method
 	path := req.URL.Path
+	clientIP := req.Header.Get("X-Forwarded-For")
+	if clientIP == "" {
+		log.Info().Msg("[REQUEST][GeneratingUniqueKey] client ip from x-forwarded-for is empty, will get from remoteAddr")
+		clientIP = req.RemoteAddr
+	}
+
+	log.Info().Str("client_ip", clientIP).Msg("[REQUEST][GeneratingUniqueKey] Final Unique Request Key")
 
 	// Sort query parameters to ensure consistent key generation
 	query := req.URL.Query()
@@ -357,7 +371,7 @@ func generateUniqueRequestKey(req *http.Request) string {
 	}
 	sort.Strings(queryParams)
 
-	return fmt.Sprintf("%s|%s|%s", method, path, strings.Join(queryParams, "&"))
+	return fmt.Sprintf("%s|%s|%s|%s", clientIP, method, path, strings.Join(queryParams, "&"))
 }
 
 func (app *App) AddController(ctrl Controller) {
