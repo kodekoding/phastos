@@ -217,6 +217,11 @@ func (r *Store) Get(ctx context.Context, key string, typeDestination any, fallba
 		return errors.New(fmt.Sprintf("[CACHE][REDIS] - Result is not valid: %v", wrapResult))
 	}
 
+	if _, isStringType := typeDestination.(string); isStringType {
+		typeDestination = resultStr
+		return nil
+	}
+
 	if err = json.Unmarshal([]byte(resultStr), typeDestination); err != nil {
 		unmarshalErr := errors.New(fmt.Sprintf("[CACHE][REDIS][GET] - Failed Unmarshal result %s with error: %s", resultStr, err.Error()))
 		return errors.Wrap(unmarshalErr, "phastos.cache.redis.Get.UnmarshalValueToTypeDestination")
@@ -383,6 +388,10 @@ func (r *Store) HGet(ctx context.Context, key, field string, typeDestination any
 		return errors.New(fmt.Sprintf("[CACHE][REDIS][HGET] - Result is not valid: %v", wrapResult))
 	}
 
+	if _, isStringType := typeDestination.(string); isStringType {
+		typeDestination = resultStr
+		return nil
+	}
 	if err = json.Unmarshal([]byte(resultStr), typeDestination); err != nil {
 		unmarshalErr := errors.New(fmt.Sprintf("[CACHE][REDIS][HGET] - Failed Unmarshal result %s with error: %s", resultStr, err.Error()))
 		return errors.Wrap(unmarshalErr, "phastos.cache.redis.HGET.UnmarshalValueToTypeDestination")
@@ -390,7 +399,7 @@ func (r *Store) HGet(ctx context.Context, key, field string, typeDestination any
 	return nil
 }
 
-// HGet set has map
+// HDel set has map
 func (r *Store) HDel(ctx context.Context, key, field string) error {
 	if _, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
 		txn := monitoring.BeginTrxFromContext(ctx)
