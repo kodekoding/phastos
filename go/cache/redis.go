@@ -217,8 +217,8 @@ func (r *Store) Get(ctx context.Context, key string, typeDestination any, fallba
 		return errors.New(fmt.Sprintf("[CACHE][REDIS] - Result is not valid: %v", wrapResult))
 	}
 
-	if _, isStringType := typeDestination.(string); isStringType {
-		typeDestination = resultStr
+	if strVal, isStringType := typeDestination.(*string); isStringType {
+		*strVal = resultStr
 		return nil
 	}
 
@@ -388,8 +388,8 @@ func (r *Store) HGet(ctx context.Context, key, field string, typeDestination any
 		return errors.New(fmt.Sprintf("[CACHE][REDIS][HGET] - Result is not valid: %v", wrapResult))
 	}
 
-	if _, isStringType := typeDestination.(string); isStringType {
-		typeDestination = resultStr
+	if strVal, isStringType := typeDestination.(*string); isStringType {
+		*strVal = resultStr
 		return nil
 	}
 	if err = json.Unmarshal([]byte(resultStr), typeDestination); err != nil {
