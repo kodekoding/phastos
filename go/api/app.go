@@ -286,7 +286,6 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 		defer close(respChan)
 		go func() {
 			var uniqueReqKey string
-			log.Debug().Str("request-key", uniqueReqKey).Msg("[REQUEST] Generating Request Key")
 			defer panicRecover(r, requestId, uniqueReqKey)
 
 			singleFlightEnvValue := os.Getenv("SINGLEFLIGHT_ACTIVE")
@@ -371,11 +370,8 @@ func generateUniqueRequestKey(req *http.Request) string {
 	path := req.URL.Path
 	clientIP := req.Header.Get("X-Forwarded-For")
 	if clientIP == "" {
-		log.Info().Msg("[REQUEST][GeneratingUniqueKey] client ip from x-forwarded-for is empty, will get from remoteAddr")
 		clientIP = req.RemoteAddr
 	}
-
-	log.Info().Str("client_ip", clientIP).Msg("[REQUEST][GeneratingUniqueKey] Final Unique Request Key")
 
 	// Sort query parameters to ensure consistent key generation
 	query := req.URL.Query()
@@ -465,8 +461,6 @@ func (app *App) Start() error {
 		app.Handler = wrapper.WrapToHandler(app.Handler)
 		app.Config.Ctx = wrapper.WrapToContext(app.Config.Ctx)
 	}
-
-	log.Info().Str("single-flight-active", os.Getenv("SINGLEFLIGHT_ACTIVE")).Msg("[REQUEST][Start]")
 
 	log.Info().Msg(fmt.Sprintf("server started on port %d, serving %d endpoint(s)", app.Port, app.TotalEndpoints))
 
