@@ -157,7 +157,7 @@ func (r *Store) wrapWithRetries(ctx context.Context, actualFn actualRedisActionF
 	for i := 0; i < r.maxRetry; i++ {
 		result, err := actualFn(ctx)
 		if err != nil {
-			if err == redigo.ErrPoolExhausted {
+			if errors.Is(err, redigo.ErrPoolExhausted) {
 				log.Warn().Int("counter", i+1).Msg("[CACHE][REDIS] Connection pool exhausted, retrying...")
 				time.Sleep(time.Second) // Tunggu sebelum mencoba lagi
 				continue                // Coba lagi
@@ -198,7 +198,7 @@ func (r *Store) Get(ctx context.Context, key string, typeDestination any, fallba
 
 		defer conn.Close()
 		resp, err := redigo.String(conn.Do("GET", fmt.Sprintf("%s%s", r.prefixKey, key)))
-		if err == redigo.ErrNil {
+		if errors.Is(err, redigo.ErrNil) {
 			if fallbackFn != nil && len(fallbackFn) > 0 {
 				fallbackAction := fallbackFn[0]
 				return r.fallbackAction(ctx, key, "", fallbackAction, segment, conn)
@@ -218,7 +218,8 @@ func (r *Store) Get(ctx context.Context, key string, typeDestination any, fallba
 	}
 
 	if err = json.Unmarshal([]byte(resultStr), typeDestination); err != nil {
-		return errors.Wrap(err, "phastos.cache.redis.Get.UnmarshalValueToTypeDestination")
+		unmarshalErr := errors.New(fmt.Sprintf("[CACHE][REDIS][GET] - Failed Unmarshal result %s with error: %s", resultStr, err.Error()))
+		return errors.Wrap(unmarshalErr, "phastos.cache.redis.Get.UnmarshalValueToTypeDestination")
 	}
 
 	return nil
@@ -366,7 +367,7 @@ func (r *Store) HGet(ctx context.Context, key, field string, typeDestination any
 		}
 		defer conn.Close()
 		resp, err := redigo.String(conn.Do("HGET", fmt.Sprintf("%s%s", r.prefixKey, key), field))
-		if err == redigo.ErrNil && (fallbackFn != nil && len(fallbackFn) > 0) {
+		if errors.Is(err, redigo.ErrNil) && (fallbackFn != nil && len(fallbackFn) > 0) {
 			fallbackAction := fallbackFn[0]
 			return r.fallbackAction(ctx, key, field, fallbackAction, segment, conn)
 		}
@@ -379,11 +380,12 @@ func (r *Store) HGet(ctx context.Context, key, field string, typeDestination any
 
 	resultStr, validStr := wrapResult.(string)
 	if !validStr {
-		return errors.New(fmt.Sprintf("[CACHE][REDIS] - Result is not valid: %v", wrapResult))
+		return errors.New(fmt.Sprintf("[CACHE][REDIS][HGET] - Result is not valid: %v", wrapResult))
 	}
 
 	if err = json.Unmarshal([]byte(resultStr), typeDestination); err != nil {
-		return errors.Wrap(err, "phastos.cache.redis.Get.UnmarshalValueToTypeDestination")
+		unmarshalErr := errors.New(fmt.Sprintf("[CACHE][REDIS][HGET] - Failed Unmarshal result %s with error: %s", resultStr, err.Error()))
+		return errors.Wrap(unmarshalErr, "phastos.cache.redis.HGET.UnmarshalValueToTypeDestination")
 	}
 	return nil
 }
