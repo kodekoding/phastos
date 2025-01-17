@@ -235,9 +235,17 @@ func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackF
 	if fallbackErr != nil {
 		return "", errors.Wrap(fallbackErr, "phastos.cache.redis.Get.FallbackFunction.Error")
 	}
-	byteFallbackResult, marshallErr := json.Marshal(fallbackResult)
-	if marshallErr != nil {
-		return "", errors.Wrap(marshallErr, "phastos.cache.redis.Get.FallbackFunction.FailedMarshalResult")
+
+	fallbackValue, isStringType := fallbackResult.(string)
+	var cacheValue string
+	if !isStringType {
+		byteFallbackResult, marshallErr := json.Marshal(fallbackResult)
+		if marshallErr != nil {
+			return "", errors.Wrap(marshallErr, "phastos.cache.redis.Get.FallbackFunction.FailedMarshalResult")
+		}
+		cacheValue = string(byteFallbackResult)
+	} else {
+		cacheValue = fallbackValue
 	}
 	var setParams []interface{}
 	key = fmt.Sprintf("%s%s", r.prefixKey, key)
@@ -245,7 +253,7 @@ func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackF
 	if field != "" {
 		setParams = append(setParams, field)
 	}
-	setParams = append(setParams, string(byteFallbackResult))
+	setParams = append(setParams, cacheValue)
 	if fallbackExpire == 0 {
 		// set default expired time to 10 minutes
 		fallbackExpire = int64(10 * time.Minute.Seconds())
@@ -273,7 +281,7 @@ func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackF
 			log.Err(err).Str("key", key).Str("field", field).Msg("Failed to set Expire")
 		}
 	}
-	return string(byteFallbackResult), nil
+	return cacheValue, nil
 }
 
 // Del key value
