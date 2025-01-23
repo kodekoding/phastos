@@ -18,11 +18,9 @@ import (
 	"github.com/kodekoding/phastos/v2/go/api"
 	contextinternal "github.com/kodekoding/phastos/v2/go/context"
 	"github.com/kodekoding/phastos/v2/go/database"
-	"github.com/kodekoding/phastos/v2/go/entity"
 	"github.com/kodekoding/phastos/v2/go/env"
 	"github.com/kodekoding/phastos/v2/go/helper"
 	"github.com/kodekoding/phastos/v2/go/monitoring"
-	"github.com/kodekoding/phastos/v2/go/notifications"
 )
 
 type (
@@ -33,8 +31,6 @@ type (
 		file              multipart.File
 		trx               database.Transactions
 		fn                processFn
-		notif             notifications.Platforms
-		jwtData           *entity.JWTClaimData
 		dataListReflVal   reflect.Value
 		structDestReflVal reflect.Value
 		sentNotifToSlack  bool
@@ -82,12 +78,6 @@ func New(opt ...ImportOptions) *importer {
 
 	for _, options := range opt {
 		options(csvImporter)
-	}
-
-	if csvImporter.ctx != nil {
-		csvImporter.notif = csvImporter.ctx.Value(entity.NotifPlatformContext{}).(notifications.Platforms)
-		csvImporter.jwtData = contextinternal.GetJWT(csvImporter.ctx)
-
 	}
 
 	return csvImporter
@@ -218,14 +208,7 @@ func (r *importer) ProcessData() *ImportResult {
 
 	start := time.Now()
 
-	asyncContext := context.Background()
-	if r.notif != nil {
-		asyncContext = context.WithValue(asyncContext, entity.NotifPlatformContext{}, r.notif)
-	}
-
-	if r.jwtData != nil {
-		asyncContext = context.WithValue(asyncContext, contextinternal.JwtContext{}, r.jwtData)
-	}
+	asyncContext := contextinternal.CreateAsyncContext(r.ctx)
 
 	result := r.processData(asyncContext, txn)
 
@@ -240,7 +223,7 @@ func (r *importer) ProcessData() *ImportResult {
 	notifData := make(map[string]string)
 	notifType := helper.NotifInfoType
 	notifTitle := fmt.Sprintf("Your Data (%d data) Successfully Imported", totalData)
-	if result != nil && totalFailed > 0 {
+	if totalFailed > 0 {
 		for errGroup, errList := range result.FailedList {
 			errKey := fmt.Sprintf("-%s (%d data)", errGroup, len(errList))
 			errData, _ := json.Marshal(errList)
@@ -253,8 +236,9 @@ func (r *importer) ProcessData() *ImportResult {
 
 	notifTitle = fmt.Sprintf("%s on %s", notifTitle, env.ServiceEnv())
 
-	if r.jwtData != nil {
-		jwtData, _ := json.Marshal(r.jwtData.Data)
+	jwtCtx := contextinternal.GetJWT(asyncContext)
+	if jwtCtx != nil {
+		jwtData, _ := json.Marshal(jwtCtx.Data)
 		notifData["-jwt data"] = string(jwtData)
 		importProcessSegment.AddAttribute("executed_by", string(jwtData))
 	}
