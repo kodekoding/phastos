@@ -282,9 +282,9 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 		defer cancel()
 
 		respChan := make(chan *Response)
-		// close the channel after finished the process
-		defer close(respChan)
 		go func() {
+			// close the channel after finished the process
+			defer close(respChan)
 			var uniqueReqKey string
 			defer panicRecover(r, requestId, uniqueReqKey)
 
