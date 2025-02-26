@@ -129,9 +129,10 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 
 	query.WriteString(opts.BaseQuery)
 
-	byteReqData, err := json.Marshal(opts)
-	segment.AddAttribute("query_option_param", fmt.Sprintf("%s - %#v", string(byteReqData), err))
-
+	if segment != nil {
+		byteReqData, err := json.Marshal(opts)
+		segment.AddAttribute("query_option_param", fmt.Sprintf("%s - %#v", string(byteReqData), err))
+	}
 	if opts.SelectRequest != nil {
 		var addOnParams []interface{}
 		opts.SelectRequest.engine = this.engine
@@ -148,9 +149,10 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	opts.params = params
 	start := time.Now()
 
-	byteParam, _ := json.Marshal(params)
-	segment.AddAttribute(NewRelicAttributeParams, string(byteParam))
-
+	if segment != nil {
+		byteParam, _ := json.Marshal(params)
+		segment.AddAttribute(NewRelicAttributeParams, string(byteParam))
+	}
 	var finalQuery string
 	if opts.Trx != nil {
 		var lockingType string
@@ -202,12 +204,12 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 			segment.AddAttribute(NewRelicAttributeQuery, finalQuery)
 		}
 		if opts.IsList {
-			if err = db.SelectContext(ctx, opts.Result, finalQuery, params...); err != nil {
+			if err := db.SelectContext(ctx, opts.Result, finalQuery, params...); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Read.SelectContext", finalQuery, params)
 				return err
 			}
 		} else {
-			if err = db.GetContext(ctx, opts.Result, finalQuery, params...); err != nil {
+			if err := db.GetContext(ctx, opts.Result, finalQuery, params...); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Read.GetContext", finalQuery, params)
 				return err
 			}
