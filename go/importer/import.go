@@ -277,14 +277,17 @@ func (r *importer) processData(asyncContext context.Context, nrTrx *newrelic.Tra
 	totalData := 0
 	totalFailed := 0
 	result := new(ImportResult)
-	failedList := make(map[string][]interface{})
+	var failedList map[string][]any
 	for newErr := range errChan {
 		if newErr != nil {
+			if failedList == nil {
+				failedList = make(map[string][]any)
+			}
 			if _, exist := failedList[newErr.Message]; !exist {
-				failedList[newErr.Message] = make([]interface{}, 0)
+				failedList[newErr.Message] = make([]any, 0)
 			}
 			if newErr.Message != "Failed Parsed Single Data" {
-				failedList[newErr.Message] = append(failedList[newErr.Message], newErr.Data.(map[string]interface{}))
+				failedList[newErr.Message] = append(failedList[newErr.Message], newErr.Data.(map[string]any))
 			} else {
 				failedList[newErr.Message] = append(failedList[newErr.Message], "failed")
 			}
