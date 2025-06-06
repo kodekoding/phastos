@@ -78,7 +78,15 @@ func (p *Service) Send(ctx context.Context, text string, attachment interface{})
 	}
 
 	if p.traceID == "" {
-		p.traceID = satoriuuid.NewV4().String()
+		var finalTraceID strings.Builder
+		traceIDFromContext, isString := ctx.Value("requestId").(string)
+		if !isString || traceIDFromContext == "" {
+			finalTraceID.WriteString(satoriuuid.NewV4().String())
+		} else {
+			finalTraceID.WriteString(traceIDFromContext)
+		}
+
+		p.traceID = finalTraceID.String()
 	}
 
 	if p.recipient != "" {

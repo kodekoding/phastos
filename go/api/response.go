@@ -147,6 +147,11 @@ func (resp *Response) SentNotif(ctx contextpkg.Context, err *HttpError, r *http.
 						slackAttachment.AddField(
 							sgw.Field{
 								Short: true,
+								Title: "Referer",
+								Value: r.Header.Get("Referer"),
+							}).AddField(
+							sgw.Field{
+								Short: true,
 								Title: "Error Status",
 								Value: fmt.Sprintf("%d", err.Status),
 							}).AddField(
