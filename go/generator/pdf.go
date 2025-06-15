@@ -78,7 +78,7 @@ func (c *PDF) SetTemplate(templatePath string, data interface{}) PDFs {
 	if c.funcMap != nil {
 		c.tmpl.Funcs(c.funcMap)
 	}
-	c.tmpl, err = c.tmpl.ParseFiles(templatePath)
+	c.tmpl, err = c.tmpl.Parse(templatePath)
 	if err != nil {
 		c.err = errors.Wrap(err, "phastos.generator.pdf.SetTemplate.ParseFile")
 		return c
