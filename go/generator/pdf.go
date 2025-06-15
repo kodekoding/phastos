@@ -16,13 +16,16 @@ type PDFs interface {
 	SetTemplate(templatePath string, data interface{}) PDFs
 	SetFooterHTMLTemplate(footerHTMLPath string) PDFs
 	SetFileName(fileName *string) PDFs
+	AddCustomFunction(aliasName string, function any) PDFs
 	Generate() error
 	Error() error
 }
 
 type PDF struct {
 	generator      *wkhtmltopdf.PDFGenerator
-	contents       *wkhtmltopdf.PageReader
+	tmpl           *template.Template
+	funcMap        template.FuncMap
+	data           any
 	footerHTMLPath string
 	fileName       string
 	err            error
@@ -68,21 +71,25 @@ func (c *PDF) SetTemplate(templatePath string, data interface{}) PDFs {
 	if c.err != nil {
 		return c
 	}
-	templ, err := template.ParseFiles(templatePath)
+
+	tmpl, err := template.ParseFiles(templatePath)
 	if err != nil {
 		c.err = errors.Wrap(err, "phastos.generator.pdf.SetTemplate.ParseFile")
 		return c
 	}
+	c.tmpl = tmpl
+	c.data = data
+	return c
+}
 
-	buff := new(bytes.Buffer)
-	if err = templ.Execute(buff, data); err != nil {
-		c.err = errors.Wrap(err, "phastos.generator.pdf.SetTemplate.ExecuteTemplate")
+func (c *PDF) AddCustomFunction(aliasName string, function any) PDFs {
+	if c.err != nil {
 		return c
 	}
-
-	contentString := buff.String()
-	c.contents = wkhtmltopdf.NewPageReader(strings.NewReader(contentString))
-	c.contents.EnableLocalFileAccess.Set(true)
+	if c.funcMap == nil {
+		c.funcMap = make(template.FuncMap)
+	}
+	c.funcMap[aliasName] = function
 	return c
 }
 
@@ -98,12 +105,27 @@ func (c *PDF) Generate() error {
 	if c.Error() != nil {
 		return c.Error()
 	}
-	if c.footerHTMLPath != "" {
-		c.contents.FooterHTML.Set(c.footerHTMLPath)
-		c.contents.FooterSpacing.Set(-20.0)
+	if c.tmpl == nil {
+		return errors.New("PDF Template is required")
 	}
 
-	c.generator.AddPage(c.contents)
+	if c.funcMap != nil {
+		c.tmpl.Funcs(c.funcMap)
+	}
+	buff := new(bytes.Buffer)
+	if err := c.tmpl.Execute(buff, c.data); err != nil {
+		return errors.Wrap(err, "phastos.generator.pdf.Generate.ExecuteTemplate")
+	}
+
+	contentString := buff.String()
+	pageContent := wkhtmltopdf.NewPageReader(strings.NewReader(contentString))
+	pageContent.EnableLocalFileAccess.Set(true)
+	if c.footerHTMLPath != "" {
+		pageContent.FooterHTML.Set(c.footerHTMLPath)
+		pageContent.FooterSpacing.Set(-20.0)
+	}
+
+	c.generator.AddPage(pageContent)
 	if err := c.generator.Create(); err != nil {
 		return errors.Wrap(err, "phastos.generator.pdf.Generate.Create")
 	}
