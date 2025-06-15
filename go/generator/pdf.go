@@ -64,20 +64,23 @@ func NewPDF(options ...*ConverterOptions) (*PDF, error) {
 	generator.MarginTop.Set(marginTop)
 	generator.MarginBottom.Set(marginBottom)
 
-	return &PDF{generator: generator}, nil
+	tmpl := template.New("generated_pdf")
+	return &PDF{generator: generator, tmpl: tmpl}, nil
 }
 
 func (c *PDF) SetTemplate(templatePath string, data interface{}) PDFs {
 	if c.err != nil {
 		return c
 	}
-
-	tmpl, err := template.ParseFiles(templatePath)
+	var err error
+	if c.funcMap != nil {
+		c.tmpl.Funcs(c.funcMap)
+	}
+	c.tmpl, err = c.tmpl.ParseFiles(templatePath)
 	if err != nil {
 		c.err = errors.Wrap(err, "phastos.generator.pdf.SetTemplate.ParseFile")
 		return c
 	}
-	c.tmpl = tmpl
 	c.data = data
 	return c
 }
@@ -109,9 +112,6 @@ func (c *PDF) Generate() error {
 		return errors.New("PDF Template is required")
 	}
 
-	if c.funcMap != nil {
-		c.tmpl.Funcs(c.funcMap)
-	}
 	buff := new(bytes.Buffer)
 	if err := c.tmpl.Execute(buff, c.data); err != nil {
 		return errors.Wrap(err, "phastos.generator.pdf.Generate.ExecuteTemplate")
