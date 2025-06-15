@@ -39,6 +39,8 @@ type ConverterOptions struct {
 	MarginRight  uint
 }
 
+const templateName = "generated_pdf"
+
 func NewPDF(options ...*ConverterOptions) (*PDF, error) {
 	generator, err := wkhtmltopdf.NewPDFGenerator()
 	if err != nil {
@@ -64,7 +66,7 @@ func NewPDF(options ...*ConverterOptions) (*PDF, error) {
 	generator.MarginTop.Set(marginTop)
 	generator.MarginBottom.Set(marginBottom)
 
-	tmpl := template.New("generated_pdf")
+	tmpl := template.New(templateName)
 	return &PDF{generator: generator, tmpl: tmpl}, nil
 }
 
@@ -113,7 +115,7 @@ func (c *PDF) Generate() error {
 	}
 
 	buff := new(bytes.Buffer)
-	if err := c.tmpl.Execute(buff, c.data); err != nil {
+	if err := c.tmpl.ExecuteTemplate(buff, templateName, c.data); err != nil {
 		return errors.Wrap(err, "phastos.generator.pdf.Generate.ExecuteTemplate")
 	}
 
