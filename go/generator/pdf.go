@@ -3,13 +3,14 @@ package generator
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
 	"github.com/SebastiaanKlippert/go-wkhtmltopdf"
-	"github.com/pkg/errors"
-
 	"github.com/kodekoding/phastos/v2/go/helper"
+	"github.com/pkg/errors"
 )
 
 type PDFs interface {
@@ -66,23 +67,23 @@ func NewPDF(options ...*ConverterOptions) (*PDF, error) {
 	generator.MarginTop.Set(marginTop)
 	generator.MarginBottom.Set(marginBottom)
 
-	tmpl := template.New(templateName)
-	return &PDF{generator: generator, tmpl: tmpl}, nil
+	return &PDF{generator: generator}, nil
 }
 
 func (c *PDF) SetTemplate(templatePath string, data interface{}) PDFs {
 	if c.err != nil {
 		return c
 	}
-	var err error
-	if c.funcMap != nil {
-		c.tmpl.Funcs(c.funcMap)
-	}
-	c.tmpl, err = c.tmpl.Parse(templatePath)
+	name := filepath.Base(templatePath)
+	contentByte, err := os.ReadFile(templatePath)
 	if err != nil {
-		c.err = errors.Wrap(err, "phastos.generator.pdf.SetTemplate.ParseFile")
-		return c
+		c.err = errors.Wrap(err, "phastos.generator.pdf.SetTemplate.ReadFile")
 	}
+	tmpl := template.New(name)
+	if c.funcMap != nil {
+		tmpl.Funcs(c.funcMap)
+	}
+	c.tmpl, c.err = tmpl.Parse(string(contentByte))
 	c.data = data
 	return c
 }
@@ -113,9 +114,8 @@ func (c *PDF) Generate() error {
 	if c.tmpl == nil {
 		return errors.New("PDF Template is required")
 	}
-
 	buff := new(bytes.Buffer)
-	if err := c.tmpl.ExecuteTemplate(buff, templateName, c.data); err != nil {
+	if err := c.tmpl.Execute(buff, c.data); err != nil {
 		return errors.Wrap(err, "phastos.generator.pdf.Generate.ExecuteTemplate")
 	}
 
