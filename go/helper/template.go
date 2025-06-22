@@ -1,7 +1,6 @@
 package helper
 
 import (
-	"bytes"
 	"embed"
 	"github.com/rs/zerolog/log"
 	"html/template"
@@ -14,10 +13,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-func ParseTemplate(embedFS embed.FS, file string, args interface{}, additionalBodyContent ...string) (bytes.Buffer, error) {
+func ParseTemplate(embedFS embed.FS, file string, args interface{}, additionalBodyContent ...string) (strings.Builder, error) {
 	var templateValue []byte
 	var err error
-	var tpl bytes.Buffer
+	var tpl strings.Builder
 	if args != nil {
 
 		// read the block-kit definition as a go template
@@ -47,9 +46,9 @@ func ParseTemplate(embedFS embed.FS, file string, args interface{}, additionalBo
 	return tpl, nil
 }
 
-func ParseFileTemplate(filePath string, args interface{}, additionalBodyContent ...string) (bytes.Buffer, error) {
+func ParseFileTemplate(filePath string, args interface{}, additionalBodyContent ...string) (strings.Builder, error) {
 	var err error
-	var tpl bytes.Buffer
+	var tpl strings.Builder
 	t, err := template.ParseFiles(filePath)
 	if err != nil {
 		return tpl, errors.Wrap(err, "phastos.go.helper.template.ParseFileTemplate.ParseFiles")
@@ -64,9 +63,9 @@ func ParseFileTemplate(filePath string, args interface{}, additionalBodyContent 
 	return tpl, nil
 }
 
-func ParseTemplateFromPath(filePath string, data any, optionalParams ...any) (bytes.Buffer, error) {
+func ParseTemplateFromPath(filePath string, data any, optionalParams ...any) (strings.Builder, error) {
 	var err error
-	var result bytes.Buffer
+	var result strings.Builder
 	name := filepath.Base(filePath)
 	tmpl := template.New(name)
 
