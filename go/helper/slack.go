@@ -13,7 +13,7 @@ func GetTemplateFS(embedFS embed.FS, file string, args, destStruct interface{}) 
 		return errors.Wrap(err, "phastos.go.helper.slack.GetTemplate.ParseTemplate")
 	}
 
-	if err = json.Unmarshal(templateValue.Bytes(), destStruct); err != nil {
+	if err = json.Unmarshal([]byte(templateValue.String()), destStruct); err != nil {
 		return errors.Wrap(err, "phastos.go.third_party.slack.templating.GetTemplate.UnmarshalToStruct")
 	}
 
@@ -22,12 +22,12 @@ func GetTemplateFS(embedFS embed.FS, file string, args, destStruct interface{}) 
 
 func GetTemplate(file string, args, destStruct interface{}) error {
 
-	templateValue, err := ParseFileTemplate(file, args)
+	templateValue, err := ParseTemplateFromPath(file, args)
 	if err != nil {
 		return errors.Wrap(err, "phastos.go.helper.slack.GetTemplate.ParseTemplate")
 	}
 
-	if err = json.Unmarshal(templateValue.Bytes(), destStruct); err != nil {
+	if err = json.Unmarshal([]byte(templateValue.String()), destStruct); err != nil {
 		return errors.Wrap(err, "phastos.go.third_party.slack.templating.GetTemplate.UnmarshalToStruct")
 	}
 
