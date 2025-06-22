@@ -147,6 +147,20 @@ func (s *SMTP) SetHTMLTemplate(fs embed.FS, tplFile, subject string, args interf
 	return s
 }
 
+func (s *SMTP) SetHTMLTemplateFromPath(tplFile, subject string, args interface{}) *SMTP {
+	if s.Sender == "" || s.recipient == nil {
+		s.err = errors.New("sender name or recipient must be filled")
+		return s
+	}
+
+	mimeHeaders := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
+	additionalBody := fmt.Sprintf("From: %s\nTo:%s\nSubject:%s \n%s\n\n", s.Sender, strings.Join(s.recipient, ","), subject, mimeHeaders)
+
+	s.body, s.err = helper.ParseTemplateFromPath(tplFile, args, additionalBody)
+
+	return s
+}
+
 func (s *SMTP) Send() error {
 	defer s.reset()
 	if s.err != nil {
