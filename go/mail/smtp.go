@@ -1,7 +1,6 @@
 package mail
 
 import (
-	"bytes"
 	"embed"
 	"fmt"
 	"net/smtp"
@@ -43,7 +42,7 @@ type (
 		Config
 		recipient []string
 		address   string
-		body      bytes.Buffer
+		body      strings.Builder
 	}
 )
 
@@ -121,7 +120,7 @@ func (s *SMTP) SetContent(subject, message string) *SMTP {
 		s.err = errors.New("sender name or recipient must be filled")
 		return s
 	}
-	s.body.Write([]byte(fmt.Sprintf(`
+	s.body.WriteString(fmt.Sprintf(`
 		MIME-version: 1.0;
 		Content-Type: text/html; charset="UTF-8";
 		From: %s
@@ -129,7 +128,7 @@ func (s *SMTP) SetContent(subject, message string) *SMTP {
 		Subject: %s
 
 		%s
-	`, s.Sender, strings.Join(s.recipient, ","), subject, message)))
+	`, s.Sender, strings.Join(s.recipient, ","), subject, message))
 	return s
 }
 
@@ -167,7 +166,7 @@ func (s *SMTP) Send() error {
 		return s.err
 	}
 
-	if err := smtp.SendMail(s.address, s.auth, s.EmailFrom, s.recipient, s.body.Bytes()); err != nil {
+	if err := smtp.SendMail(s.address, s.auth, s.EmailFrom, s.recipient, []byte(s.body.String())); err != nil {
 		return err
 	}
 
