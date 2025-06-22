@@ -1,18 +1,11 @@
 package generator
 
 import (
-	"bytes"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
-	"text/template"
-
 	"github.com/SebastiaanKlippert/go-wkhtmltopdf"
 	"github.com/kodekoding/phastos/v2/go/helper"
 	"github.com/pkg/errors"
+	"strings"
 )
 
 type PDFs interface {
@@ -26,9 +19,8 @@ type PDFs interface {
 
 type PDF struct {
 	generator      *wkhtmltopdf.PDFGenerator
-	tmpl           *template.Template
-	funcMap        template.FuncMap
-	data           any
+	funcMap        map[string]any
+	content        strings.Builder
 	footerHTMLPath string
 	fileName       string
 	err            error
@@ -41,8 +33,6 @@ type ConverterOptions struct {
 	MarginLeft   uint
 	MarginRight  uint
 }
-
-const templateName = "generated_pdf"
 
 func NewPDF(options ...*ConverterOptions) (*PDF, error) {
 	generator, err := wkhtmltopdf.NewPDFGenerator()
@@ -76,44 +66,7 @@ func (c *PDF) SetTemplate(templatePath string, data interface{}) PDFs {
 	if c.err != nil {
 		return c
 	}
-	name := filepath.Base(templatePath)
-	tmpl := template.New(name)
-	if c.funcMap != nil {
-		tmpl.Funcs(c.funcMap)
-	}
-
-	isURLPath := strings.Contains(templatePath, "http")
-
-	var templateContent strings.Builder
-	// getting template contents
-	if isURLPath {
-		// if templatePath is url, ex: https://................/file.html
-		resp, err := http.Get(templatePath)
-		if err != nil {
-			c.err = errors.Wrap(err, "phastos.generator.pdf.SetTemplate.GetTemplateFromURL")
-			return c
-		}
-		defer resp.Body.Close()
-
-		htmlContent, err := io.ReadAll(resp.Body)
-		if err != nil {
-			c.err = errors.Wrap(err, "phastos.generator.pdf.SetTemplate.ReadBodyResponseHTML")
-			return c
-		}
-		templateContent.Write(htmlContent)
-	} else {
-		// if templatePath is local path, ex: /tmp/templates/file.html
-		contentByte, err := os.ReadFile(templatePath)
-		if err != nil {
-			c.err = errors.Wrap(err, "phastos.generator.pdf.SetTemplate.ReadFile")
-			return c
-		}
-		templateContent.Write(contentByte)
-
-	}
-	c.tmpl, c.err = tmpl.Parse(templateContent.String())
-
-	c.data = data
+	c.content, c.err = helper.ParseTemplateFromPath(templatePath, data, c.funcMap)
 	return c
 }
 
@@ -122,7 +75,7 @@ func (c *PDF) AddCustomFunction(aliasName string, function any) PDFs {
 		return c
 	}
 	if c.funcMap == nil {
-		c.funcMap = make(template.FuncMap)
+		c.funcMap = make(map[string]any)
 	}
 	c.funcMap[aliasName] = function
 	return c
@@ -140,15 +93,8 @@ func (c *PDF) Generate() error {
 	if c.Error() != nil {
 		return c.Error()
 	}
-	if c.tmpl == nil {
-		return errors.New("PDF Template is required")
-	}
-	buff := new(bytes.Buffer)
-	if err := c.tmpl.Execute(buff, c.data); err != nil {
-		return errors.Wrap(err, "phastos.generator.pdf.Generate.ExecuteTemplate")
-	}
 
-	contentString := buff.String()
+	contentString := c.content.String()
 	pageContent := wkhtmltopdf.NewPageReader(strings.NewReader(contentString))
 	pageContent.EnableLocalFileAccess.Set(true)
 	if c.footerHTMLPath != "" {
