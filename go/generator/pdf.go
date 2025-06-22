@@ -3,6 +3,8 @@ package generator
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -75,15 +77,42 @@ func (c *PDF) SetTemplate(templatePath string, data interface{}) PDFs {
 		return c
 	}
 	name := filepath.Base(templatePath)
-	contentByte, err := os.ReadFile(templatePath)
-	if err != nil {
-		c.err = errors.Wrap(err, "phastos.generator.pdf.SetTemplate.ReadFile")
-	}
 	tmpl := template.New(name)
 	if c.funcMap != nil {
 		tmpl.Funcs(c.funcMap)
 	}
-	c.tmpl, c.err = tmpl.Parse(string(contentByte))
+
+	isURLPath := strings.Contains(templatePath, "http")
+
+	var templateContent strings.Builder
+	// getting template contents
+	if isURLPath {
+		// if templatePath is url, ex: https://................/file.html
+		resp, err := http.Get(templatePath)
+		if err != nil {
+			c.err = errors.Wrap(err, "phastos.generator.pdf.SetTemplate.GetTemplateFromURL")
+			return c
+		}
+		defer resp.Body.Close()
+
+		htmlContent, err := io.ReadAll(resp.Body)
+		if err != nil {
+			c.err = errors.Wrap(err, "phastos.generator.pdf.SetTemplate.ReadBodyResponseHTML")
+			return c
+		}
+		templateContent.Write(htmlContent)
+	} else {
+		// if templatePath is local path, ex: /tmp/templates/file.html
+		contentByte, err := os.ReadFile(templatePath)
+		if err != nil {
+			c.err = errors.Wrap(err, "phastos.generator.pdf.SetTemplate.ReadFile")
+			return c
+		}
+		templateContent.Write(contentByte)
+
+	}
+	c.tmpl, c.err = tmpl.Parse(templateContent.String())
+
 	c.data = data
 	return c
 }
