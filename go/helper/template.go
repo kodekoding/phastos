@@ -77,6 +77,10 @@ func ParseTemplateFromPath(filePath string, data any, optionalParams ...any) (st
 				result.WriteString(value)
 			case template.FuncMap:
 				tmpl.Funcs(value)
+			case map[string]any:
+				var newValue template.FuncMap
+				newValue = value
+				tmpl.Funcs(newValue)
 			default:
 				log.Warn().Any("val", value).Msg("Undefined optional params data type")
 			}
