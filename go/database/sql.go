@@ -315,7 +315,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		segment.AddAttribute(NewRelicAttributeParams, string(byteParam))
 	}
 	if trx != nil {
-		if active, valid := postgresEngineGroup[this.engine]; valid && active && data.Action == ActionUpdate {
+		if active, valid := postgresEngineGroup[this.engine]; valid && active && (data.Action == ActionUpdate || data.Action == ActionUpdateById) {
 			query.WriteString(" RETURNING id")
 		}
 		stmt, err := trx.PreparexContext(ctx, query.String())
@@ -342,7 +342,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		}
 	} else {
 		if active, valid := postgresEngineGroup[this.engine]; valid && active {
-			if data.Action == ActionUpdate {
+			if data.Action == ActionUpdate || data.Action == ActionUpdateById {
 				query.WriteString(" RETURNING id")
 			}
 			if err = this.Master.QueryRowContext(ctx, query.String(), data.Values...).Scan(&lastInsertID); err != nil {
