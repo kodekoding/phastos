@@ -352,12 +352,14 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 						// re-assign logEvent from 'error' to 'warn'
 						logEvent = log.Warn()
 					}
-					errData := map[string]interface{}{
-						"error":        response.InternalError,
-						"request_path": r.URL.String(),
-						"trace_id":     requestId,
+
+					if response.InternalError.Data != nil {
+						logEvent.Any("error_data", response.InternalError.Data)
 					}
-					logEvent.Any("error_data", errData).Msg("Failed processing request")
+					logEvent.
+						Str("trace_id", requestId).
+						Str("request_path", r.URL.String()).
+						Msg("Failed processing request")
 				}(asyncTrx)
 			}
 			response.Send(w)
