@@ -4,30 +4,26 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/gorilla/schema"
-	logWriter "github.com/newrelic/go-agent/v3/integrations/logcontext-v2/zerologWriter"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/unrolled/secure"
 	"golang.org/x/sync/singleflight"
 
 	"github.com/kodekoding/phastos/v2/go/common"
 	"github.com/kodekoding/phastos/v2/go/cron"
 	"github.com/kodekoding/phastos/v2/go/database"
-	"github.com/kodekoding/phastos/v2/go/env"
 	"github.com/kodekoding/phastos/v2/go/monitoring"
 	"github.com/kodekoding/phastos/v2/go/server"
 )
@@ -35,6 +31,7 @@ import (
 var decoder = schema.NewDecoder()
 var TimezoneLocation *time.Location
 var appVersion string
+var once sync.Once
 
 type (
 	Apps interface {
@@ -83,6 +80,10 @@ func NewApp(opts ...Options) *App {
 	for _, opt := range opts {
 		opt(&apiApp)
 	}
+	log := GetLogger(
+		LoggerWithNewRelicApp(apiApp.newRelic),
+		LoggerWithAppPort(apiApp.Port),
+	)
 	var err error
 	TimezoneLocation, err = time.LoadLocation(apiApp.timezoneRegion)
 	if err != nil {
@@ -166,7 +167,7 @@ func (app *App) Trx() database.Transactions {
 
 func (app *App) initPlugins() {
 	app.Http.Use(
-		middleware.Logger,
+		//middleware.Logger,
 		middleware.Recoverer,
 		PanicHandler,
 	)
@@ -185,19 +186,6 @@ func (app *App) initPlugins() {
 		})
 	})
 
-	if env.ServiceEnv() == env.ProductionEnv {
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	} else {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	}
-
-	var writer io.Writer
-	writer = zerolog.ConsoleWriter{Out: os.Stderr}
-
-	if app.newRelic != nil {
-		writer = logWriter.New(os.Stdout, app.newRelic)
-	}
-	log.Logger = log.Output(writer).With().Str("app", os.Getenv("APP_NAME")).Logger()
 }
 
 func (app *App) requestValidator(i interface{}) error {
@@ -223,6 +211,15 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 		ctx := r.Context()
 
 		requestId := ctx.Value(common.RequestIdContextKey).(string)
+		// register `X-Request-Id` to header response
+		w.Header().Add("X-Request-Id", requestId)
+
+		// update log context with embed request_id
+		log.UpdateContext(func(c zerolog.Context) zerolog.Context {
+			return c.Str("request_id", requestId)
+		})
+
+		r = r.WithContext(log.WithContext(ctx))
 
 		timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*time.Duration(app.apiTimeout))
 		defer cancel()
@@ -242,14 +239,14 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 				}
 			}
 			if !isSingleFlightActive {
-				respChan <- h(request, ctx)
+				respChan <- h(*request, ctx)
 				return
 			}
 
 			uniqueReqKey = generateUniqueRequestKey(r)
 
 			sfResponse, err, _ := app.sf.Do(uniqueReqKey, func() (interface{}, error) {
-				handlerResp := h(request, ctx)
+				handlerResp := h(*request, ctx)
 				return handlerResp, nil
 			})
 			if err != nil {
@@ -266,9 +263,9 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 				w.WriteHeader(http.StatusGatewayTimeout)
 				_, err = w.Write([]byte("timeout"))
 				if err != nil {
-					log.Err(err).Str("route", r.URL.Path).Str("method", r.Method).Msg("[REQUEST][TIMEOUT] Failed when write to client")
+					log.Err(err).Msg("[REQUEST][TIMEOUT] Failed when write to client")
 				} else {
-					log.Info().Str("route", r.URL.Path).Str("method", r.Method).Msg("[REQUEST][TIMEOUT] context deadline exceed")
+					log.Info().Msg("[REQUEST][TIMEOUT] context deadline exceed")
 				}
 
 			}
@@ -293,7 +290,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 					}
 					// sent error to notification + logs asynchronously
 					response.SentNotif(asyncCtx, response.InternalError, r, requestId)
-					logEvent := log.Error()
+					logEvent := log.Err(response.InternalError)
 					if response.InternalError.Status < 500 {
 						// re-assign logEvent from 'error' to 'warn'
 						logEvent = log.Warn()
@@ -329,7 +326,10 @@ func generateUniqueRequestKey(req *http.Request) string {
 			queryParams = append(queryParams, fmt.Sprintf("%s=%s", k, vv))
 		}
 	}
-	sort.Strings(queryParams)
+	if queryParams == nil {
+		queryParams = []string{""}
+		sort.Strings(queryParams)
+	}
 
 	return fmt.Sprintf("%s|%s|%s|%s", clientIP, method, path, strings.Join(queryParams, "&"))
 }
@@ -380,7 +380,9 @@ func (app *App) WrapScheduler(wrapper cron.Wrapper) {
 }
 
 func (app *App) Start() error {
+	log := GetLogger()
 	app.Handler = InitHandler(app.Http)
+	app.Handler = requestLogger(app.Http)
 	secureMiddleware := secure.New(secure.Options{
 		BrowserXssFilter:   true,
 		ContentTypeNosniff: true,
@@ -410,12 +412,12 @@ func (app *App) Start() error {
 		app.Config.Ctx = wrapper.WrapToContext(app.Config.Ctx)
 	}
 
-	log.Info().Msg(fmt.Sprintf("server started on port %d, serving %d endpoint(s)", app.Port, app.TotalEndpoints))
+	log.Info().Int("total_endpoint(s)", app.TotalEndpoints).Msg(fmt.Sprintf("server started on port %d, serving %d endpoint(s)", app.Port, app.TotalEndpoints))
 
 	if app.cron != nil {
 		defer app.cron.Stop()
 		go app.cron.Start()
 	}
 
-	return server.ServeHTTP(app.Config)
+	return serveHTTPs(app.Config, false)
 }
