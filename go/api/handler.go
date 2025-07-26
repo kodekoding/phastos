@@ -3,9 +3,11 @@ package api
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/kodekoding/phastos/v2/go/common"
 	"github.com/kodekoding/phastos/v2/go/helper"
+	"github.com/rs/zerolog/hlog"
 )
 
 type WrittenResponseWriter struct {
@@ -46,4 +48,26 @@ func InitHandler(router http.Handler) http.Handler {
 
 		router.ServeHTTP(w, r)
 	})
+}
+
+func requestLogger(next http.Handler) http.Handler {
+	l := GetLogger()
+
+	h := hlog.NewHandler(l)
+
+	accessHandler := hlog.AccessHandler(
+		func(r *http.Request, status, size int, duration time.Duration) {
+			hlog.FromRequest(r).Info().
+				Str("method", r.Method).
+				Stringer("url", r.URL).
+				Int("status_code", status).
+				Int("response_size_bytes", size).
+				Dur("elapsed_ms", duration).
+				Msg("incoming request")
+		},
+	)
+
+	userAgentHandler := hlog.UserAgentHandler("http_user_agent")
+
+	return h(accessHandler(userAgentHandler(next)))
 }

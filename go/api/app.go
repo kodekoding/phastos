@@ -218,62 +218,8 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 		var response *Response
 		var err error
 
-		request := Request{
-			GetParams: func(key string, defaultValue ...string) string {
-				var paramValue string
-				if paramValue = chi.URLParam(r, key); paramValue == "" {
-					for _, v := range defaultValue {
-						paramValue = v
-					}
-				}
-				return paramValue
-			},
-			GetFile: func(key string) (multipart.File, *multipart.FileHeader, error) {
-				return r.FormFile(key)
-			},
-			GetQuery: func(i interface{}) error {
-				if err := decoder.Decode(i, r.URL.Query()); err != nil {
-					return BadRequest(err.Error(), "ERROR_PARSING_QUERY_PARAMS")
-				}
-				return app.requestValidator(i)
-			},
-			// GetHeaders
-			GetHeaders: func(i interface{}) error {
-				if err := decoder.Decode(i, r.Header); err != nil {
-					return BadRequest(err.Error(), "ERROR_PARSING_HEADER")
-				}
-				return app.requestValidator(i)
-			},
-			GetBody: func(i interface{}) error {
-				contentType := filterFlags(r.Header.Get("Content-Type"))
-				switch contentType {
-				case ContentJSON:
-					if err = getBodyFromJSON(r, i); err != nil {
-						return BadRequest(err.Error(), ErrParsedBodyCode)
-					}
-				case ContentURLEncoded:
-					if err = parseFormRequest(r); err != nil {
-						return BadRequest(err.Error(), ErrParsedBodyCode)
-					}
-					if err = doHandleDecodeSchema(r, i); err != nil {
-						return BadRequest(err.Error(), ErrDecodeBodyCode)
-					}
-				case ContentFormData:
-					if err = parseMultiPartFormRequest(r, 32<<20); err != nil {
-						return BadRequest(err.Error(), ErrParsedBodyCode)
-					}
-					if err = doHandleDecodeSchema(r, i); err != nil {
-						return BadRequest(err.Error(), ErrDecodeBodyCode)
-					}
-				default:
-					log.Warn().Msg("Content-Type Header didn't sent, please defined it, will treat as JSON body payload")
-					if err = getBodyFromJSON(r, i); err != nil {
-						return BadRequest(err.Error(), ErrParsedBodyCode)
-					}
-				}
-				return app.requestValidator(i)
-			},
-		}
+		log := GetLogger()
+		request := app.initRequest(r)
 		ctx := r.Context()
 
 		requestId := ctx.Value(common.RequestIdContextKey).(string)
