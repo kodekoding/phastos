@@ -384,7 +384,7 @@ func (app *App) WrapScheduler(wrapper cron.Wrapper) {
 func (app *App) Start() error {
 	log := plog.Get()
 	app.Handler = InitHandler(app.Http)
-	app.Handler = requestLogger(app.Http)
+	app.Handler = requestLogger(app.Handler)
 	secureMiddleware := secure.New(secure.Options{
 		BrowserXssFilter:   true,
 		ContentTypeNosniff: true,
