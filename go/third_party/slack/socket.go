@@ -12,8 +12,8 @@ import (
 	"github.com/slack-go/slack/socketmode"
 
 	"github.com/kodekoding/phastos/v2/go/api"
+	plog "github.com/kodekoding/phastos/v2/go/log"
 	handler2 "github.com/kodekoding/phastos/v2/go/third_party/slack/handler"
-	log2 "github.com/rs/zerolog/log"
 )
 
 type (
@@ -113,6 +113,7 @@ func (app *App) GetAPI() *slackpkg.Client {
 
 func (app *App) wrapHandler(handler handler2.EventHandler, shouldAck ...bool) socketmode.SocketmodeHandlerFunc {
 	return func(event *socketmode.Event, client *socketmode.Client) {
+		log2 := plog.Get()
 		const notValidData = "event data not valid"
 		request := handler2.SocketRequest{
 			GetInteractionData: func() (*slackpkg.InteractionCallback, error) {
