@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/kodekoding/phastos/v2/go/cache"
 	"github.com/kodekoding/phastos/v2/go/entity"
+	plog "github.com/kodekoding/phastos/v2/go/log"
 	"github.com/kodekoding/phastos/v2/go/notifications"
 )
 
@@ -22,6 +23,9 @@ func CreateAsyncContext(ctx context.Context) context.Context {
 	if traceId, exists := ctx.Value("traceId").(string); exists {
 		asyncContext = context.WithValue(asyncContext, "traceId", traceId)
 	}
+
+	logCtx := plog.Ctx(ctx)
+	asyncContext = logCtx.WithContext(asyncContext)
 
 	return asyncContext
 }
