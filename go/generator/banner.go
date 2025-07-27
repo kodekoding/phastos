@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/kodekoding/phastos/v2/go/helper"
-	"github.com/rs/zerolog/log"
+	plog "github.com/kodekoding/phastos/v2/go/log"
 )
 
 type (
@@ -91,6 +91,7 @@ func WithHeight(height int) Options {
 }
 
 func WithBackgroudColor(hexColor string) Options {
+	log := plog.Get()
 	return func(banner *Banner) {
 		rgba, err := helper.ParseHexColor(hexColor)
 		if err != nil {
@@ -115,6 +116,7 @@ func (b *Banner) Image() image.Image {
 }
 
 func (b *Banner) Generate() Banners {
+	log := plog.Get()
 	//create image's background
 	dc := gg.NewContext(b.Width, b.Height)
 	bgImg := image.NewRGBA(image.Rect(0, 0, b.Width, b.Height))
