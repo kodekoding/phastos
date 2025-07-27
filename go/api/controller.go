@@ -2,10 +2,13 @@ package api
 
 import (
 	"context"
-	"github.com/go-chi/chi/v5"
 	"mime/multipart"
 	"net/http"
 	"strconv"
+
+	"github.com/go-chi/chi/v5"
+
+	plog "github.com/kodekoding/phastos/v2/go/log"
 )
 
 type Map map[string]interface{}
@@ -83,7 +86,7 @@ type Controllers interface {
 }
 
 func (app *App) initRequest(r *http.Request) *Request {
-	log := GetLogger()
+	log := plog.Ctx(r.Context())
 	return &Request{
 		GetParams: func(key string, defaultValue ...string) string {
 			var paramValue string

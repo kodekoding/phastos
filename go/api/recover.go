@@ -6,13 +6,13 @@ import (
 	"runtime/debug"
 
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
-	"github.com/rs/zerolog/log"
-
 	context2 "github.com/kodekoding/phastos/v2/go/context"
+	plog "github.com/kodekoding/phastos/v2/go/log"
 )
 
 func panicRecover(r *http.Request, traceId string, uniqueKey ...string) {
 	if err := recover(); err != nil {
+		log := plog.Get()
 		stackTrace := string(debug.Stack())
 
 		marshalErr, _ := json.Marshal(err)

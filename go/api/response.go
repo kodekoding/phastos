@@ -14,7 +14,7 @@ import (
 	"github.com/kodekoding/phastos/v2/go/context"
 	"github.com/kodekoding/phastos/v2/go/database"
 	"github.com/kodekoding/phastos/v2/go/env"
-	"github.com/rs/zerolog/log"
+	plog "github.com/kodekoding/phastos/v2/go/log"
 )
 
 type Response struct {
@@ -125,6 +125,7 @@ func (resp *Response) SetHTTPError(err *HttpError) *Response {
 }
 
 func (resp *Response) SentNotif(ctx contextpkg.Context, err *HttpError, r *http.Request, traceId string) {
+	log := plog.Get()
 	if err == nil {
 		return
 	}

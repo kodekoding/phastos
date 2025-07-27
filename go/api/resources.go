@@ -4,13 +4,13 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/rs/zerolog/log"
-
 	"github.com/kodekoding/phastos/v2/go/cache"
 	"github.com/kodekoding/phastos/v2/go/database"
+	plog "github.com/kodekoding/phastos/v2/go/log"
 )
 
 func (app *App) loadResources() {
+	log := plog.Get()
 	var err error
 
 	// load DB + transactions

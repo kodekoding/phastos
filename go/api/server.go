@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	"net"
 	"net/http"
 	"os"
@@ -12,12 +11,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/kodekoding/phastos/v2/go/helper"
+	plog "github.com/kodekoding/phastos/v2/go/log"
 	"github.com/kodekoding/phastos/v2/go/server"
 )
 
 func serveHTTPs(config *server.Config, secure bool) error {
-	log := GetLogger()
+	log := plog.Get()
 	listenPort := fmt.Sprintf(":%d", config.Port)
 	serverConfig := &http.Server{
 		Addr:           listenPort,
@@ -56,11 +58,11 @@ func serveHTTPs(config *server.Config, secure bool) error {
 
 	go func() {
 		if secure {
-			if err = serverConfig.ServeTLS(listener, config.CertFile, config.KeyFile); err != http.ErrServerClosed {
+			if err = serverConfig.ServeTLS(listener, config.CertFile, config.KeyFile); !errors.Is(http.ErrServerClosed, err) {
 				log.Fatal().Err(err).Msg("Failed to Server HTTPS")
 			}
 		} else {
-			if err = serverConfig.Serve(listener); err != http.ErrServerClosed {
+			if err = serverConfig.Serve(listener); !errors.Is(http.ErrServerClosed, err) {
 				log.Fatal().Err(err).Msg("Failed to Server HTTP")
 			}
 		}
@@ -86,7 +88,8 @@ func serveHTTPs(config *server.Config, secure bool) error {
 				config.Ctx,
 				helper.NotifTitle(fmt.Sprintf("[%s] %s Service is started", environment, appName)),
 				helper.NotifData(map[string]string{
-					"version": config.Version,
+					"version":        config.Version,
+					"container_name": os.Getenv("CONTAINER_NAME"),
 				}),
 			)
 
@@ -100,7 +103,7 @@ func serveHTTPs(config *server.Config, secure bool) error {
 }
 
 func WaitTermSig(ctx context.Context, handler func(context.Context) error) <-chan struct{} {
-	log := GetLogger()
+	log := plog.Ctx(ctx)
 	stopedChannel := make(chan struct{})
 	newCtx, cancel := context.WithCancel(ctx)
 
@@ -128,6 +131,9 @@ func WaitTermSig(ctx context.Context, handler func(context.Context) error) <-cha
 					ctx,
 					helper.NotifTitle(fmt.Sprintf("[%s] %s Service is Stopped", environment, appName)),
 					helper.NotifMsgType(helper.NotifWarnType),
+					helper.NotifData(map[string]string{
+						"container_name": os.Getenv("CONTAINER_NAME"),
+					}),
 				)
 			}
 		}

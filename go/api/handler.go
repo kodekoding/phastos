@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/rs/zerolog/hlog"
+
 	"github.com/kodekoding/phastos/v2/go/common"
 	"github.com/kodekoding/phastos/v2/go/helper"
-	"github.com/rs/zerolog/hlog"
+	plog "github.com/kodekoding/phastos/v2/go/log"
 )
 
 type WrittenResponseWriter struct {
@@ -51,7 +53,7 @@ func InitHandler(router http.Handler) http.Handler {
 }
 
 func requestLogger(next http.Handler) http.Handler {
-	l := GetLogger()
+	l := plog.Get()
 
 	h := hlog.NewHandler(l)
 
