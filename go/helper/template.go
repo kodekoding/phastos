@@ -2,7 +2,6 @@ package helper
 
 import (
 	"embed"
-	"github.com/rs/zerolog/log"
 	"html/template"
 	"io"
 	"net/http"
@@ -10,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	plog "github.com/kodekoding/phastos/v2/go/log"
 	"github.com/pkg/errors"
 )
 
@@ -64,6 +64,7 @@ func ParseFileTemplate(filePath string, args interface{}, additionalBodyContent 
 }
 
 func ParseTemplateFromPath(filePath string, data any, optionalParams ...any) (strings.Builder, error) {
+	log := plog.Get()
 	var err error
 	var result strings.Builder
 	name := filepath.Base(filePath)

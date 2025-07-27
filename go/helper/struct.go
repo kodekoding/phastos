@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	plog "github.com/kodekoding/phastos/v2/go/log"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/rs/zerolog/log"
 	"github.com/volatiletech/null"
 
 	"github.com/kodekoding/phastos/v2/go/database"
@@ -158,6 +158,7 @@ func generateBulk(columns []string, columnValues []interface{}, arrayOfValues []
 }
 
 func ConstructColNameAndValue(ctx context.Context, structName interface{}, isNullStruct ...bool) ([]string, []interface{}) {
+	log := plog.Ctx(ctx)
 	if isNullStruct == nil {
 		txn := monitoring.BeginTrxFromContext(ctx)
 		if txn != nil {
