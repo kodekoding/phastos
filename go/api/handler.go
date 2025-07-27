@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/rs/zerolog/hlog"
+	"github.com/rs/zerolog"
 
 	"github.com/kodekoding/phastos/v2/go/common"
 	"github.com/kodekoding/phastos/v2/go/helper"
@@ -53,23 +53,35 @@ func InitHandler(router http.Handler) http.Handler {
 }
 
 func requestLogger(next http.Handler) http.Handler {
-	l := plog.Get()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		log := plog.Get()
+		ctx := r.Context()
 
-	h := hlog.NewHandler(l)
+		requestId := ctx.Value(common.RequestIdContextKey).(string)
+		// register `X-Request-Id` to header response
+		w.Header().Add("X-Request-Id", requestId)
 
-	accessHandler := hlog.AccessHandler(
-		func(r *http.Request, status, size int, duration time.Duration) {
-			hlog.FromRequest(r).Info().
+		// update log context with embed request_id
+		log.UpdateContext(func(c zerolog.Context) zerolog.Context {
+			return c.Str("request_id", requestId)
+		})
+
+		respRecorder := NewResponseRecorder(w)
+
+		r = r.WithContext(log.WithContext(r.Context()))
+		defer func() {
+			log.
+				Info().
 				Str("method", r.Method).
-				Stringer("url", r.URL).
-				Int("status_code", status).
-				Int("response_size_bytes", size).
-				Dur("elapsed_ms", duration).
-				Msg("incoming request")
-		},
-	)
+				Str("url", r.URL.RequestURI()).
+				Str("user_agent", r.UserAgent()).
+				Int("status_code", respRecorder.StatusCode).
+				Dur("elapsed_ms", time.Since(start)).
+				Msg("Incoming Request")
 
-	userAgentHandler := hlog.UserAgentHandler("http_user_agent")
+		}()
 
-	return h(accessHandler(userAgentHandler(next)))
+		next.ServeHTTP(respRecorder, r)
+	})
 }
