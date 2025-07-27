@@ -17,6 +17,21 @@ import (
 	plog "github.com/kodekoding/phastos/v2/go/log"
 )
 
+type ResponseRecorder struct {
+	http.ResponseWriter
+	StatusCode int
+}
+
+func NewResponseRecorder(w http.ResponseWriter) *ResponseRecorder {
+	return &ResponseRecorder{ResponseWriter: w, StatusCode: http.StatusOK}
+}
+
+// WriteHeader overrides the default WriteHeader to store the status code.
+func (r *ResponseRecorder) WriteHeader(status int) {
+	r.StatusCode = status
+	r.ResponseWriter.WriteHeader(status)
+}
+
 type Response struct {
 	Message          string `json:"message,omitempty"`
 	Data             any    `json:"data,omitempty"`
