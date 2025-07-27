@@ -221,8 +221,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 			return c.Str("request_id", requestId)
 		})
 
-		r = r.WithContext(log.WithContext(ctx))
-
+		ctx = log.WithContext(ctx)
 		timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*time.Duration(app.apiTimeout))
 		defer cancel()
 
