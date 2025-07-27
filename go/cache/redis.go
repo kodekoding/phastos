@@ -12,9 +12,9 @@ import (
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 
 	"github.com/kodekoding/phastos/v2/go/entity"
+	plog "github.com/kodekoding/phastos/v2/go/log"
 	"github.com/kodekoding/phastos/v2/go/monitoring"
 )
 
@@ -62,6 +62,8 @@ func New(options ...Options) *Store {
 	for _, opt := range options {
 		opt(&cfg)
 	}
+
+	log := plog.Get()
 
 	store := &Store{
 		Pool: &redigo.Pool{
@@ -154,6 +156,7 @@ func WithUsername(username string) Options {
 }
 
 func (r *Store) wrapWithRetries(ctx context.Context, actualFn actualRedisActionFn) (any, error) {
+	log := plog.Ctx(ctx)
 	for i := 0; i < r.maxRetry; i++ {
 		result, err := actualFn(ctx)
 		if err != nil {
@@ -231,6 +234,7 @@ func (r *Store) Get(ctx context.Context, key string, typeDestination any, fallba
 }
 
 func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackFn FallbackFn, segment *newrelic.Segment, conn redigo.Conn) (string, error) {
+	log := plog.Ctx(ctx)
 	fallbackResult, fallbackExpire, fallbackErr := fallbackFn(ctx)
 	if fallbackErr != nil {
 		return "", errors.Wrap(fallbackErr, "phastos.cache.redis.Get.FallbackFunction.Error")
@@ -314,6 +318,7 @@ func (r *Store) Del(ctx context.Context, key string) (int64, error) {
 // HSet set has map
 func (r *Store) HSet(ctx context.Context, key, field string, value any, expire ...int) error {
 	if _, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
+		log := plog.Ctx(ctx)
 		txn := monitoring.BeginTrxFromContext(ctx)
 		segmentName := "Redis-HSET"
 		segment := txn.StartSegment(segmentName)
