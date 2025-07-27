@@ -179,7 +179,7 @@ func ConstructColNameAndValue(ctx context.Context, structName interface{}, isNul
 	return cols, values
 }
 
-func readField(_ context.Context, reflectVal reflect.Value, isNullStruct ...bool) ([]string, []interface{}) {
+func readField(ctx context.Context, reflectVal reflect.Value, isNullStruct ...bool) ([]string, []interface{}) {
 	refType := reflectVal.Type()
 	var values []interface{}
 	var cols []string
@@ -236,7 +236,7 @@ func readField(_ context.Context, reflectVal reflect.Value, isNullStruct ...bool
 			values = append(values, value)
 			continue
 		case reflect.Struct:
-			embeddedCols, embeddedVals := ConstructColNameAndValue(nil, field.Interface(), containsNullStruct)
+			embeddedCols, embeddedVals := ConstructColNameAndValue(ctx, field.Interface(), containsNullStruct)
 
 			if colTagVal == "json" && embeddedVals != nil {
 				cols = append(cols, colName)
