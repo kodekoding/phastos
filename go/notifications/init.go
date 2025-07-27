@@ -4,9 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/rs/zerolog/log"
-
 	"github.com/kodekoding/phastos/v2/go/entity"
+	plog "github.com/kodekoding/phastos/v2/go/log"
 	"github.com/kodekoding/phastos/v2/go/notifications/slack"
 	"github.com/kodekoding/phastos/v2/go/notifications/telegram"
 )
@@ -64,6 +63,7 @@ func New(opt ...Options) *Platform {
 
 func ActivateSlack(webhookURL string) Options {
 	return func(platform *Platform) {
+		log := plog.Get()
 		var err error
 		platform.slack, err = slack.New(&slack.SlackConfig{URL: webhookURL, IsActive: true})
 		if err != nil {
@@ -77,6 +77,7 @@ func ActivateSlack(webhookURL string) Options {
 
 func ActivateTelegram(botToken string) Options {
 	return func(platform *Platform) {
+		log := plog.Get()
 		var err error
 		platform.telegram, err = telegram.New(&telegram.TelegramConfig{BotToken: botToken, IsActive: true})
 		if err != nil {
