@@ -17,7 +17,6 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/gorilla/schema"
 	"github.com/newrelic/go-agent/v3/newrelic"
-	"github.com/rs/zerolog"
 	"github.com/unrolled/secure"
 	"golang.org/x/sync/singleflight"
 
@@ -169,7 +168,7 @@ func (app *App) Trx() database.Transactions {
 
 func (app *App) initPlugins() {
 	app.Http.Use(
-		//middleware.Logger,
+		requestLogger,
 		middleware.Recoverer,
 		PanicHandler,
 	)
@@ -208,20 +207,11 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 		var response *Response
 		var err error
 
-		log := plog.Get()
 		request := app.initRequest(r)
 		ctx := r.Context()
+		log := plog.Ctx(ctx)
 
 		requestId := ctx.Value(common.RequestIdContextKey).(string)
-		// register `X-Request-Id` to header response
-		w.Header().Add("X-Request-Id", requestId)
-
-		// update log context with embed request_id
-		log.UpdateContext(func(c zerolog.Context) zerolog.Context {
-			return c.Str("request_id", requestId)
-		})
-
-		ctx = log.WithContext(ctx)
 		timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*time.Duration(app.apiTimeout))
 		defer cancel()
 
@@ -383,7 +373,6 @@ func (app *App) WrapScheduler(wrapper cron.Wrapper) {
 func (app *App) Start() error {
 	log := plog.Get()
 	app.Handler = InitHandler(app.Http)
-	app.Handler = requestLogger(app.Handler)
 	secureMiddleware := secure.New(secure.Options{
 		BrowserXssFilter:   true,
 		ContentTypeNosniff: true,
