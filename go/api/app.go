@@ -24,6 +24,7 @@ import (
 	"github.com/kodekoding/phastos/v2/go/common"
 	"github.com/kodekoding/phastos/v2/go/cron"
 	"github.com/kodekoding/phastos/v2/go/database"
+	plog "github.com/kodekoding/phastos/v2/go/log"
 	"github.com/kodekoding/phastos/v2/go/monitoring"
 	"github.com/kodekoding/phastos/v2/go/server"
 )
@@ -80,9 +81,10 @@ func NewApp(opts ...Options) *App {
 	for _, opt := range opts {
 		opt(&apiApp)
 	}
-	log := GetLogger(
-		LoggerWithNewRelicApp(apiApp.newRelic),
-		LoggerWithAppPort(apiApp.Port),
+	log := plog.Get(
+		plog.WithNewRelicApp(apiApp.newRelic),
+		plog.WithAppPort(apiApp.Port),
+		plog.WithAppVersion(appVersion),
 	)
 	var err error
 	TimezoneLocation, err = time.LoadLocation(apiApp.timezoneRegion)
@@ -206,7 +208,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 		var response *Response
 		var err error
 
-		log := GetLogger()
+		log := plog.Get()
 		request := app.initRequest(r)
 		ctx := r.Context()
 
@@ -380,7 +382,7 @@ func (app *App) WrapScheduler(wrapper cron.Wrapper) {
 }
 
 func (app *App) Start() error {
-	log := GetLogger()
+	log := plog.Get()
 	app.Handler = InitHandler(app.Http)
 	app.Handler = requestLogger(app.Http)
 	secureMiddleware := secure.New(secure.Options{
@@ -412,7 +414,7 @@ func (app *App) Start() error {
 		app.Config.Ctx = wrapper.WrapToContext(app.Config.Ctx)
 	}
 
-	log.Info().Int("total_endpoint(s)", app.TotalEndpoints).Msg(fmt.Sprintf("server started on port %d, serving %d endpoint(s)", app.Port, app.TotalEndpoints))
+	log.Info().Int("total_endpoint(s)", app.TotalEndpoints).Msg("Server Starting")
 
 	if app.cron != nil {
 		defer app.cron.Stop()

@@ -1,6 +1,7 @@
 package log
 
 import (
+	"context"
 	"io"
 	"os"
 	"sync"
@@ -45,7 +46,7 @@ func WithAppPort(appPort int) LoggerOption {
 	}
 }
 
-func GetLogger(loggerOption ...LoggerOption) zerolog.Logger {
+func Get(loggerOption ...LoggerOption) zerolog.Logger {
 	once.Do(func() {
 		zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
 		zerolog.TimeFieldFormat = time.RFC3339Nano
@@ -94,4 +95,8 @@ func GetLogger(loggerOption ...LoggerOption) zerolog.Logger {
 	})
 
 	return logZero
+}
+
+func Ctx(ctx context.Context) *zerolog.Logger {
+	return zerolog.Ctx(ctx)
 }
