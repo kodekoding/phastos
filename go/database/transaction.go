@@ -2,7 +2,7 @@ package database
 
 import (
 	"github.com/jmoiron/sqlx"
-	"github.com/rs/zerolog/log"
+	plog "github.com/kodekoding/phastos/v2/go/log"
 )
 
 type (
@@ -29,7 +29,8 @@ func (t *Transaction) Finish(tx *sqlx.Tx, errTransaction error) {
 	var err error
 	defer func() {
 		if err != nil {
-			log.Warn().Msgf("Got Error when Rollback/Commit Transaction: %s", err.Error())
+			log := plog.Get()
+			log.Err(err).Msg("Got Error when Rollback/Commit Transaction")
 		}
 	}()
 	if errTransaction != nil {

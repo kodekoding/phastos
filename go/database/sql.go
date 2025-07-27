@@ -19,12 +19,12 @@ import (
 	_ "github.com/newrelic/go-agent/v3/integrations/nrpq"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 	_ "gorm.io/driver/mysql" // import mysql driver
 
 	context2 "github.com/kodekoding/phastos/v2/go/context"
 	"github.com/kodekoding/phastos/v2/go/env"
 	custerr "github.com/kodekoding/phastos/v2/go/error"
+	plog "github.com/kodekoding/phastos/v2/go/log"
 	"github.com/kodekoding/phastos/v2/go/monitoring"
 )
 
@@ -43,6 +43,7 @@ func newSQL(master, follower *sqlx.DB) *SQL {
 }
 
 func Connect() (*SQL, error) {
+	log := plog.Get()
 	engine := os.Getenv("DATABASE_ENGINE")
 
 	masterDB, err := connectDB(engine, "MASTER")
@@ -443,6 +444,7 @@ func (this *SQL) checkSQLWarning(ctx context.Context, query string, start time.T
 }
 
 func GenerateAddOnQuery(ctx context.Context, reqData *TableRequest) (string, []interface{}, error) {
+	log := plog.Ctx(ctx)
 	txn := monitoring.BeginTrxFromContext(ctx)
 	if txn != nil {
 		segment := txn.StartSegment("PhastosDB-GeneratingAddOnQuery")
