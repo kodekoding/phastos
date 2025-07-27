@@ -3,13 +3,14 @@ package importer
 import (
 	"context"
 	"encoding/json"
-	"github.com/extrame/xls"
 	"mime/multipart"
 	"reflect"
 	"strings"
 
-	"github.com/rs/zerolog/log"
+	"github.com/extrame/xls"
 	"github.com/xuri/excelize/v2"
+
+	plog "github.com/kodekoding/phastos/v2/go/log"
 )
 
 type (
@@ -20,6 +21,7 @@ type (
 )
 
 func GetDataFromXlsx(file multipart.File, sheetName string) ([][]string, error) {
+	log := plog.Get()
 	xlsFile, err := excelize.OpenReader(file)
 	if err != nil {
 		log.Err(err).Msg("err when open file")
@@ -39,6 +41,7 @@ func GetDataFromXlsx(file multipart.File, sheetName string) ([][]string, error) 
 }
 
 func GetDataFromXls(file multipart.File) ([][]string, error) {
+	log := plog.Get()
 	xlsFile, err := xls.OpenReader(file, "utf-8")
 	if err != nil {
 		log.Err(err).Msg("err when open file")
@@ -62,6 +65,7 @@ func GetDataFromXls(file multipart.File) ([][]string, error) {
 }
 
 func (e excel) readFromExcel(structSource reflect.Value, file multipart.File, mapContent map[string]interface{}, ctx ...context.Context) <-chan interface{} {
+	log := plog.Get()
 	chanOut := make(chan interface{})
 	go func() {
 		var rows [][]string

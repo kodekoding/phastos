@@ -13,13 +13,13 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 
 	"github.com/kodekoding/phastos/v2/go/api"
 	contextinternal "github.com/kodekoding/phastos/v2/go/context"
 	"github.com/kodekoding/phastos/v2/go/database"
 	"github.com/kodekoding/phastos/v2/go/env"
 	"github.com/kodekoding/phastos/v2/go/helper"
+	plog "github.com/kodekoding/phastos/v2/go/log"
 	"github.com/kodekoding/phastos/v2/go/monitoring"
 )
 
@@ -193,6 +193,7 @@ func (r *importer) validateField() error {
 }
 
 func (r *importer) ProcessData() *ImportResult {
+	log := plog.Ctx(r.ctx)
 	txn := monitoring.BeginTrxFromContext(r.ctx)
 	var importProcessSegment *newrelic.Segment
 	if txn != nil {
@@ -260,11 +261,16 @@ func (r *importer) ProcessData() *ImportResult {
 	}()
 	executionTime := end.Seconds()
 	result.ExecutionTime = executionTime
-	log.Info().Msgf("success inserted %d/%d rows in %.2f second(s)", totalData-totalFailed, totalData, executionTime)
+	log.Info().
+		Int("success_processing_data", totalData-totalFailed).
+		Int("total_data", totalData).
+		Float64("processing_time", executionTime).
+		Msg("Success Import Data")
 	return result
 }
 
 func (r *importer) processData(asyncContext context.Context, nrTrx *newrelic.Transaction) *ImportResult {
+	log := plog.Ctx(asyncContext)
 	var chanRowData = make(<-chan interface{})
 	switch r.sourceType {
 	case ExcelFileType, ExcelWorkbookFileType:
@@ -297,7 +303,7 @@ func (r *importer) processData(asyncContext context.Context, nrTrx *newrelic.Tra
 	}
 
 	if failedList != nil {
-		log.Error().Interface("error_data", failedList).Msgf("Error when import data from %s", r.sourceType)
+		log.Error().Any("error_data", failedList).Msgf("Error when import data from %s", r.sourceType)
 	}
 
 	result.FailedList = failedList
