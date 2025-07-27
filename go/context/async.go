@@ -2,9 +2,11 @@ package context
 
 import (
 	"context"
+
 	"github.com/kodekoding/phastos/v2/go/cache"
 	"github.com/kodekoding/phastos/v2/go/entity"
 	plog "github.com/kodekoding/phastos/v2/go/log"
+	"github.com/kodekoding/phastos/v2/go/monitoring"
 	"github.com/kodekoding/phastos/v2/go/notifications"
 )
 
@@ -24,8 +26,17 @@ func CreateAsyncContext(ctx context.Context) context.Context {
 		asyncContext = context.WithValue(asyncContext, "traceId", traceId)
 	}
 
+	// embed log context to async context if exists
 	logCtx := plog.Ctx(ctx)
-	asyncContext = logCtx.WithContext(asyncContext)
+	if logCtx != nil {
+		asyncContext = logCtx.WithContext(asyncContext)
+	}
+
+	// embed new relic context if exists
+	newRelicContext := monitoring.BeginTrxFromContext(ctx)
+	if newRelicContext != nil {
+		asyncContext = monitoring.NewContext(asyncContext, newRelicContext.NewGoroutine())
+	}
 
 	return asyncContext
 }
