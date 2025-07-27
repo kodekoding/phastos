@@ -69,17 +69,26 @@ func requestLogger(next http.Handler) http.Handler {
 
 		respRecorder := NewResponseRecorder(w)
 
+		// incoming request
+		log.
+			Info().
+			Str("method", r.Method).
+			Str("url", r.URL.RequestURI()).
+			Str("user_agent", r.UserAgent()).
+			Msg("Incoming Request")
+
 		r = r.WithContext(log.WithContext(r.Context()))
 		defer func() {
-			log.
+			// final log
+			finalLog := plog.Ctx(r.Context())
+			finalLog.
 				Info().
 				Str("method", r.Method).
 				Str("url", r.URL.RequestURI()).
 				Str("user_agent", r.UserAgent()).
 				Int("status_code", respRecorder.StatusCode).
 				Dur("elapsed_ms", time.Since(start)).
-				Msg("Incoming Request")
-
+				Msg("Request Finished")
 		}()
 
 		next.ServeHTTP(respRecorder, r)
