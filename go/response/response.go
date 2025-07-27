@@ -10,13 +10,12 @@ import (
 	"net/http"
 
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
-	"github.com/pkg/errors"
-
 	ctxlib "github.com/kodekoding/phastos/v2/go/context"
 	"github.com/kodekoding/phastos/v2/go/env"
 	cutomerr "github.com/kodekoding/phastos/v2/go/error"
 	"github.com/kodekoding/phastos/v2/go/helper"
-	"github.com/rs/zerolog/log"
+	plog "github.com/kodekoding/phastos/v2/go/log"
+	"github.com/pkg/errors"
 )
 
 type JSON struct {
@@ -127,11 +126,13 @@ func (jr *JSON) InternalServerError(err error) *JSON {
 }
 
 func (jr *JSON) ErrorChecking(r *http.Request) bool {
+	log := plog.Ctx(r.Context())
 	if jr.Error != nil {
 		// error occurred
 		var usingErr error
 		causeErr := errors.Cause(jr.Error)
-		customErr, valid := causeErr.(*cutomerr.RequestError)
+		var customErr *cutomerr.RequestError
+		valid := errors.As(causeErr, &customErr)
 		var optionalData string
 		if !valid {
 			usingErr = jr.Error
@@ -181,6 +182,7 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 func (jr *JSON) sendNotif(ctx context.Context, r *http.Request, notifMsg, optionalData, errStr string) {
 	notif := ctxlib.GetNotif(ctx)
 	if notif != nil {
+		log := plog.Ctx(ctx)
 		allNotifPlatform := notif.GetAllPlatform()
 		var attachment interface{}
 		for _, platform := range allNotifPlatform {
@@ -257,6 +259,7 @@ func (jr *JSON) Send(w http.ResponseWriter) {
 		jr.sendExport(w)
 		return
 	}
+	log := plog.Get()
 
 	w.Header().Set("Content-Type", "application/json")
 	b, err := json.Marshal(jr)
