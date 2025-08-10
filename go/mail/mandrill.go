@@ -1,6 +1,8 @@
 package mail
 
 import (
+	"strings"
+
 	"github.com/keighl/mandrill"
 	"github.com/pkg/errors"
 )
@@ -51,6 +53,10 @@ func (m *Mandrill) reset() {
 }
 
 func (m *Mandrill) AddRecipient(recipientEmail, recipientName string) Mandrills {
+	if recipientName == "" {
+		// set default name if empty
+		recipientName = recipientEmail[:strings.Index(recipientEmail, "@")]
+	}
 	m.message.AddRecipient(recipientEmail, recipientName, "to")
 	return m
 }
