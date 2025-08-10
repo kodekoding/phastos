@@ -68,7 +68,7 @@ func E(args ...interface{}) error {
 	for _, arg := range args {
 		switch arg.(type) {
 		case string:
-			err.Err = Errorf(arg.(string))
+			err.Err = Errorf("%s", arg.(string))
 		case *Error:
 			// copy and put the errors back
 			errcpy := *arg.(*Error)
