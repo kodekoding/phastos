@@ -3,6 +3,7 @@ package router
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,12 +11,15 @@ import (
 	"path"
 	"path/filepath"
 	"runtime/debug"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
+	"golang.org/x/sync/singleflight"
 
 	context2 "github.com/kodekoding/phastos/go/context"
 	"github.com/kodekoding/phastos/go/helper"
@@ -43,8 +47,10 @@ type RouteInterface interface {
 }
 
 type ChiRouter struct {
-	handle  *chi.Mux
-	timeout int
+	handle     *chi.Mux
+	timeout    int
+	sf         singleflight.Group
+	isSfActive bool
 }
 
 func NewChiRouter(timeout ...int) *ChiRouter {
@@ -53,11 +59,26 @@ func NewChiRouter(timeout ...int) *ChiRouter {
 	if timeout != nil && len(timeout) == 1 {
 		ctxTimeout = timeout[0]
 	}
-	return &ChiRouter{handle: chi.NewRouter(), timeout: ctxTimeout}
+
+	cr := &ChiRouter{handle: chi.NewRouter(), timeout: ctxTimeout}
+
+	isSfActiveFromEnv := os.Getenv("SINGLEFLIGHT_ACTIVE")
+	if isSfActiveFromEnv != "" {
+		value, err := strconv.ParseBool(isSfActiveFromEnv)
+		if err == nil {
+			cr.isSfActive = value
+		}
+	}
+
+	return cr
 }
 
 func (cr *ChiRouter) GetHandler() *chi.Mux {
 	return cr.handle
+}
+
+func (cr *ChiRouter) Find(rctx *chi.Context, method, path string) string {
+	return cr.Find(rctx, method, path)
 }
 
 func (cr *ChiRouter) InitRoute(corsConfig ...cors.Options) {
@@ -199,13 +220,29 @@ func (cr *ChiRouter) wrapper(pattern string, handler WrapperFunc) http.HandlerFu
 		go func() {
 			defer panicRecover(request, pattern)
 			//handler
-			resp := handler(writer, request)
-			respChan <- resp
+			if !cr.isSfActive {
+				resp := handler(writer, request)
+				respChan <- resp
+				return
+			}
+
+			uniqueReqKey := generateUniqueRequestKey(request)
+
+			sfResponse, err, _ := cr.sf.Do(uniqueReqKey, func() (interface{}, error) {
+				handlerResp := handler(writer, request)
+				return handlerResp, nil
+			})
+			if err != nil {
+				log.Errorln("[SINGLEFLIGHT] - Error when do singleFlight request")
+				respChan <- response.NewJSON().SetError(http.StatusInternalServerError, err)
+				return
+			}
+			respChan <- sfResponse.(*response.JSON)
 		}()
 
 		select {
 		case <-ctx.Done():
-			if ctx.Err() == context.DeadlineExceeded {
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				writer.WriteHeader(http.StatusGatewayTimeout)
 				_, err := writer.Write([]byte("timeout"))
 				if err != nil {
@@ -222,6 +259,30 @@ func (cr *ChiRouter) wrapper(pattern string, handler WrapperFunc) http.HandlerFu
 			}
 		}
 	}
+}
+
+func generateUniqueRequestKey(req *http.Request) string {
+	method := req.Method
+	path := req.URL.Path
+	clientIP := req.Header.Get("X-Forwarded-For")
+	if clientIP == "" {
+		clientIP = req.RemoteAddr
+	}
+
+	// Sort query parameters to ensure consistent key generation
+	query := req.URL.Query()
+	var queryParams []string
+	for k, v := range query {
+		for _, vv := range v {
+			queryParams = append(queryParams, fmt.Sprintf("%s=%s", k, vv))
+		}
+	}
+	if queryParams == nil {
+		queryParams = []string{""}
+		sort.Strings(queryParams)
+	}
+
+	return fmt.Sprintf("%s|%s|%s|%s", clientIP, method, path, strings.Join(queryParams, "&"))
 }
 
 func panicRecover(r *http.Request, path string) {
