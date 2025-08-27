@@ -159,6 +159,14 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	}
 
 	query += addOnQuery
+
+	if opts.QueryDescription != "" {
+		query = fmt.Sprintf(`
+		/* %s */
+		%s`,
+			opts.QueryDescription, query,
+		)
+	}
 	query = this.Rebind(query)
 	opts.query = query
 	opts.params = params
@@ -250,6 +258,13 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	}
 
 	query += addOnQuery
+	if opts.QueryDescription != "" {
+		query = fmt.Sprintf(`
+			/* %s */
+			%s`,
+			opts.QueryDescription, query,
+		)
+	}
 	query = this.Rebind(query)
 	result := new(CUDResponse)
 	result.query = query
