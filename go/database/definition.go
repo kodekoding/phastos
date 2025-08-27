@@ -115,6 +115,7 @@ type (
 
 	QueryOpts struct {
 		BaseQuery         string
+		QueryDescription  string
 		Conditions        func(ctx context.Context)
 		ExcludeColumns    string
 		Columns           string
