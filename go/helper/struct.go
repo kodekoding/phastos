@@ -226,15 +226,14 @@ func readField(ctx context.Context, reflectVal reflect.Value, isNullStruct ...bo
 		}
 
 		switch field.Kind() {
-		case reflect.Slice:
+		case reflect.Slice, reflect.Map:
 			if value != nil {
-				cols = append(cols, colName)
-				values = append(values, value)
-				continue
+				// Gunakan reflect.ValueOf(value).IsNil() untuk mengecek nilai konkretnya
+				if !reflect.ValueOf(value).IsNil() { // Mengecek jika nilai konkretnya TIDAK nil
+					cols = append(cols, colName)
+					values = append(values, value)
+				}
 			}
-		case reflect.Map:
-			cols = append(cols, colName)
-			values = append(values, value)
 			continue
 		case reflect.Struct:
 			embeddedCols, embeddedVals := ConstructColNameAndValue(ctx, field.Interface(), containsNullStruct)
