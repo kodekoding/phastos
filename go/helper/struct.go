@@ -174,7 +174,7 @@ func ConstructColNameAndValue(ctx context.Context, structName interface{}, isNul
 	return cols, values
 }
 
-func readField(_ context.Context, reflectVal reflect.Value, isNullStruct ...bool) ([]string, []interface{}) {
+func readField(ctx context.Context, reflectVal reflect.Value, isNullStruct ...bool) ([]string, []interface{}) {
 	refType := reflectVal.Type()
 	var values []interface{}
 	var cols []string
@@ -206,29 +206,38 @@ func readField(_ context.Context, reflectVal reflect.Value, isNullStruct ...bool
 			}
 		}
 		colTagVal, hasColTag := fieldType.Tag.Lookup("col")
-		if hasColTag {
-			if colTagVal == "pk" {
-				continue
-			} else if colTagVal == "json" {
-				cols = append(cols, colName)
-				values = append(values, value)
-				continue
-			}
+		if hasColTag && colTagVal == "pk" {
+			continue
 		}
 		fieldTypeData := fieldType.Type.String()
-		nullStruct := strings.Contains(fieldTypeData, "null.")
+		nullStruct := strings.Contains(fieldTypeData, "null.") || colTagVal == "json"
 
 		if nullStruct {
 			containsNullStruct = true
 		}
 
 		if field.Kind() == reflect.Ptr {
+			// to check nil pointer of data type
+			if reflect.Indirect(field).Kind() == reflect.Invalid {
+				continue
+			}
+
 			field = field.Elem()
 		}
-		if field.Kind() == reflect.Struct {
 
-			embeddedCols, embeddedVals := ConstructColNameAndValue(nil, field.Interface(), containsNullStruct)
+		switch field.Kind() {
+		case reflect.Map:
+			cols = append(cols, colName)
+			values = append(values, value)
+			continue
+		case reflect.Struct:
+			embeddedCols, embeddedVals := ConstructColNameAndValue(ctx, field.Interface(), containsNullStruct)
 
+			if colTagVal == "json" && embeddedVals != nil {
+				cols = append(cols, colName)
+				values = append(values, value)
+				continue
+			}
 			if nullStruct && embeddedVals != nil {
 				cols = append(cols, colName)
 			} else {
@@ -244,6 +253,15 @@ func readField(_ context.Context, reflectVal reflect.Value, isNullStruct ...bool
 
 				cols = nil
 				values = nil
+			}
+			continue
+		}
+
+		if fieldType.Name == "NullContent" {
+			if value.(bool) {
+
+				cols = append(cols, colName)
+				values = append(values, "null")
 			}
 			continue
 		}
