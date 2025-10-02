@@ -226,6 +226,12 @@ func readField(ctx context.Context, reflectVal reflect.Value, isNullStruct ...bo
 		}
 
 		switch field.Kind() {
+		case reflect.Slice:
+			if value != nil {
+				cols = append(cols, colName)
+				values = append(values, value)
+				continue
+			}
 		case reflect.Map:
 			cols = append(cols, colName)
 			values = append(values, value)
