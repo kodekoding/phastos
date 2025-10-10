@@ -404,8 +404,13 @@ func GenerateAddOnQuery(ctx context.Context, reqData *TableRequest) (string, []i
 		addOnBuilder.WriteString(whereString)
 	}
 	if reqData.GroupBy != "" {
-		addOnBuilder.WriteString(fmt.Sprintf(" GROUP BY %s", reqData.GroupBy))
+		addOnBuilder.WriteString(" GROUP BY ")
+		if reqData.MainTableAlias != "" {
+			addOnBuilder.WriteString(fmt.Sprintf("%s.", reqData.MainTableAlias))
+		}
+		addOnBuilder.WriteString(reqData.GroupBy)
 	}
+
 	checkSortParam(ctx, reqData, &addOnBuilder)
 
 	if reqData.Page > 0 && reqData.Limit > 0 {
@@ -455,7 +460,11 @@ func checkSortParam(_ context.Context, reqData *TableRequest, addOnBuilder *stri
 	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-checkSortParam")
 	//defer trc.Finish()
 	if reqData.OrderBy != "" {
-		addOnBuilder.WriteString(fmt.Sprintf(" ORDER BY %s", reqData.OrderBy))
+		addOnBuilder.WriteString(" ORDER BY ")
+		if reqData.MainTableAlias != "" {
+			addOnBuilder.WriteString(fmt.Sprintf("%s.", reqData.MainTableAlias))
+		}
+		addOnBuilder.WriteString(reqData.OrderBy)
 	}
 }
 
