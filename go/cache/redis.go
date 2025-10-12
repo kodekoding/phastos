@@ -267,8 +267,17 @@ func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackF
 	}
 
 	redisCommand := "SET"
+	isHSETTTLAlreadyExist := false
 	if field != "" {
 		redisCommand = "HSET"
+		val, err := redigo.Int64(conn.Do("TTL", key))
+		if err != nil {
+			return "", err
+		}
+
+		if val > 0 {
+			isHSETTTLAlreadyExist = true
+		}
 	}
 
 	if field == "" {
@@ -280,7 +289,9 @@ func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackF
 		return "", errors.Wrap(err, fmt.Sprintf("phastos.cache.redis.fallbackAction.%s", redisCommand))
 	}
 
-	if field != "" && fallbackExpire >= 0 {
+	// override the fallback expire (HGET only) when not exists !
+	// to prevent re-assign the EXPIRE of session key
+	if field != "" && fallbackExpire > 0 && !isHSETTTLAlreadyExist {
 		if _, err := conn.Do("EXPIRE", key, fallbackExpire); err != nil {
 			log.Err(err).Str("key", key).Str("field", field).Msg("Failed to set Expire")
 		}
@@ -333,8 +344,15 @@ func (r *Store) HSet(ctx context.Context, key, field string, value any, expire .
 		}
 		defer conn.Close()
 
-		byteValue, _ := json.Marshal(value)
-		_, err = redigo.Int64(conn.Do("HSET", key, field, string(byteValue)))
+		params := []interface{}{key, field}
+		if val, isStringType := value.(string); isStringType {
+			params = append(params, val)
+		} else {
+			byteValue, _ := json.Marshal(value)
+			params = append(params, string(byteValue))
+		}
+
+		_, err = redigo.Int64(conn.Do("HSET", params...))
 		if err != nil {
 			return nil, err
 		}
@@ -456,8 +474,13 @@ func (r *Store) Set(ctx context.Context, key string, value any, expire ...int) e
 		defer conn.Close()
 		var setParams []interface{}
 		setParams = append(setParams, fmt.Sprintf("%s%s", r.prefixKey, key))
-		byteValue, _ := json.Marshal(value)
-		setParams = append(setParams, string(byteValue))
+
+		if val, isString := value.(string); isString {
+			setParams = append(setParams, val)
+		} else {
+			byteValue, _ := json.Marshal(value)
+			setParams = append(setParams, string(byteValue))
+		}
 		expireTime := int(10 * time.Minute.Seconds())
 		if expire != nil && len(expire) > 0 {
 			expireTime = expire[0]
