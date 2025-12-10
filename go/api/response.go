@@ -81,7 +81,8 @@ func (resp *Response) Send(w http.ResponseWriter) {
 	var dataToMarshal any
 	var responseStatus int
 	if resp.Err != nil {
-		if respErr, ok := resp.Err.(*HttpError); ok {
+		var respErr *HttpError
+		if errors.As(errors.Cause(resp.Err), &respErr) {
 			responseStatus = respErr.Status
 			dataToMarshal = respErr
 		}
@@ -119,13 +120,13 @@ func (resp *Response) Send(w http.ResponseWriter) {
 }
 
 func (resp *Response) SetError(err error) *Response {
-	resp.Err = err
 	if causeErr, isHttpErr := errors.Cause(err).(*HttpError); !isHttpErr {
 		// if not httpError then create new httpError for internal error and sent alert to notification platform
 		resp.InternalError = NewErr(WithErrorCode("INTERNAL_SERVER_ERROR"), WithErrorMessage(err.Error()))
 		resp.Err = errors.New("Internal Server Error")
 	} else {
 		resp.InternalError = causeErr
+		resp.Err = causeErr
 		if causeErr.Status == http.StatusInternalServerError {
 			resp.Err = errors.New("Internal Server Error")
 		}

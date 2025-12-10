@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/gorilla/schema"
 	"github.com/newrelic/go-agent/v3/newrelic"
+	"github.com/pkg/errors"
 	"github.com/unrolled/secure"
 	"golang.org/x/sync/singleflight"
 
@@ -262,10 +262,12 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 			}
 		case response = <-respChan:
 			response.TraceId = requestId
+			log = plog.Ctx(ctx)
+
 			if response.Err != nil {
 				var respErr *HttpError
 				var ok bool
-				if ok = errors.As(response.Err, &respErr); !ok {
+				if ok = errors.As(errors.Cause(response.Err), &respErr); !ok {
 					respErr = NewErr(WithErrorMessage(response.Err.Error()), WithTraceId(requestId))
 					response.SetHTTPError(respErr)
 				}
