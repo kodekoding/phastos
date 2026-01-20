@@ -4,12 +4,13 @@ import (
 	contextpkg "context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	"github.com/pkg/errors"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/pkg/errors"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/gorilla/schema"
@@ -46,7 +47,7 @@ func NewApp(opts ...Options) *App {
 	apiApp.Config = new(server.Config)
 
 	apiApp.Port = 8000
-	apiApp.ReadTimeout = 3
+	apiApp.ReadTimeout = 3.
 	apiApp.WriteTimeout = 3
 	apiApp.apiTimeout = 3
 
