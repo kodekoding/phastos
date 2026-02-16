@@ -174,6 +174,14 @@ func (app *App) DB() database.ISQL {
 	return app.db
 }
 
+func (app *App) SSE() *sse.Hub {
+	if app.sseEvent == nil {
+		log := plog.Get()
+		log.Fatal().Msg("SSE Event not initialized")
+	}
+	return app.sseEvent
+}
+
 func (app *App) SetVersion(version string) {
 	app.version = version
 	app.Config.Version = version
