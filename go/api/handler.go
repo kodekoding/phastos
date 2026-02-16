@@ -27,6 +27,13 @@ func (w *WrittenResponseWriter) Write(b []byte) (int, error) {
 	return w.ResponseWriter.Write(b)
 }
 
+// Flush implements http.Flusher interface for streaming responses (SSE, WebSocket, etc.)
+func (w *WrittenResponseWriter) Flush() {
+	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
 func (w *WrittenResponseWriter) Written() bool {
 	return w.written
 }
