@@ -45,12 +45,13 @@ type (
 		TotalEndpoints int
 		apiTimeout     int
 		wrapper        []Wrapper
-		cron           *cron.Engine
+		cron           cron.Engines
 		db             database.ISQL
 		trx            database.Transactions
 		newRelic       *newrelic.Application
 		version        string
 		timezoneRegion string
+		pprofEnabled   bool
 		sf             singleflight.Group
 	}
 
@@ -76,6 +77,9 @@ func NewApp(opts ...Options) *App {
 
 	// set default timezone region
 	apiApp.timezoneRegion = "Asia/Jakarta"
+
+	// pprof profiling enabled by default
+	apiApp.pprofEnabled = true
 
 	for _, opt := range opts {
 		opt(&apiApp)
@@ -135,6 +139,12 @@ func WithCronJob(timezone ...string) Options {
 	}
 }
 
+func WithPprof(enabled bool) Options {
+	return func(app *App) {
+		app.pprofEnabled = enabled
+	}
+}
+
 func WithNewRelic() Options {
 	return func(app *App) {
 		newRelicPlatform := monitoring.InitNewRelic()
@@ -186,6 +196,19 @@ func (app *App) initPlugins() {
 			"message": msgString,
 		})
 	})
+
+	// pprof profiling: env var overrides option
+	pprofEnabled := app.pprofEnabled
+	if envVal := os.Getenv("PPROF_ENABLED"); envVal != "" {
+		if parsed, err := strconv.ParseBool(envVal); err == nil {
+			pprofEnabled = parsed
+		}
+	}
+	if pprofEnabled {
+		app.Http.Mount("/debug", middleware.Profiler())
+		pprofLog := plog.Get()
+		pprofLog.Info().Msg("[PHASTOS] pprof profiling enabled at /debug/pprof/")
+	}
 
 }
 
