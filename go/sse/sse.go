@@ -10,12 +10,17 @@ import (
 
 	"github.com/kodekoding/phastos/v2/go/helper"
 	plog "github.com/kodekoding/phastos/v2/go/log"
+	"github.com/rs/zerolog"
 )
 
+type Servers interface {
+	Broadcast(message *Message)
+}
+
 // SSEClient represents a single SSE connection
-type SSEClient struct {
+type Client struct {
 	ID         string
-	Channel    chan *SSEMessage
+	Channel    chan *Message
 	Request    *http.Request
 	Writer     http.ResponseWriter
 	Flusher    http.Flusher
@@ -24,7 +29,7 @@ type SSEClient struct {
 }
 
 // SSEMessage represents a message to be sent via SSE
-type SSEMessage struct {
+type Message struct {
 	Event string
 	Data  interface{}
 	ID    string
@@ -38,11 +43,11 @@ type TokenValidator func(token string) (bool, error)
 type EncryptedTokenValidator func(encryptedToken string) (bool, error)
 
 // SSEHub manages all SSE connections
-type SSEHub struct {
-	clients                 map[string]*SSEClient
-	broadcast               chan *SSEMessage
-	register                chan *SSEClient
-	unregister              chan *SSEClient
+type Hub struct {
+	clients                 map[string]*Client
+	broadcast               chan *Message
+	register                chan *Client
+	unregister              chan *Client
 	mu                      sync.RWMutex
 	ctx                     context.Context
 	cancel                  context.CancelFunc
@@ -53,14 +58,14 @@ type SSEHub struct {
 	deliveryManager         *ClientDeliveryManager
 }
 
-// NewSSEHub creates a new SSE hub
-func NewSSEHub(ctx context.Context) *SSEHub {
+// NewHub creates a new SSE hub
+func NewHub(ctx context.Context) *Hub {
 	hubCtx, cancel := context.WithCancel(ctx)
-	return &SSEHub{
-		clients:                 make(map[string]*SSEClient),
-		broadcast:               make(chan *SSEMessage, 100),
-		register:                make(chan *SSEClient),
-		unregister:              make(chan *SSEClient),
+	return &Hub{
+		clients:                 make(map[string]*Client),
+		broadcast:               make(chan *Message, 100),
+		register:                make(chan *Client),
+		unregister:              make(chan *Client),
 		ctx:                     hubCtx,
 		cancel:                  cancel,
 		tokenValidator:          nil, // Default: no validation
@@ -72,37 +77,37 @@ func NewSSEHub(ctx context.Context) *SSEHub {
 }
 
 // SetTokenValidator sets the token validation function
-func (hub *SSEHub) SetTokenValidator(validator TokenValidator) {
+func (hub *Hub) SetTokenValidator(validator TokenValidator) {
 	hub.tokenValidator = validator
 }
 
 // SetEncryptedTokenValidator sets the encrypted token validation function
-func (hub *SSEHub) SetEncryptedTokenValidator(validator EncryptedTokenValidator) {
+func (hub *Hub) SetEncryptedTokenValidator(validator EncryptedTokenValidator) {
 	hub.encryptedTokenValidator = validator
 }
 
 // SetCryptoManager sets the crypto manager for decrypting tokens
-func (hub *SSEHub) SetCryptoManager(cm *helper.CryptoManager) {
+func (hub *Hub) SetCryptoManager(cm *helper.CryptoManager) {
 	hub.cryptoManager = cm
 }
 
 // SetMessageBuffer sets a custom message buffer
-func (hub *SSEHub) SetMessageBuffer(mb *MessageBuffer) {
+func (hub *Hub) SetMessageBuffer(mb *MessageBuffer) {
 	hub.messageBuffer = mb
 }
 
 // GetMessageBuffer returns the message buffer
-func (hub *SSEHub) GetMessageBuffer() *MessageBuffer {
+func (hub *Hub) GetMessageBuffer() *MessageBuffer {
 	return hub.messageBuffer
 }
 
 // GetDeliveryManager returns the delivery manager
-func (hub *SSEHub) GetDeliveryManager() *ClientDeliveryManager {
+func (hub *Hub) GetDeliveryManager() *ClientDeliveryManager {
 	return hub.deliveryManager
 }
 
 // Run starts the SSE hub
-func (hub *SSEHub) Run() {
+func (hub *Hub) Run() {
 	log := plog.Get()
 	log.Info().Msg("SSE Hub started")
 
@@ -144,7 +149,7 @@ func (hub *SSEHub) Run() {
 }
 
 // Stop gracefully stops the SSE hub
-func (hub *SSEHub) Stop() {
+func (hub *Hub) Stop() {
 	log := plog.Get()
 	log.Info().Msg("Stopping SSE Hub")
 
@@ -154,7 +159,7 @@ func (hub *SSEHub) Stop() {
 	for _, client := range hub.clients {
 		close(client.Channel)
 	}
-	hub.clients = make(map[string]*SSEClient)
+	hub.clients = make(map[string]*Client)
 	hub.mu.Unlock()
 
 	close(hub.broadcast)
@@ -163,8 +168,9 @@ func (hub *SSEHub) Stop() {
 }
 
 // Broadcast sends a message to all connected clients and buffers it for later retrieval
-func (hub *SSEHub) Broadcast(message *SSEMessage) {
+func (hub *Hub) Broadcast(message *Message) {
 	// Buffer the message for offline clients
+
 	if hub.messageBuffer != nil && message.ID != "" {
 		bufferedMsg := &BufferedMessage{
 			ID:        message.ID,
@@ -181,10 +187,17 @@ func (hub *SSEHub) Broadcast(message *SSEMessage) {
 
 		hub.messageBuffer.AddMessage(bufferedMsg)
 	}
-
 	log := plog.Get()
+	log.UpdateContext(func(c zerolog.Context) zerolog.Context {
+		return c.
+			Str("process_name", "[SSE][BROADCASTING_MESSAGE]").
+			Str("message_id", message.ID).
+			Str("event", message.Event).
+			Any("data", message.Data)
+	})
 	select {
 	case hub.broadcast <- message:
+		log.Info().Msg("Successfully broadcasted message")
 	case <-hub.ctx.Done():
 		log.Warn().Msg("Cannot broadcast, SSE hub is stopped")
 	default:
@@ -195,16 +208,22 @@ func (hub *SSEHub) Broadcast(message *SSEMessage) {
 // GetMissedMessages returns messages that were sent while a client was offline
 // clientID: the client requesting missed messages
 // lastReceivedID: the ID of the last message the client successfully received
-func (hub *SSEHub) GetMissedMessages(clientID string, lastReceivedID string) []*BufferedMessage {
+func (hub *Hub) GetMissedMessages(clientID string, lastReceivedID string) []*BufferedMessage {
 	if hub.messageBuffer == nil {
 		return nil
 	}
-
+	log := plog.Get()
+	log.UpdateContext(func(c zerolog.Context) zerolog.Context {
+		return c.
+			Str("process_name", "[SSE][GET_MISSED_MESSAGE]").
+			Str("client_id", clientID).
+			Str("last_received_id", lastReceivedID)
+	})
 	return hub.messageBuffer.GetMessagesSince(lastReceivedID)
 }
 
 // SendToClient sends a message to a specific client
-func (hub *SSEHub) SendToClient(clientID string, message *SSEMessage) error {
+func (hub *Hub) SendToClient(clientID string, message *Message) error {
 	hub.mu.RLock()
 	client, exists := hub.clients[clientID]
 	hub.mu.RUnlock()
@@ -239,16 +258,20 @@ func (hub *SSEHub) SendToClient(clientID string, message *SSEMessage) error {
 }
 
 // GetClientCount returns the number of connected clients
-func (hub *SSEHub) GetClientCount() int {
+func (hub *Hub) GetClientCount() int {
 	hub.mu.RLock()
 	defer hub.mu.RUnlock()
 	return len(hub.clients)
 }
 
-// HandleSSE is an HTTP handler for SSE connections
-func (hub *SSEHub) HandleSSE(w http.ResponseWriter, r *http.Request) {
+// Handle is an HTTP handler for SSE connections
+func (hub *Hub) Handle(w http.ResponseWriter, r *http.Request) {
+
 	log := plog.Ctx(r.Context())
 
+	log.UpdateContext(func(c zerolog.Context) zerolog.Context {
+		return c.Str("process_name", "[SSE][CLIENT_CONNECTED]")
+	})
 	// Token validation - supports both plain and encrypted tokens
 	tokenValidated := false
 
@@ -351,9 +374,9 @@ func (hub *SSEHub) HandleSSE(w http.ResponseWriter, r *http.Request) {
 		clientID = fmt.Sprintf("client-%d", time.Now().UnixNano())
 	}
 
-	client := &SSEClient{
+	client := &Client{
 		ID:         clientID,
-		Channel:    make(chan *SSEMessage, 10),
+		Channel:    make(chan *Message, 10),
 		Request:    r,
 		Writer:     w,
 		Flusher:    flusher,
@@ -364,7 +387,7 @@ func (hub *SSEHub) HandleSSE(w http.ResponseWriter, r *http.Request) {
 	hub.register <- client
 
 	// Send initial connection message
-	initialMsg := &SSEMessage{
+	initialMsg := &Message{
 		Event: "connected",
 		Data:  map[string]string{"client_id": clientID, "timestamp": time.Now().Format(time.RFC3339)},
 	}
@@ -394,7 +417,7 @@ func (hub *SSEHub) HandleSSE(w http.ResponseWriter, r *http.Request) {
 			}
 		case <-ticker.C:
 			// Send heartbeat
-			heartbeat := &SSEMessage{
+			heartbeat := &Message{
 				Event: "heartbeat",
 				Data:  map[string]string{"timestamp": time.Now().Format(time.RFC3339)},
 			}
@@ -407,7 +430,7 @@ func (hub *SSEHub) HandleSSE(w http.ResponseWriter, r *http.Request) {
 }
 
 // sendMessage sends a message to the client
-func (client *SSEClient) sendMessage(message *SSEMessage) error {
+func (client *Client) sendMessage(message *Message) error {
 	client.mu.Lock()
 	defer client.mu.Unlock()
 
@@ -454,8 +477,8 @@ func (client *SSEClient) sendMessage(message *SSEMessage) error {
 }
 
 // NewSSEMessage creates a new SSE message
-func NewSSEMessage(event string, data interface{}) *SSEMessage {
-	return &SSEMessage{
+func NewSSEMessage(event string, data interface{}) *Message {
+	return &Message{
 		Event: event,
 		Data:  data,
 		ID:    fmt.Sprintf("%d", time.Now().UnixNano()),
