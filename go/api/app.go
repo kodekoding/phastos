@@ -15,6 +15,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/gorilla/schema"
+	"github.com/kodekoding/phastos/v2/go/sse"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/pkg/errors"
 	"github.com/unrolled/secure"
@@ -53,6 +54,7 @@ type (
 		timezoneRegion string
 		pprofEnabled   bool
 		sf             singleflight.Group
+		sseEvent       *sse.Hub
 	}
 
 	Options func(api *App)
@@ -145,6 +147,12 @@ func WithPprof(enabled bool) Options {
 	}
 }
 
+func WithSSE() Options {
+	return func(app *App) {
+		app.sseEvent = sse.NewHub(context.Background())
+	}
+}
+
 func WithNewRelic() Options {
 	return func(app *App) {
 		newRelicPlatform := monitoring.InitNewRelic()
@@ -185,17 +193,7 @@ func (app *App) initPlugins() {
 	app.Http.NotFound(RouteNotFoundHandler)
 	app.Http.MethodNotAllowed(MethodNotAllowedHandler)
 
-	app.Http.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
-		msgString := "pong"
-		if app.version != "" {
-			msgString = fmt.Sprintf("%s from version: %s", msgString, app.version)
-		}
-		msgString = fmt.Sprintf("%s on datetime: %s", msgString, GetDateTimeNowStringWithTimezone())
-		w.WriteHeader(http.StatusOK)
-		WriteJson(w, Map{
-			"message": msgString,
-		})
-	})
+	app.initDefaultHandlers()
 
 	// pprof profiling: env var overrides option
 	pprofEnabled := app.pprofEnabled
@@ -210,6 +208,44 @@ func (app *App) initPlugins() {
 		pprofLog.Info().Msg("[PHASTOS] pprof profiling enabled at /debug/pprof/")
 	}
 
+}
+
+func (app *App) initDefaultHandlers() {
+
+	// register ping endpoint for the health checks
+	app.registerHandler("GET", "/ping", func(request Request, ctx context.Context) *Response {
+		msgString := "pong"
+		if app.version != "" {
+			msgString = fmt.Sprintf("%s from version: %s", msgString, app.version)
+		}
+		msgString = fmt.Sprintf("%s on datetime: %s", msgString, GetDateTimeNowStringWithTimezone())
+
+		return NewResponse().SetMessage(msgString)
+	})
+
+	if app.sseEvent != nil {
+		app.Http.Get("/events", app.sseEvent.Handle)
+		app.TotalEndpoints++
+		app.registerHandler("GET", "/events/missed-msg", func(request Request, ctx context.Context) *Response {
+			var req struct {
+				ClientID       string "schema:\"client_id\" validate:\"required\""
+				LastReceivedID string "schema:\"last_received_id\" validate:\"required\""
+			}
+			if err := request.GetQuery(&req); err != nil {
+				return NewResponse().SetError(err)
+			}
+
+			// Retrieve missed messages
+			missedMessages := app.sseEvent.GetMissedMessages(req.ClientID, req.LastReceivedID)
+			data := Map{
+				"client_id": req.ClientID,
+				"messages":  missedMessages,
+				"count":     len(missedMessages),
+			}
+
+			return NewResponse().SetData(data)
+		})
+	}
 }
 
 func (app *App) requestValidator(i interface{}) error {
@@ -362,18 +398,9 @@ func (app *App) AddController(ctrl Controller) {
 		if route.Middlewares != nil {
 			middlewares = append(middlewares, *route.Middlewares...)
 		}
-
 		routePath := route.GetVersionedPath(config.Path)
-		handlerFunc := app.wrapHandler(route.Handler)
-		if app.newRelic != nil {
-			routePath, handlerFunc = newrelic.WrapHandleFunc(app.newRelic, routePath, handlerFunc)
-		}
-		handler := chi.
-			Chain(middlewares...).
-			HandlerFunc(handlerFunc)
-		app.Http.Method(route.Method, routePath, handler)
+		app.registerHandler(route.Method, routePath, route.Handler, middlewares...)
 	}
-	app.TotalEndpoints += len(config.Routes)
 }
 
 func (app *App) AddControllers(ctrls Controllers) {
@@ -381,6 +408,20 @@ func (app *App) AddControllers(ctrls Controllers) {
 	for _, ctrl := range controllers {
 		app.AddController(ctrl)
 	}
+}
+
+func (app *App) registerHandler(method, path string, handler Handler, middlewares ...func(http.Handler) http.Handler) {
+	wrapppedHandler := app.wrapHandler(handler)
+	if app.newRelic != nil {
+		path, wrapppedHandler = newrelic.WrapHandleFunc(app.newRelic, path, wrapppedHandler)
+	}
+	handlerFunc := chi.
+		Chain(middlewares...).
+		HandlerFunc(wrapppedHandler)
+	app.Http.Method(method, path, handlerFunc)
+
+	app.TotalEndpoints++
+
 }
 
 func (app *App) WrapToApp(wrapper Wrapper) {
@@ -432,6 +473,11 @@ func (app *App) Start() error {
 	if app.cron != nil {
 		defer app.cron.Stop()
 		go app.cron.Start()
+	}
+
+	if app.sseEvent != nil {
+		defer app.sseEvent.Stop()
+		go app.sseEvent.Run()
 	}
 
 	return serveHTTPs(app.Config, false)
