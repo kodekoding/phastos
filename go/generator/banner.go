@@ -24,6 +24,8 @@ type (
 		Generate() Banners
 		Image() image.Image
 		Save(destPath string) error
+		SetDestPath(destPath string) Banners
+		FileName() string
 	}
 
 	Options func(*Banner)
@@ -31,7 +33,8 @@ type (
 		imgLayer []*ImageLayer
 		label    []*Label
 		BgProperty
-		img image.Image
+		img      image.Image
+		destPath string
 	}
 	//ImageLayer is a struct
 	ImageLayer struct {
@@ -147,7 +150,17 @@ func (b *Banner) Generate() Banners {
 	return b
 }
 
+func (b *Banner) SetDestPath(destPath string) Banners {
+	b.destPath = destPath
+	return b
+}
+
+func (b *Banner) FileName() string {
+	return b.destPath
+}
+
 func (b *Banner) Save(destPath string) error {
+	b.destPath = destPath
 	newFile, err := os.Create(destPath)
 	if err != nil {
 		return errors.Wrap(err, "phastos.go.generator.banner.Generate.CreateNewFile")

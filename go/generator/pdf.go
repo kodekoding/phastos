@@ -2,18 +2,19 @@ package generator
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/SebastiaanKlippert/go-wkhtmltopdf"
 	"github.com/kodekoding/phastos/v2/go/helper"
 	"github.com/pkg/errors"
-	"strings"
 )
 
 type PDFs interface {
+	FileGenerator
 	SetTemplate(templatePath string, data interface{}) PDFs
 	SetFooterHTMLTemplate(footerHTMLPath string) PDFs
 	SetFileName(fileName *string) PDFs
 	AddCustomFunction(aliasName string, function any) PDFs
-	Generate() error
 	Error() error
 }
 
@@ -108,10 +109,14 @@ func (c *PDF) Generate() error {
 	}
 
 	if err := c.generator.WriteFile(c.fileName); err != nil {
-		return errors.Wrap(err, "phastos.generator.pdf.Generate.Create")
+		return errors.Wrap(err, "phastos.generator.pdf.Generate.WriteFile")
 	}
 
 	return nil
+}
+
+func (c *PDF) FileName() string {
+	return c.fileName
 }
 
 func (c *PDF) SetFooterHTMLTemplate(footerHTMLPath string) PDFs {

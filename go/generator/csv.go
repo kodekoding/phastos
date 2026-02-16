@@ -9,10 +9,11 @@ import (
 )
 
 type CSVs interface {
+	FileGenerator
 	SetFileName(fileName string) CSVs
 	AppendDataRow(data []string) CSVs
 	SetHeader(data []string) CSVs
-	Generate() error
+	Error() error
 }
 
 type csv struct {
@@ -35,11 +36,15 @@ func (c *csv) SetFileName(fileName string) CSVs {
 }
 
 func (c *csv) AppendDataRow(data []string) CSVs {
+	if c.err != nil {
+		return c
+	}
 	if c.content != nil && len(c.content) > 0 {
 		totalColumnExisting := len(c.content[0])
 		totalColumnData := len(data)
 		if totalColumnData != totalColumnExisting {
-			c.err = errors.Wrap(errors.New("Total Column isn't equal with total existing column"), "phastos.go.generator.excel.AppendDataRow.CheckTotalColumn")
+			c.err = errors.Wrap(errors.New("Total Column isn't equal with total existing column"), "phastos.go.generator.csv.AppendDataRow.CheckTotalColumn")
+			return c
 		}
 	}
 	c.content = append(c.content, data)
@@ -47,11 +52,15 @@ func (c *csv) AppendDataRow(data []string) CSVs {
 }
 
 func (c *csv) SetHeader(data []string) CSVs {
+	if c.err != nil {
+		return c
+	}
 	if c.content != nil && len(c.content) > 0 {
 		totalColumnExisting := len(c.content[0])
 		totalColumnData := len(data)
 		if totalColumnData != totalColumnExisting {
-			c.err = errors.Wrap(errors.New("Total Column isn't equal with total existing column"), "phastos.go.generator.excel.AppendDataRow.CheckTotalColumn")
+			c.err = errors.Wrap(errors.New("Total Column isn't equal with total existing column"), "phastos.go.generator.csv.SetHeader.CheckTotalColumn")
+			return c
 		}
 	}
 	c.content = append([][]string{data}, c.content...)
@@ -66,12 +75,24 @@ func (c *csv) Generate() error {
 	if err != nil {
 		return errors.Wrap(err, "phastos.go.generator.csv.Generate.CreateCSVFile")
 	}
+	defer csvNewFile.Close()
 
 	csvWriter := csvpkg.NewWriter(csvNewFile)
-	defer csvWriter.Flush()
 	if err = csvWriter.WriteAll(c.content); err != nil {
 		return errors.Wrap(err, "phastos.go.generator.csv.Generate.WriteAllContent")
 	}
+	csvWriter.Flush()
+	if err = csvWriter.Error(); err != nil {
+		return errors.Wrap(err, "phastos.go.generator.csv.Generate.FlushContent")
+	}
 
 	return nil
+}
+
+func (c *csv) FileName() string {
+	return c.fileName
+}
+
+func (c *csv) Error() error {
+	return c.err
 }

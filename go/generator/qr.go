@@ -12,9 +12,9 @@ import (
 
 type (
 	QRs interface {
+		FileGenerator
 		SetLogoImg(logoPath string) QRs
 		SetFileName(fileName *string) QRs
-		Generate() error
 	}
 	QR struct {
 		content  string
@@ -48,8 +48,11 @@ func (q *QR) SetFileName(fileName *string) QRs {
 	return q
 }
 
-func (q *QR) Generate() error {
+func (q *QR) FileName() string {
+	return q.fileName
+}
 
+func (q *QR) Generate() error {
 	if q.fileName == "" {
 		return errors.New("fileName cannot be empty")
 	}

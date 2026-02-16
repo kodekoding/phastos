@@ -11,6 +11,7 @@ import (
 )
 
 type Excels interface {
+	FileGenerator
 	SetFileName(fileName string) Excels
 	GetExcelFile() *excelize.File
 	Error() error
@@ -20,7 +21,6 @@ type Excels interface {
 	ScanContentToStruct(sheetName string, destinationStruct interface{}) error
 	GetContents(sheetName string) ([]map[string]string, error)
 	GetMergeCell(sheetName string) ([]excelize.MergeCell, error)
-	Generate() error
 }
 
 type excel struct {
@@ -75,13 +75,15 @@ func (c *excel) SetFileName(fileName string) Excels {
 }
 
 func (c *excel) AppendDataRow(data []string) Excels {
-	if c.err == nil {
-		if c.content != nil && len(c.content) > 0 {
-			totalColumnExisting := len(c.content[0])
-			totalColumnData := len(data)
-			if totalColumnData != totalColumnExisting {
-				c.err = errors.Wrap(errors.New("Total Column isn't equal with total existing column"), "phastos.go.generator.excel.AppendDataRow.CheckTotalColumn")
-			}
+	if c.err != nil {
+		return c
+	}
+	if c.content != nil && len(c.content) > 0 {
+		totalColumnExisting := len(c.content[0])
+		totalColumnData := len(data)
+		if totalColumnData != totalColumnExisting {
+			c.err = errors.Wrap(errors.New("Total Column isn't equal with total existing column"), "phastos.go.generator.excel.AppendDataRow.CheckTotalColumn")
+			return c
 		}
 	}
 	c.content = append(c.content, data)
@@ -89,13 +91,15 @@ func (c *excel) AppendDataRow(data []string) Excels {
 }
 
 func (c *excel) SetHeader(data []string) Excels {
-	if c.err == nil {
-		if c.content != nil && len(c.content) > 0 {
-			totalColumnExisting := len(c.content[0])
-			totalColumnData := len(data)
-			if totalColumnData != totalColumnExisting {
-				c.err = errors.Wrap(errors.New("Total Column isn't equal with total existing column"), "phastos.go.generator.excel.SetHeader.CheckTotalColumn")
-			}
+	if c.err != nil {
+		return c
+	}
+	if c.content != nil && len(c.content) > 0 {
+		totalColumnExisting := len(c.content[0])
+		totalColumnData := len(data)
+		if totalColumnData != totalColumnExisting {
+			c.err = errors.Wrap(errors.New("Total Column isn't equal with total existing column"), "phastos.go.generator.excel.SetHeader.CheckTotalColumn")
+			return c
 		}
 	}
 	c.content = append([][]string{data}, c.content...)
@@ -149,6 +153,10 @@ func (c *excel) Generate() error {
 	if err = c.excelFile.SaveAs(c.fileName); err != nil {
 		return errors.Wrap(err, "phastos.go.generator.excel.Generate.SaveAsExcel")
 	}
+
+	if err = c.excelFile.Close(); err != nil {
+		return errors.Wrap(err, "phastos.go.generator.excel.Generate.CloseFile")
+	}
 	return nil
 }
 
@@ -180,10 +188,17 @@ func (c *excel) ScanContentToStruct(sheetName string, destinationStruct interfac
 	return nil
 }
 
+func (c *excel) FileName() string {
+	return c.fileName
+}
+
 func (c *excel) GetContents(sheetName string) ([]map[string]string, error) {
 	rows, err := c.excelFile.GetRows(sheetName)
 	if err != nil {
 		return nil, errors.Wrap(err, "pkg.util.excel.GetContents.GetRows")
+	}
+	if len(rows) == 0 {
+		return nil, nil
 	}
 	header := rows[0]
 
