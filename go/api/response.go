@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
 	"github.com/pkg/errors"
@@ -41,6 +42,9 @@ type Response struct {
 	statusCode       int
 	InternalError    *HttpError                 `json:"-"`
 	MetaData         *database.ResponseMetaData `json:"metadata,omitempty"`
+	fileData         []byte
+	fileContentType  string
+	fileDownloadName string
 }
 
 func NewResponse() *Response {
@@ -59,6 +63,24 @@ func (resp *Response) SetStatusCode(statusCode int) *Response {
 	return resp
 }
 
+// SetFileDownload configures the response to send binary file data as a download
+// instead of the default JSON response. Content-Type and Content-Disposition
+// headers are set automatically.
+//
+// Example with BulkGenerator:
+//
+//	zipBytes, results, err := bulk.GenerateZip("reports.zip")
+//	if err != nil {
+//	    return api.NewResponse().SetError(err)
+//	}
+//	return api.NewResponse().SetFileDownload(zipBytes, "reports.zip", "application/zip")
+func (resp *Response) SetFileDownload(data []byte, fileName string, contentType string) *Response {
+	resp.fileData = data
+	resp.fileDownloadName = fileName
+	resp.fileContentType = contentType
+	return resp
+}
+
 func (resp *Response) SetData(data any, isPaginate ...bool) *Response {
 	resp.Data = data
 	if selectResponseData, valid := data.(*database.SelectResponse); valid {
@@ -74,7 +96,29 @@ func (resp *Response) SetData(data any, isPaginate ...bool) *Response {
 	return resp
 }
 
+func (resp *Response) setCommonHeaders(w http.ResponseWriter) {
+	if containerName := os.Getenv("CONTAINER_NAME"); containerName != "" {
+		w.Header().Set("X-Container-Name", containerName)
+	}
+	if appVersion != "" {
+		w.Header().Set("X-App-Version", appVersion)
+	}
+}
+
 func (resp *Response) Send(w http.ResponseWriter) {
+	resp.setCommonHeaders(w)
+
+	// file download response (zip, pdf, etc.)
+	if resp.fileData != nil {
+		w.Header().Set("Content-Type", resp.fileContentType)
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, resp.fileDownloadName))
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(resp.fileData)))
+		w.WriteHeader(resp.statusCode)
+		_, _ = w.Write(resp.fileData)
+		return
+	}
+
+	// default JSON response
 	w.Header().Set("Content-Type", "application/json")
 	var b []byte
 
@@ -84,6 +128,9 @@ func (resp *Response) Send(w http.ResponseWriter) {
 		var respErr *HttpError
 		if errors.As(errors.Cause(resp.Err), &respErr) {
 			responseStatus = respErr.Status
+			if respErr.TraceId == "" && resp.TraceId != "" {
+				respErr.TraceId = resp.TraceId
+			}
 			dataToMarshal = respErr
 		}
 	} else {
