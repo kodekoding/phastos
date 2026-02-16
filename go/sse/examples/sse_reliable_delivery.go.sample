@@ -16,7 +16,7 @@ func ExampleSSEReliableDelivery() {
 	log := log.Get()
 
 	// 1. Create an SSE Hub with message buffering (already enabled by default)
-	hub := sse.NewSSEHub(context.Background())
+	hub := sse.NewHub(context.Background())
 	go hub.Run()
 
 	// 2. Broadcast a message with an ID (required for buffering)
@@ -305,7 +305,7 @@ func ExampleMessageBufferingConfiguration() {
 // In your main app setup:
 
 // Option 1: Use default buffering (1000 messages for 24 hours)
-hub := NewSSEHub(context.Background())
+hub := NewHub(context.Background())
 
 // Option 2: Custom buffer configuration
 customBuffer := NewMessageBuffer(

@@ -7,7 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/kodekoding/phastos/v2/go/api"
+	"github.com/kodekoding/phastos/v2/go/helper"
+	"github.com/kodekoding/phastos/v2/go/sse"
 	"github.com/satori/go.uuid"
 )
 
@@ -49,7 +50,7 @@ type APIKeyInfo struct {
 // Handler: POST /api/sse/api-keys/generate
 func GenerateSSEAPIKey(w http.ResponseWriter, r *http.Request) {
 	// Initialize crypto manager from environment
-	cryptoManager, err := api.NewCryptoManagerFromEnv("SSE_ENCRYPTION_KEY")
+	cryptoManager, err := helper.NewCryptoManagerFromEnv("SSE_ENCRYPTION_KEY")
 	if err != nil {
 		http.Error(w, `{"error":"Encryption not configured"}`, http.StatusInternalServerError)
 		return
@@ -72,7 +73,7 @@ func GenerateSSEAPIKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate public key (SHA256 hash of the actual API key)
-	publicKey := api.GeneratePublicKey(apiKey)
+	publicKey := helper.GeneratePublicKey(apiKey)
 
 	// Calculate expiration time
 	expiresAt := time.Now().AddDate(0, 0, req.ExpiresIn)
@@ -118,7 +119,7 @@ func RevokeSSEAPIKey(w http.ResponseWriter, r *http.Request) {
 	// db.RevokeAPIKey(req.PublicKey)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w, nil).Encode(map[string]string{
+	json.NewEncoder(w).Encode(map[string]string{
 		"message": "API key revoked successfully",
 	})
 }
@@ -134,7 +135,7 @@ func ListSSEAPIKeys(w http.ResponseWriter, r *http.Request) {
 		Keys: []APIKeyInfo{
 			{
 				ID:         uuid.NewV4().String(),
-				PublicKey:  api.GeneratePublicKey("example-api-key-1"),
+				PublicKey:  helper.GeneratePublicKey("example-api-key-1"),
 				ClientName: "Web Client",
 				CreatedAt:  time.Now().AddDate(0, 0, -30).Format(time.RFC3339),
 				ExpiresAt:  time.Now().AddDate(1, 0, 0).Format(time.RFC3339),
@@ -243,20 +244,20 @@ export const useEncryptedSSE = () => {
 `
 
 // Example server-side validator using database
-func CreateDatabaseValidator(db interface{}) api.EncryptedTokenValidator {
+func CreateDatabaseValidator(db interface{}) sse.EncryptedTokenValidator {
 	return func(decryptedToken string) (bool, error) {
 		// Generate public key from decrypted token
-		publicKey := api.GeneratePublicKey(decryptedToken)
+		//publicKey := helper.GeneratePublicKey(decryptedToken)
 
 		// Query database for the public key
 		// In real implementation, use your actual database
-		query := `
-			SELECT COUNT(*) FROM sse_api_keys 
-			WHERE public_key = $1 
-			AND active = true 
-			AND (expires_at IS NULL OR expires_at > NOW())
-			AND revoked_at IS NULL
-		`
+		//query := `
+		//	SELECT COUNT(*) FROM sse_api_keys
+		//	WHERE public_key = $1
+		//	AND active = true
+		//	AND (expires_at IS NULL OR expires_at > NOW())
+		//	AND revoked_at IS NULL
+		//`
 
 		// TODO: Execute query against your database
 		// var count int
@@ -281,14 +282,14 @@ func InitializeAppWithEncryptedSSE() {
 	}
 
 	// Create crypto manager
-	cryptoManager, err := api.NewCryptoManager(encryptionKey)
-	if err != nil {
-		fmt.Println("ERROR: Failed to create crypto manager:", err)
-		return
-	}
-
-	// Create validator
-	validator := CreateDatabaseValidator(nil) // Pass your database connection
+	//cryptoManager, err := helper.NewCryptoManager(encryptionKey)
+	//if err != nil {
+	//	fmt.Println("ERROR: Failed to create crypto manager:", err)
+	//	return
+	//}
+	//
+	//// Create validator
+	//validator := CreateDatabaseValidator(nil) // Pass your database connection
 
 	// Initialize app (pseudo-code)
 	// app := loader.NewApp(
@@ -303,7 +304,7 @@ func InitializeAppWithEncryptedSSE() {
 // Example: Generate and encrypt an API key programmatically
 func ExampleGenerateEncryptedKey() {
 	// Create crypto manager
-	cryptoManager, _ := api.NewCryptoManager("your-secret-encryption-key-min-16-chars")
+	cryptoManager, _ := helper.NewCryptoManager("your-secret-encryption-key-min-16-chars")
 
 	// Original API key
 	apiKey := "example-api-key-12345"
@@ -313,7 +314,7 @@ func ExampleGenerateEncryptedKey() {
 	fmt.Println("Encrypted Key:", encryptedKey)
 
 	// Generate public key (safe to store in DB)
-	publicKey := api.GeneratePublicKey(apiKey)
+	publicKey := helper.GeneratePublicKey(apiKey)
 	fmt.Println("Public Key (store in DB):", publicKey)
 
 	// On server, decrypt and verify
@@ -321,6 +322,6 @@ func ExampleGenerateEncryptedKey() {
 	fmt.Println("Decrypted Key:", decryptedKey)
 
 	// Verify
-	isValid := api.VerifyAPIKey(decryptedKey, publicKey)
+	isValid := helper.VerifyAPIKey(decryptedKey, publicKey)
 	fmt.Println("Is Valid:", isValid)
 }
