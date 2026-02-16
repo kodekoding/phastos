@@ -14,34 +14,46 @@ type (
 	csv struct{}
 )
 
-func (e excel) readFromCSV(structSource reflect.Value, file multipart.File, mapContent map[string]interface{}, ctx ...context.Context) <-chan interface{} {
-	chanOut := make(chan interface{})
+func (e excel) readFromCSV(structSource reflect.Value, file multipart.File, ctx ...context.Context) <-chan rowData {
+	chanOut := make(chan rowData)
 	go func() {
+		defer close(chanOut)
 
 		csvReader := csvencode.NewReader(file)
 
-		rows, err := csvReader.ReadAll()
+		// read header row first
+		headers, err := csvReader.Read()
 		if err != nil {
-			if err == io.EOF {
-				err = nil
-			}
 			return
 		}
-		for rowIndex, row := range rows {
-			if rowIndex == 0 {
-				continue
-			}
-			destStruct := reflect.New(structSource.Type()).Interface()
 
-			for x, rowData := range row {
-				headerName := strings.Replace(rows[0][x], "*", "", -1)
-				mapContent[headerName] = rowData
-			}
-			dt, _ := json.Marshal(mapContent)
-			_ = json.Unmarshal(dt, destStruct)
-			chanOut <- destStruct
+		// clean header names (remove "*" marker)
+		for i, h := range headers {
+			headers[i] = strings.Replace(h, "*", "", -1)
 		}
-		close(chanOut)
+
+		// stream row-by-row instead of loading entire file into memory
+		for {
+			row, err := csvReader.Read()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				break
+			}
+
+			// create a fresh map for each row (avoids stale data from previous rows)
+			rowMap := buildRowMap(headers, row)
+
+			destStruct := reflect.New(structSource.Type()).Interface()
+			dt, _ := json.Marshal(rowMap)
+			_ = json.Unmarshal(dt, destStruct)
+
+			chanOut <- rowData{
+				ParsedStruct: destStruct,
+				RawData:      rowMap,
+			}
+		}
 	}()
 	return chanOut
 }
