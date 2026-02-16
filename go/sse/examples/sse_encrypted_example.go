@@ -1,0 +1,326 @@
+package examples
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"time"
+
+	"github.com/kodekoding/phastos/v2/go/api"
+	"github.com/satori/go.uuid"
+)
+
+// Example API Key endpoints for encrypted SSE authentication
+
+// GenerateAPIKeyRequest is the request for generating an API key
+type GenerateAPIKeyRequest struct {
+	ClientName string `json:"client_name"`
+	ExpiresIn  int    `json:"expires_in"` // Days until expiration
+}
+
+// GenerateAPIKeyResponse is the response containing encrypted API key and public key
+type GenerateAPIKeyResponse struct {
+	ID        string `json:"id"`
+	APIKey    string `json:"api_key"`    // Encrypted token - send to client
+	PublicKey string `json:"public_key"` // Public key hash - store in DB
+	ExpiresAt string `json:"expires_at"`
+	Message   string `json:"message"`
+}
+
+// APIKeyListResponse is the response for listing API keys
+type APIKeyListResponse struct {
+	Keys []APIKeyInfo `json:"keys"`
+}
+
+type APIKeyInfo struct {
+	ID         string `json:"id"`
+	PublicKey  string `json:"public_key"`
+	ClientName string `json:"client_name"`
+	CreatedAt  string `json:"created_at"`
+	ExpiresAt  string `json:"expires_at"`
+	Active     bool   `json:"active"`
+}
+
+// Example implementation of API key generation endpoint
+// This would be part of your controller
+
+// GenerateSSEAPIKey generates a new encrypted API key
+// Handler: POST /api/sse/api-keys/generate
+func GenerateSSEAPIKey(w http.ResponseWriter, r *http.Request) {
+	// Initialize crypto manager from environment
+	cryptoManager, err := api.NewCryptoManagerFromEnv("SSE_ENCRYPTION_KEY")
+	if err != nil {
+		http.Error(w, `{"error":"Encryption not configured"}`, http.StatusInternalServerError)
+		return
+	}
+
+	var req GenerateAPIKeyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"Invalid request"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Generate a random API key (32 bytes = 256 bits)
+	apiKey := uuid.NewV4().String() + "-" + uuid.NewV4().String()
+
+	// Encrypt the API key
+	encryptedKey, err := cryptoManager.Encrypt(apiKey)
+	if err != nil {
+		http.Error(w, `{"error":"Failed to encrypt key"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Generate public key (SHA256 hash of the actual API key)
+	publicKey := api.GeneratePublicKey(apiKey)
+
+	// Calculate expiration time
+	expiresAt := time.Now().AddDate(0, 0, req.ExpiresIn)
+	if req.ExpiresIn == 0 {
+		expiresAt = time.Now().AddDate(1, 0, 0) // Default: 1 year
+	}
+
+	// TODO: Save to database
+	// db.SaveAPIKey(&APIKeyRecord{
+	//     ID:        uuid.NewV4().String(),
+	//     PublicKey: publicKey,
+	//     ClientName: req.ClientName,
+	//     CreatedAt: time.Now(),
+	//     ExpiresAt: expiresAt,
+	//     Active:    true,
+	// })
+
+	response := GenerateAPIKeyResponse{
+		ID:        uuid.NewV4().String(),
+		APIKey:    encryptedKey,
+		PublicKey: publicKey,
+		ExpiresAt: expiresAt.Format(time.RFC3339),
+		Message:   "API key generated successfully. Store the api_key securely on your client.",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// RevokeSSEAPIKey revokes an API key by its public key
+// Handler: POST /api/sse/api-keys/revoke
+func RevokeSSEAPIKey(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		PublicKey string `json:"public_key"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"Invalid request"}`, http.StatusBadRequest)
+		return
+	}
+
+	// TODO: Revoke in database
+	// db.RevokeAPIKey(req.PublicKey)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w, nil).Encode(map[string]string{
+		"message": "API key revoked successfully",
+	})
+}
+
+// ListSSEAPIKeys lists all API keys for the current user
+// Handler: GET /api/sse/api-keys
+func ListSSEAPIKeys(w http.ResponseWriter, r *http.Request) {
+	// TODO: Fetch from database for current user
+	// keys := db.ListAPIKeysByUserID(userID)
+
+	// Example response
+	response := APIKeyListResponse{
+		Keys: []APIKeyInfo{
+			{
+				ID:         uuid.NewV4().String(),
+				PublicKey:  api.GeneratePublicKey("example-api-key-1"),
+				ClientName: "Web Client",
+				CreatedAt:  time.Now().AddDate(0, 0, -30).Format(time.RFC3339),
+				ExpiresAt:  time.Now().AddDate(1, 0, 0).Format(time.RFC3339),
+				Active:     true,
+			},
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// --- Client-side example (TypeScript/JavaScript) ---
+
+// This example shows how a client would use encrypted SSE authentication
+
+const clientSideExample = `
+import { useEffect, useState } from 'react';
+
+interface SSEConfig {
+	encryptedToken: string;
+	publicKey: string;
+}
+
+// Store encrypted token and public key in localStorage
+async function initializeSSE() {
+	// Step 1: Get or retrieve encrypted token
+	let config: SSEConfig | null = null;
+	
+	const savedToken = localStorage.getItem('sse_encrypted_token');
+	if (savedToken) {
+		config = JSON.parse(savedToken);
+	} else {
+		// Request new token from server
+		const response = await fetch('/api/sse/api-keys/generate', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Authorization': 'Bearer ' + userToken,
+			},
+			body: JSON.stringify({
+				client_name: 'Web Client',
+				expires_in: 365,
+			}),
+		});
+
+		const data = await response.json();
+		config = {
+			encryptedToken: data.api_key,
+			publicKey: data.public_key,
+		};
+
+		// Store for future connections
+		localStorage.setItem('sse_encrypted_token', JSON.stringify(config));
+	}
+
+	// Step 2: Connect to SSE with encrypted token
+	connectToSSE(config.encryptedToken);
+}
+
+function connectToSSE(encryptedToken: string) {
+	const eventSource = new EventSource(
+		'/v1/sse?encrypted_token=' + encodeURIComponent(encryptedToken)
+	);
+
+	// Handle connection
+	eventSource.addEventListener('connected', (event) => {
+		const data = JSON.parse(event.data);
+		console.log('✓ Connected to SSE:', data.client_id);
+	});
+
+	// Handle custom messages
+	eventSource.addEventListener('notification', (event) => {
+		const data = JSON.parse(event.data);
+		console.log('📨 New notification:', data);
+	});
+
+	// Handle heartbeat
+	eventSource.addEventListener('heartbeat', (event) => {
+		console.log('💓 Heartbeat received');
+	});
+
+	// Handle errors
+	eventSource.onerror = (error) => {
+		if (eventSource.readyState === EventSource.CLOSED) {
+			console.error('✗ SSE connection closed');
+		} else {
+			console.error('✗ SSE error:', error);
+		}
+	};
+
+	return eventSource;
+}
+
+// React hook for SSE
+export const useEncryptedSSE = () => {
+	const [isConnected, setIsConnected] = useState(false);
+	const [messages, setMessages] = useState<any[]>([]);
+
+	useEffect(() => {
+		initializeSSE().then(() => setIsConnected(true));
+	}, []);
+
+	return { isConnected, messages };
+};
+`
+
+// Example server-side validator using database
+func CreateDatabaseValidator(db interface{}) api.EncryptedTokenValidator {
+	return func(decryptedToken string) (bool, error) {
+		// Generate public key from decrypted token
+		publicKey := api.GeneratePublicKey(decryptedToken)
+
+		// Query database for the public key
+		// In real implementation, use your actual database
+		query := `
+			SELECT COUNT(*) FROM sse_api_keys 
+			WHERE public_key = $1 
+			AND active = true 
+			AND (expires_at IS NULL OR expires_at > NOW())
+			AND revoked_at IS NULL
+		`
+
+		// TODO: Execute query against your database
+		// var count int
+		// err := db.QueryRow(query, publicKey).Scan(&count)
+		// if err != nil {
+		//     return false, err
+		// }
+		// return count > 0, nil
+
+		// Placeholder
+		return true, nil
+	}
+}
+
+// Example: Initialize app with encrypted token validation
+func InitializeAppWithEncryptedSSE() {
+	// Load encryption key from environment
+	encryptionKey := os.Getenv("SSE_ENCRYPTION_KEY")
+	if encryptionKey == "" {
+		fmt.Println("ERROR: SSE_ENCRYPTION_KEY environment variable not set")
+		return
+	}
+
+	// Create crypto manager
+	cryptoManager, err := api.NewCryptoManager(encryptionKey)
+	if err != nil {
+		fmt.Println("ERROR: Failed to create crypto manager:", err)
+		return
+	}
+
+	// Create validator
+	validator := CreateDatabaseValidator(nil) // Pass your database connection
+
+	// Initialize app (pseudo-code)
+	// app := loader.NewApp(
+	//     loader.WithSSE(),
+	//     loader.WithSSECryptoManager(cryptoManager),
+	//     loader.WithSSEEncryptedTokenValidator(validator),
+	// )
+	//
+	// app.Start()
+}
+
+// Example: Generate and encrypt an API key programmatically
+func ExampleGenerateEncryptedKey() {
+	// Create crypto manager
+	cryptoManager, _ := api.NewCryptoManager("your-secret-encryption-key-min-16-chars")
+
+	// Original API key
+	apiKey := "example-api-key-12345"
+
+	// Encrypt it
+	encryptedKey, _ := cryptoManager.Encrypt(apiKey)
+	fmt.Println("Encrypted Key:", encryptedKey)
+
+	// Generate public key (safe to store in DB)
+	publicKey := api.GeneratePublicKey(apiKey)
+	fmt.Println("Public Key (store in DB):", publicKey)
+
+	// On server, decrypt and verify
+	decryptedKey, _ := cryptoManager.Decrypt(encryptedKey)
+	fmt.Println("Decrypted Key:", decryptedKey)
+
+	// Verify
+	isValid := api.VerifyAPIKey(decryptedKey, publicKey)
+	fmt.Println("Is Valid:", isValid)
+}

@@ -1,0 +1,161 @@
+package examples
+
+import (
+	"encoding/json/v2"
+	"fmt"
+	"time"
+
+	"github.com/kodekoding/phastos/v2/go/api"
+)
+
+// Practical example: Real-time announcement broadcasting
+
+// AnnouncementController with SSE support
+type AnnouncementControllerWithSSE struct {
+	usecase interface {
+		CreateAnnouncement(title, content string) (string, error)
+	}
+	app interface {
+		BroadcastSSE(event, data string)
+	}
+}
+
+func (a *AnnouncementControllerWithSSE) Register() string {
+	return "/api/announcements"
+}
+
+func (a *AnnouncementControllerWithSSE) Routes() []api.Route {
+	return []api.Route{
+		{
+			Method:  "POST",
+			Path:    "",
+			Handler: a.createAnnouncement,
+		},
+	}
+}
+
+func (a *AnnouncementControllerWithSSE) createAnnouncement(ctx api.Context) error {
+	var req struct {
+		Title   string `json:"title"`
+		Content string `json:"content"`
+	}
+
+	if err := ctx.BodyParser(&req); err != nil {
+		return ctx.Status(400).JSON(map[string]string{"error": "Invalid request"})
+	}
+
+	// Create announcement
+	announcementID, err := a.usecase.CreateAnnouncement(req.Title, req.Content)
+	if err != nil {
+		return ctx.Status(500).JSON(map[string]string{"error": err.Error()})
+	}
+
+	// Broadcast to all connected clients via SSE
+	announcementData, _ := json.Marshal(map[string]interface{}{
+		"id":         announcementID,
+		"title":      req.Title,
+		"content":    req.Content,
+		"created_at": time.Now().Format(time.RFC3339),
+	})
+
+	a.app.BroadcastSSE("new-announcement", string(announcementData))
+
+	return ctx.Status(201).JSON(map[string]interface{}{
+		"id":      announcementID,
+		"message": "Announcement created and broadcasted",
+	})
+}
+
+// Practical example: Real-time approval status updates
+
+type ApprovalControllerWithSSE struct {
+	usecase interface {
+		ApproveRequest(requestID string, approverID string) error
+		RejectRequest(requestID string, approverID string, reason string) error
+	}
+	app interface {
+		BroadcastSSE(event, data string)
+	}
+}
+
+func (a *ApprovalControllerWithSSE) approveRequest(ctx api.Context) error {
+	requestID := ctx.Param("id")
+	approverID := ctx.GetLocal("user_id").(string)
+
+	if err := a.usecase.ApproveRequest(requestID, approverID); err != nil {
+		return ctx.Status(500).JSON(map[string]string{"error": err.Error()})
+	}
+
+	// Broadcast approval event
+	eventData := fmt.Sprintf(`{
+		"request_id": "%s",
+		"status": "approved",
+		"approver_id": "%s",
+		"timestamp": "%s"
+	}`, requestID, approverID, time.Now().Format(time.RFC3339))
+
+	a.app.BroadcastSSE("approval-status", eventData)
+
+	return ctx.JSON(map[string]string{"message": "Request approved"})
+}
+
+func (a *ApprovalControllerWithSSE) rejectRequest(ctx api.Context) error {
+	requestID := ctx.Param("id")
+	approverID := ctx.GetLocal("user_id").(string)
+
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	ctx.BodyParser(&req)
+
+	if err := a.usecase.RejectRequest(requestID, approverID, req.Reason); err != nil {
+		return ctx.Status(500).JSON(map[string]string{"error": err.Error()})
+	}
+
+	// Broadcast rejection event
+	eventData := fmt.Sprintf(`{
+		"request_id": "%s",
+		"status": "rejected",
+		"approver_id": "%s",
+		"reason": "%s",
+		"timestamp": "%s"
+	}`, requestID, approverID, req.Reason, time.Now().Format(time.RFC3339))
+
+	a.app.BroadcastSSE("approval-status", eventData)
+
+	return ctx.JSON(map[string]string{"message": "Request rejected"})
+}
+
+// Practical example: Background job progress updates
+
+func BroadcastJobProgress(app interface{ BroadcastSSE(event, data string) }, jobID string, progress int, status string) {
+	eventData := fmt.Sprintf(`{
+		"job_id": "%s",
+		"progress": %d,
+		"status": "%s",
+		"timestamp": %d
+	}`, jobID, progress, status, time.Now().Unix())
+
+	app.BroadcastSSE("job-progress", eventData)
+}
+
+// Usage in a background job:
+/*
+func ProcessLargeImport(app interface{ BroadcastSSE(event, data string) }, jobID string, data []Record) {
+	total := len(data)
+
+	for i, record := range data {
+		// Process record
+		processRecord(record)
+
+		// Update progress every 10%
+		if i % (total/10) == 0 {
+			progress := int(float64(i) / float64(total) * 100)
+			BroadcastJobProgress(app, jobID, progress, "processing")
+		}
+	}
+
+	// Broadcast completion
+	BroadcastJobProgress(app, jobID, 100, "completed")
+}
+*/
