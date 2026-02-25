@@ -10,12 +10,11 @@ import (
 	"time"
 
 	redigo "github.com/gomodule/redigo/redis"
-	"github.com/newrelic/go-agent/v3/newrelic"
-	"github.com/pkg/errors"
-
 	"github.com/kodekoding/phastos/v2/go/entity"
 	plog "github.com/kodekoding/phastos/v2/go/log"
 	"github.com/kodekoding/phastos/v2/go/monitoring"
+	"github.com/newrelic/go-agent/v3/newrelic"
+	"github.com/pkg/errors"
 )
 
 // Store object
@@ -38,6 +37,11 @@ type RedisCfg struct {
 	Password  string `yaml:"password"`
 	Username  string `yaml:"username"`
 	MaxRetry  int
+}
+
+type StreamData struct {
+	ID     string
+	Values map[string]string
 }
 
 // Handler handler for cache
@@ -164,7 +168,6 @@ func (r *Store) wrapWithRetries(ctx context.Context, actualFn actualRedisActionF
 				log.Warn().Int("counter", i+1).Msg("[CACHE][REDIS] Connection pool exhausted, retrying...")
 				time.Sleep(time.Second) // Tunggu sebelum mencoba lagi
 				continue                // Coba lagi
-
 			}
 			return nil, err
 		}
@@ -251,7 +254,7 @@ func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackF
 	} else {
 		cacheValue = fallbackValue
 	}
-	var setParams []interface{}
+	var setParams []any
 	key = fmt.Sprintf("%s%s", r.prefixKey, key)
 	setParams = append(setParams, key)
 	if field != "" {
@@ -326,6 +329,111 @@ func (r *Store) Del(ctx context.Context, key string) (int64, error) {
 	return wrapResult.(int64), nil
 }
 
+func (r *Store) PublishStream(ctx context.Context, streamName string, data ...map[string]any) (string, error) {
+	wrapResult, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
+		conn, err := r.Pool.GetContext(ctx)
+		if err != nil {
+			return "", errors.Wrap(err, "cache.redis.PublishStream.GetContext")
+		}
+		defer conn.Close()
+
+		if data == nil || len(data) == 0 {
+			return "", errors.New("please provide the data at least 1 data")
+		}
+
+		valueList := make([]any, 0, len(data)*2)
+		for key, value := range data {
+			valueList = append(valueList, key, value)
+		}
+
+		messageID, err := redigo.String(conn.Do("XADD", streamName, "MAXLEN", "~", "100", valueList))
+		if err != nil {
+			return "", errors.Wrap(err, "infrastructure.cache.redis.PublishStream.XADD")
+		}
+
+		return messageID, nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return wrapResult.(string), nil
+}
+
+func (r Store) SubscribeStream(ctx context.Context, streamName string, actionFn func(ctx context.Context, data *StreamData) error) {
+	log := plog.Ctx(ctx)
+	conn, err := r.Pool.GetContext(ctx)
+	if err != nil {
+		log.Fatal().Err(err).Str("streamName", streamName).Str("context", "redis.Subscribe.Stream").Msg("Failed to get redis pool")
+		return
+	}
+	defer conn.Close()
+
+	lastID := "0" // Mulai membaca dari awal. Gunakan "$" untuk hanya pesan baru.
+
+	failedCounter := 0
+	log.Info().Msg("Subscribed stream started")
+	data := new(StreamData)
+	for {
+		select {
+		case <-ctx.Done():
+			// info the stream listening should be stopped gracefully
+			log.Info().Msg("Subscribed stream stopped, because context is done (shutdown gracefully)")
+			break
+		default:
+			if failedCounter > 10 {
+				log.Info().Msg("Subscribed stream stopped, because of reached limit of failed process")
+				break
+			}
+			// BLOCK 0 artinya tunggu selamanya sampai ada pesan masuk
+			// STREAMS mystream 0 -> baca dari stream 'mystream' mulai dari ID '0'
+			reply, err := redigo.Values(conn.Do("XREAD", "BLOCK", 0, "STREAMS", streamName, lastID))
+			if err != nil {
+				if errors.Is(err, redigo.ErrNil) {
+					continue // Timeout BLOCK biasa, lanjut loop
+				}
+				log.Err(err).Str("streamName", streamName).Str("context", "redis.Subscribe.Stream").Msg("Failed to read stream, will try again")
+				time.Sleep(time.Second) // Backoff singkat jika error koneksi
+				failedCounter++
+				continue
+			}
+
+			// Struktur reply XREAD cukup kompleks: [ [streamName, [ [id, [fields]] ] ] ]
+			streams := reply[0].([]any)
+			messages := streams[1].([]any)
+
+			for _, msg := range messages {
+				item := msg.([]any)
+				id := string(item[0].([]byte))
+				fields, errCast := redigo.StringMap(item[1], nil)
+				if errCast != nil {
+					log.Err(errCast).
+						Str("streamName", streamName).
+						Str("context", "redis.Subscribe.Stream.readMessages").
+						Msg("Failed cast fields to map string")
+					failedCounter++
+					continue
+				}
+
+				data.ID = id
+				data.Values = fields
+
+				if errAction := actionFn(ctx, data); errAction != nil {
+					log.Err(errAction).
+						Any("data", data).
+						Str("context", "cache.redis.Subscribe.Stream.actionFn").
+						Msg("Failed in action functions")
+					failedCounter++
+					continue
+				}
+
+				failedCounter = 0
+				// Update lastID agar pembacaan berikutnya mulai setelah pesan ini
+				lastID = id
+			}
+		}
+	}
+}
+
 // HSet set has map
 func (r *Store) HSet(ctx context.Context, key, field string, value any, expire ...int) error {
 	if _, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
@@ -344,7 +452,7 @@ func (r *Store) HSet(ctx context.Context, key, field string, value any, expire .
 		}
 		defer conn.Close()
 
-		params := []interface{}{key, field}
+		params := []any{key, field}
 		if val, isStringType := value.(string); isStringType {
 			params = append(params, val)
 		} else {
@@ -472,7 +580,7 @@ func (r *Store) Set(ctx context.Context, key string, value any, expire ...int) e
 			return "", errors.Wrap(err, "cache.redis.Set.GetContext")
 		}
 		defer conn.Close()
-		var setParams []interface{}
+		var setParams []any
 		setParams = append(setParams, fmt.Sprintf("%s%s", r.prefixKey, key))
 
 		if val, isString := value.(string); isString {
