@@ -37,6 +37,7 @@ type RedisCfg struct {
 	Password  string `yaml:"password"`
 	Username  string `yaml:"username"`
 	MaxRetry  int
+	dbNo      int
 }
 
 type StreamData struct {
@@ -84,6 +85,12 @@ func New(options ...Options) *Store {
 					dialOpts = append(dialOpts, redigo.DialUsername(cfg.Username))
 				}
 
+				dialOpts = append(dialOpts, redigo.DialConnectTimeout(time.Duration(cfg.Timeout)*time.Second))
+				dialOpts = append(dialOpts, redigo.DialReadTimeout(time.Duration(cfg.Timeout)*time.Second))
+				dialOpts = append(dialOpts, redigo.DialWriteTimeout(time.Duration(cfg.Timeout)*time.Second))
+
+				dialOpts = append(dialOpts, redigo.DialDatabase(cfg.dbNo))
+
 				c, err := redigo.Dial("tcp", cfg.Address, dialOpts...)
 				if err != nil {
 					log.Fatal().Msgf("Can't connect to redis: %s", err.Error())
@@ -112,7 +119,7 @@ func New(options ...Options) *Store {
 		maxRetry = 10
 	}
 	store.maxRetry = maxRetry
-	log.Info().Msg("Successful connect to redis")
+	log.Info().Int("db", cfg.dbNo).Msg("Successful connect to redis")
 
 	return store
 }
@@ -120,6 +127,12 @@ func New(options ...Options) *Store {
 func WithAddress(address string) Options {
 	return func(cfg *RedisCfg) {
 		cfg.Address = address
+	}
+}
+
+func WithDatabaseNo(dbNo int) Options {
+	return func(cfg *RedisCfg) {
+		cfg.dbNo = dbNo
 	}
 }
 
