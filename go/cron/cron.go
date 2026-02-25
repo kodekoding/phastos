@@ -143,7 +143,7 @@ func (eg *Engine) wrapperCronHandler(pattern string, handler HandlerFunc) {
 		end := time.Since(start)
 		_ = helper2.SendSlackNotification(ctx,
 			helper2.NotifMsgType(helper2.NotifWarnType),
-			helper2.NotifTitle(fmt.Sprintf("Cron Job %s Failed (Timeout)", pattern)),
+			helper2.NotifTitle(fmt.Sprintf("Cron Job %s Stopped", pattern)),
 			helper2.NotifData(map[string]string{
 				"Processing Time": fmt.Sprintf("%.2f second(s)", end.Seconds()),
 			}),
