@@ -31,9 +31,11 @@ func (app *App) loadResources() {
 		redisMaxActive, _ := strconv.Atoi(os.Getenv("REDIS_MAX_ACTIVE"))
 		redisMaxIdle, _ := strconv.Atoi(os.Getenv("REDIS_MAX_IDLE"))
 		redisMaxRetry, _ := strconv.Atoi(os.Getenv("REDIS_MAX_RETRY"))
+		redisDB, _ := strconv.Atoi(os.Getenv("REDIS_DB"))
 
 		cacheService := cache.New(
 			cache.WithAddress(redisConnection),
+			cache.WithDatabaseNo(redisDB),
 			cache.WithTimeout(redisTimeout),
 			cache.WithMaxActive(redisMaxActive),
 			cache.WithMaxIdle(redisMaxIdle),
