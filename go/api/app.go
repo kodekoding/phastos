@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -32,7 +31,7 @@ import (
 var decoder = schema.NewDecoder()
 var TimezoneLocation *time.Location
 var appVersion string
-var once sync.Once
+var commitHash string
 
 type (
 	Apps interface {
@@ -50,7 +49,6 @@ type (
 		db             database.ISQL
 		trx            database.Transactions
 		newRelic       *newrelic.Application
-		version        string
 		timezoneRegion string
 		pprofEnabled   bool
 		sf             singleflight.Group
@@ -83,9 +81,24 @@ func NewApp(opts ...Options) *App {
 	// pprof profiling enabled by default
 	apiApp.pprofEnabled = true
 
+	// default app version value
+	apiApp.Config.Version = appVersion
+
+	apiVersionFromEnv := os.Getenv("APP_VERSION")
+	commitHashFromEnv := os.Getenv("COMMIT_HASH")
+	if apiVersionFromEnv != "" {
+		// override apiVersion value to ENV value
+		appVersion = apiVersionFromEnv
+	}
+	if commitHashFromEnv != "" {
+		// override commitHash value to ENV value
+		commitHash = commitHashFromEnv
+	}
+
 	for _, opt := range opts {
 		opt(&apiApp)
 	}
+
 	log := plog.Get(
 		plog.WithNewRelicApp(apiApp.newRelic),
 		plog.WithAppPort(apiApp.Port),
@@ -183,7 +196,6 @@ func (app *App) SSE() *sse.Hub {
 }
 
 func (app *App) SetVersion(version string) {
-	app.version = version
 	app.Config.Version = version
 	appVersion = version
 }
@@ -223,9 +235,6 @@ func (app *App) initDefaultHandlers() {
 	// register ping endpoint for the health checks
 	app.registerHandler("GET", "/ping", func(request Request, ctx context.Context) *Response {
 		msgString := "pong"
-		if app.version != "" {
-			msgString = fmt.Sprintf("%s from version: %s", msgString, app.version)
-		}
 		msgString = fmt.Sprintf("%s on datetime: %s", msgString, GetDateTimeNowStringWithTimezone())
 
 		return NewResponse().SetMessage(msgString)

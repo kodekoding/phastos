@@ -103,6 +103,10 @@ func (resp *Response) setCommonHeaders(w http.ResponseWriter) {
 	if appVersion != "" {
 		w.Header().Set("X-App-Version", appVersion)
 	}
+
+	if commitHash != "" {
+		w.Header().Set("X-Commit-Hash", commitHash)
+	}
 }
 
 func (resp *Response) Send(w http.ResponseWriter) {
