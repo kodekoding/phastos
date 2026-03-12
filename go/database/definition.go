@@ -129,9 +129,10 @@ type (
 	}
 
 	CUDResponse struct {
-		Status       bool  `json:"status"`
-		RowsAffected int64 `json:"rows_affected"`
-		LastInsertID int64 `json:"last_insert_id"`
+		Status       bool   `json:"status"`
+		RowsAffected int64  `json:"rows_affected"`
+		LastInsertID int64  `json:"last_insert_id"`
+		Action       string `json:"action"`
 		executedQuery
 	}
 

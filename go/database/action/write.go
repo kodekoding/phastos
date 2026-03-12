@@ -190,6 +190,6 @@ func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interfac
 	if err != nil {
 		return result, errors.Wrap(err, "phastos.database.action."+action+".ExecTransation")
 	}
-
+	result.Action = action
 	return result, nil
 }
