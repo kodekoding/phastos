@@ -13,11 +13,11 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type Servers interface {
+type Events interface {
 	Broadcast(message *Message)
 }
 
-// SSEClient represents a single SSE connection
+// Client SSEClient represents a single SSE connection
 type Client struct {
 	ID         string
 	Channel    chan *Message
@@ -28,7 +28,7 @@ type Client struct {
 	mu         sync.Mutex
 }
 
-// SSEMessage represents a message to be sent via SSE
+// Message SSEMessage represents a message to be sent via SSE
 type Message struct {
 	Event string
 	Data  interface{}
@@ -42,7 +42,7 @@ type TokenValidator func(token string) (bool, error)
 // EncryptedTokenValidator is a function type for validating encrypted tokens
 type EncryptedTokenValidator func(encryptedToken string) (bool, error)
 
-// SSEHub manages all SSE connections
+// Hub SSEHub manages all SSE connections
 type Hub struct {
 	clients                 map[string]*Client
 	broadcast               chan *Message
