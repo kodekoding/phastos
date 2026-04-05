@@ -81,9 +81,6 @@ func NewApp(opts ...Options) *App {
 	// pprof profiling enabled by default
 	apiApp.pprofEnabled = true
 
-	// default app version value
-	apiApp.Config.Version = appVersion
-
 	apiVersionFromEnv := os.Getenv("APP_VERSION")
 	commitHashFromEnv := os.Getenv("COMMIT_HASH")
 	if apiVersionFromEnv != "" {
@@ -94,6 +91,7 @@ func NewApp(opts ...Options) *App {
 		// override commitHash value to ENV value
 		commitHash = commitHashFromEnv
 	}
+	apiApp.Config.Version = appVersion
 
 	for _, opt := range opts {
 		opt(&apiApp)
@@ -187,7 +185,7 @@ func (app *App) DB() database.ISQL {
 	return app.db
 }
 
-func (app *App) SSE() *sse.Hub {
+func (app *App) SSE() sse.Events {
 	if app.sseEvent == nil {
 		log := plog.Get()
 		log.Fatal().Msg("SSE Event not initialized")
