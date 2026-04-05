@@ -45,6 +45,7 @@ type Response struct {
 	fileData         []byte
 	fileContentType  string
 	fileDownloadName string
+	customHeader     map[string]string
 }
 
 func NewResponse() *Response {
@@ -60,6 +61,15 @@ func (resp *Response) SetMessage(msg string) *Response {
 
 func (resp *Response) SetStatusCode(statusCode int) *Response {
 	resp.statusCode = statusCode
+	return resp
+}
+
+func (resp *Response) SetCustomHeader(key, value string) *Response {
+	if resp.customHeader == nil {
+		resp.customHeader = make(map[string]string)
+	}
+
+	resp.customHeader[key] = value
 	return resp
 }
 
@@ -109,8 +119,17 @@ func (resp *Response) setCommonHeaders(w http.ResponseWriter) {
 	}
 }
 
+func (resp *Response) setCustomHeader(w http.ResponseWriter) {
+	if resp.customHeader != nil {
+		for k, v := range resp.customHeader {
+			w.Header().Set(k, v)
+		}
+	}
+}
+
 func (resp *Response) Send(w http.ResponseWriter) {
 	resp.setCommonHeaders(w)
+	resp.setCustomHeader(w)
 
 	// file download response (zip, pdf, etc.)
 	if resp.fileData != nil {
