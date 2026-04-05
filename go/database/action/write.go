@@ -175,10 +175,15 @@ func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, condition map[
 	tableRequest := new(database.TableRequest)
 	pointerCondition := &condition
 	for cond, val := range *pointerCondition {
-		if !strings.Contains(cond, "?") {
-			cond = fmt.Sprintf("%s = ?", cond)
+		if val != nil {
+			if !strings.Contains(cond, "?") {
+				cond = fmt.Sprintf("%s = ?", cond)
+			}
+
+			tableRequest.SetWhereCondition(cond, val)
+		} else {
+			tableRequest.SetWhereCondition(cond)
 		}
-		tableRequest.SetWhereCondition(cond, val)
 	}
 
 	var trx *sqlx.Tx
