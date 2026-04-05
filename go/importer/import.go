@@ -53,12 +53,13 @@ type (
 	ImportOptions func(reader *importer)
 
 	ImportResult struct {
-		FailedList    map[string][]interface{} `json:"failed_list"`
-		SuccessList   []map[string]any         `json:"success_list"`
-		TotalData     int                      `json:"total_data"`
-		TotalFailed   int                      `json:"total_failed"`
-		TotalSuccess  int                      `json:"total_success"`
-		ExecutionTime float64                  `json:"execution_time"`
+		FailedList       map[string][]interface{} `json:"failed_list"`
+		SuccessList      []any                    `json:"success_list"`
+		TotalData        int                      `json:"total_data"`
+		TotalFailed      int                      `json:"total_failed"`
+		TotalSuccess     int                      `json:"total_success"`
+		ExecutionTime    float64                  `json:"execution_time"`
+		UniqueProcessKey string                   `json:"unique_process_key,omitempty"`
 	}
 
 	// rowData is the internal type sent through the channel from file readers to workers.
@@ -69,8 +70,8 @@ type (
 
 	// processedResult is the internal type sent from workers back to the aggregator.
 	processedResult struct {
-		RawData map[string]any
-		Error   *api.HttpError
+		rowData
+		Error *api.HttpError
 	}
 )
 
@@ -431,7 +432,7 @@ func (r *importer) ProcessPivotData() *ImportResult {
 	totalFailed := 0
 	result := new(ImportResult)
 	var failedList map[string][]any
-	var successList []map[string]any
+	var successList []any
 	for pr := range resultChan {
 		if pr.Error != nil {
 			if failedList == nil {
@@ -517,7 +518,7 @@ func (r *importer) processData(asyncContext context.Context, nrTrx *newrelic.Tra
 	totalFailed := 0
 	result := new(ImportResult)
 	var failedList map[string][]any
-	var successList []map[string]any
+	var successList []any
 	for pr := range resultChan {
 		if pr.Error != nil {
 			if failedList == nil {
@@ -533,7 +534,7 @@ func (r *importer) processData(asyncContext context.Context, nrTrx *newrelic.Tra
 			}
 			totalFailed++
 		} else {
-			successList = append(successList, pr.RawData)
+			successList = append(successList, pr.ParsedStruct)
 		}
 		totalData++
 	}
@@ -574,7 +575,7 @@ func (r importer) processEachData(ctx context.Context, data <-chan rowData, nrTx
 					defer workerSegment.End()
 				}
 				for dt := range data {
-					pr := &processedResult{RawData: dt.RawData}
+					pr := &processedResult{rowData: dt}
 					skipProcess := false
 					// only validate struct for regular import (not pivot)
 					if r.structDestination != nil {
