@@ -1,0 +1,53 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    # correctness
+    - govet          # go vet — reports suspicious constructs
+    - staticcheck    # comprehensive static analysis
+    - errcheck       # checks unchecked errors
+    - ineffassign    # detects unused variable assignments
+
+    # security
+    - gosec          # inspects source code for security problems
+
+    # style & simplification
+    - goconst        # finds repeated strings that could be constants
+    - unconvert      # removes unnecessary type conversions
+    - unparam        # reports unused function parameters
+    - unused         # checks for unused constants, variables, functions, types
+
+    # bugs
+    - bodyclose      # checks HTTP response body is closed
+    - nilerr         # finds code that returns nil even if error is not nil
+    - sqlclosecheck  # checks sql.Rows and sql.Stmt are closed
+
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment # too noisy for existing codebase
+    gosec:
+      excludes:
+        - G104 # unhandled errors — already covered by errcheck
+    errcheck:
+      check-type-assertions: true
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-dirs:
+    - vendor
+    - go/generator  # excluded: causes printf analyzer panic with Go 1.25 (golangci-lint known issue)
+
+output:
+  formats:
+    text:
+      print-linter-name: true
+      print-issued-lines: true
