@@ -39,7 +39,7 @@ func InitNewRelic(opts ...NewRelicOpts) *newRelic {
 		newrelic.ConfigAppName(newRelicPlatform.appName),
 		newrelic.ConfigLicense(newRelicPlatform.licenseKey),
 		newrelic.ConfigAppLogDecoratingEnabled(true),
-		newrelic.ConfigAppLogForwardingEnabled(false),
+		newrelic.ConfigAppLogForwardingEnabled(true),
 		newrelic.ConfigCodeLevelMetricsEnabled(true),
 		func(config *newrelic.Config) {
 			config.ErrorCollector.IgnoreStatusCodes = []int{
