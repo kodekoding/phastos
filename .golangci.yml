@@ -28,6 +28,7 @@ linters:
       enable-all: true
       disable:
         - fieldalignment # too noisy for existing codebase
+        - printf         # causes panic on generator_test with Go 1.25 (golang.org/x/tools bug)
     gosec:
       excludes:
         - G104 # unhandled errors — already covered by errcheck

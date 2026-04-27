@@ -30,22 +30,13 @@ _install-hooks:
 
 # ─── quality ──────────────────────────────────────────────────────────────────
 
-# run all linters (generator excluded: printf analyzer panic with Go 1.25)
-# exit code 7 = typechecking errors from local module self-references (safe to ignore)
+# run all linters
 lint:
-    #!/usr/bin/env bash
-    set -o pipefail
-    golangci-lint run --timeout 3m $(go list ./... | grep -v '/generator') 2>&1; rc=$?
-    if [ $rc -eq 7 ]; then exit 0; fi
-    exit $rc
+    golangci-lint run --timeout 3m --tests=false ./go/...
 
 # run linters and auto-fix what's possible
 lint-fix:
-    #!/usr/bin/env bash
-    set -o pipefail
-    golangci-lint run --fix --timeout 3m $(go list ./... | grep -v '/generator') 2>&1; rc=$?
-    if [ $rc -eq 7 ]; then exit 0; fi
-    exit $rc
+    golangci-lint run --fix --timeout 3m --tests=false ./go/...
 
 # run go vet only (quick check)
 vet:
