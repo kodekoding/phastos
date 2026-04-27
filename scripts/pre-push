@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Git pre-push hook — runs linter before allowing push.
+# Install: just setup (or manually: cp scripts/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push)
+
+set -euo pipefail
+
+echo "🔍 pre-push: running lint check…"
+
+if command -v just &> /dev/null; then
+    just lint
+else
+    echo "⚠️  'just' not found, falling back to golangci-lint directly"
+    golangci-lint run --timeout 3m ./...
+fi
+
+echo "✔ lint passed — pushing"
