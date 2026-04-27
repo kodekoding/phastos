@@ -146,6 +146,26 @@ func (app *App) initRequest(r *http.Request) *Request {
 }
 
 type ControllerImpl struct {
+	registeredMiddlewares map[string]any
+}
+
+// SetRegisteredMiddlewares is called by App.AddController to inject the app-level middleware registry.
+func (ctrl *ControllerImpl) SetRegisteredMiddlewares(m map[string]any) {
+	ctrl.registeredMiddlewares = m
+}
+
+// UseMiddleware retrieves a registered middleware by key.
+// Returns nil if the key is not found — caller should handle nil check or skip.
+func (ctrl *ControllerImpl) UseMiddleware(key string) func(http.Handler) http.Handler {
+	if ctrl.registeredMiddlewares == nil {
+		return nil
+	}
+	if mw, ok := ctrl.registeredMiddlewares[key]; ok {
+		if fn, ok := mw.(func(http.Handler) http.Handler); ok {
+			return fn
+		}
+	}
+	return nil
 }
 
 func (ctrl *ControllerImpl) JoinMiddleware(handlers ...func(http.Handler) http.Handler) *[]func(http.Handler) http.Handler {

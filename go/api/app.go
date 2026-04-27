@@ -42,17 +42,19 @@ type (
 	App struct {
 		Http *chi.Mux
 		*server.Config
-		TotalEndpoints int
-		apiTimeout     int
-		wrapper        []Wrapper
-		cron           cron.Engines
-		db             database.ISQL
-		trx            database.Transactions
-		newRelic       *newrelic.Application
-		timezoneRegion string
-		pprofEnabled   bool
-		sf             singleflight.Group
-		sseEvent       *sse.Hub
+		TotalEndpoints    int
+		apiTimeout        int
+		wrapper           []Wrapper
+		cron              cron.Engines
+		db                database.ISQL
+		trx               database.Transactions
+		newRelic          *newrelic.Application
+		timezoneRegion    string
+		pprofEnabled      bool
+		sf                singleflight.Group
+		middlewares       map[string]any
+		globalMiddlewares []func(http.Handler) http.Handler
+		sseEvent          *sse.Hub
 	}
 
 	Options func(api *App)
@@ -66,6 +68,7 @@ type (
 func NewApp(opts ...Options) *App {
 	apiApp := App{
 		TotalEndpoints: 0,
+		middlewares:    make(map[string]any),
 	}
 
 	apiApp.Config = new(server.Config)
@@ -164,6 +167,24 @@ func WithSSE() Options {
 	}
 }
 
+// WithGlobalMiddleware registers middleware(s) that will be applied to ALL endpoints
+// (both authenticated and unauthenticated). These run after the built-in middlewares
+// (request logger, recoverer, panic handler) but before any route-specific middleware.
+// Use this in NewApp() for middlewares that have no external dependencies.
+func WithGlobalMiddleware(handlers ...func(http.Handler) http.Handler) Options {
+	return func(app *App) {
+		app.globalMiddlewares = append(app.globalMiddlewares, handlers...)
+	}
+}
+
+// AddGlobalMiddleware appends middleware(s) to the router after Init() has been called.
+// Use this for middlewares that depend on resources initialized after NewApp()
+// (e.g. repository-dependent middlewares wired in loadModules).
+// Must be called before routes are registered to take effect on all endpoints.
+func (app *App) AddGlobalMiddleware(handlers ...func(http.Handler) http.Handler) {
+	app.Http.Use(handlers...)
+}
+
 func WithNewRelic() Options {
 	return func(app *App) {
 		newRelicPlatform := monitoring.InitNewRelic()
@@ -208,6 +229,12 @@ func (app *App) initPlugins() {
 		middleware.Recoverer,
 		PanicHandler,
 	)
+
+	// apply global middlewares registered via WithGlobalMiddleware option
+	if len(app.globalMiddlewares) > 0 {
+		app.Http.Use(app.globalMiddlewares...)
+	}
+
 	app.Http.NotFound(RouteNotFoundHandler)
 	app.Http.MethodNotAllowed(MethodNotAllowedHandler)
 
@@ -401,7 +428,19 @@ func generateUniqueRequestKey(req *http.Request) string {
 	return fmt.Sprintf("%s|%s|%s|%s", clientIP, method, path, strings.Join(queryParams, "&"))
 }
 
+func (app *App) RegisterMiddlewareFunc(key string, middlewareHandler func(http.Handler) http.Handler) {
+	app.middlewares[key] = middlewareHandler
+}
+
+func RegisterMiddleware[T any](app *App, key string, middlewareHandler T) {
+	app.middlewares[key] = middlewareHandler
+}
+
 func (app *App) AddController(ctrl Controller) {
+	// inject registered middlewares if controller embeds ControllerImpl
+	if impl, ok := ctrl.(interface{ SetRegisteredMiddlewares(map[string]any) }); ok {
+		impl.SetRegisteredMiddlewares(app.middlewares)
+	}
 	config := ctrl.GetConfig()
 	for _, route := range config.Routes {
 		var middlewares []func(http.Handler) http.Handler
