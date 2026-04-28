@@ -42,19 +42,20 @@ type (
 	App struct {
 		Http *chi.Mux
 		*server.Config
-		TotalEndpoints    int
-		apiTimeout        int
-		wrapper           []Wrapper
-		cron              cron.Engines
-		db                database.ISQL
-		trx               database.Transactions
-		newRelic          *newrelic.Application
-		timezoneRegion    string
-		pprofEnabled      bool
-		sf                singleflight.Group
-		middlewares       map[string]any
-		globalMiddlewares []func(http.Handler) http.Handler
-		sseEvent          *sse.Hub
+		TotalEndpoints     int
+		apiTimeout         int
+		wrapper            []Wrapper
+		cron               cron.Engines
+		db                 database.ISQL
+		trx                database.Transactions
+		newRelic           *newrelic.Application
+		timezoneRegion     string
+		pprofEnabled       bool
+		sf                 singleflight.Group
+		middlewares        map[string]any
+		globalMiddlewares  []func(http.Handler) http.Handler
+		pendingMiddlewares bool
+		sseEvent           *sse.Hub
 	}
 
 	Options func(api *App)
@@ -177,12 +178,15 @@ func WithGlobalMiddleware(handlers ...func(http.Handler) http.Handler) Options {
 	}
 }
 
-// AddGlobalMiddleware appends middleware(s) to the router after Init() has been called.
+// AddGlobalMiddleware appends middleware(s) to be applied to all endpoints.
 // Use this for middlewares that depend on resources initialized after NewApp()
 // (e.g. repository-dependent middlewares wired in loadModules).
-// Must be called before routes are registered to take effect on all endpoints.
+// The middlewares are stored internally and applied lazily when the first route
+// is registered, avoiding the chi restriction that middlewares must be defined
+// before routes.
 func (app *App) AddGlobalMiddleware(handlers ...func(http.Handler) http.Handler) {
-	app.Http.Use(handlers...)
+	app.globalMiddlewares = append(app.globalMiddlewares, handlers...)
+	app.pendingMiddlewares = true
 }
 
 func WithNewRelic() Options {
@@ -196,6 +200,11 @@ func (app *App) Init() {
 	app.Http = chi.NewRouter()
 
 	app.initPlugins()
+
+	// Mark that default routes are pending — they will be registered
+	// in flushPendingMiddlewares() before the first user-defined route,
+	// allowing AddGlobalMiddleware() to be called after Init().
+	app.pendingMiddlewares = true
 
 	// load Notifications if env config is exists
 	app.loadNotification()
@@ -233,8 +242,15 @@ func (app *App) initPlugins() {
 	// apply global middlewares registered via WithGlobalMiddleware option
 	if len(app.globalMiddlewares) > 0 {
 		app.Http.Use(app.globalMiddlewares...)
+		// clear them so they won't be re-applied in flushPendingMiddlewares
+		app.globalMiddlewares = nil
 	}
+}
 
+// initRoutes registers default routes (NotFound, MethodNotAllowed, pprof, /ping, etc).
+// It is called lazily before the first user-defined route to ensure all global
+// middlewares (including those added via AddGlobalMiddleware) are applied first.
+func (app *App) initRoutes() {
 	app.Http.NotFound(RouteNotFoundHandler)
 	app.Http.MethodNotAllowed(MethodNotAllowedHandler)
 
@@ -252,7 +268,6 @@ func (app *App) initPlugins() {
 		pprofLog := plog.Get()
 		pprofLog.Info().Msg("[PHASTOS] pprof profiling enabled at /debug/pprof/")
 	}
-
 }
 
 func (app *App) initDefaultHandlers() {
@@ -464,7 +479,26 @@ func (app *App) AddControllers(ctrls Controllers) {
 	}
 }
 
+// flushPendingMiddlewares applies any middlewares added via AddGlobalMiddleware
+// to the chi router, then registers default routes. This is called lazily before
+// the first user-defined route registration to avoid the chi restriction that
+// middlewares must be defined before routes.
+func (app *App) flushPendingMiddlewares() {
+	if !app.pendingMiddlewares {
+		return
+	}
+	app.pendingMiddlewares = false
+	if len(app.globalMiddlewares) > 0 {
+		app.Http.Use(app.globalMiddlewares...)
+	}
+	// now that all middlewares are registered, it's safe to add default routes
+	app.initRoutes()
+}
+
 func (app *App) registerHandler(method, path string, handler Handler, middlewares ...func(http.Handler) http.Handler) {
+	// flush any pending global middlewares before registering the first route
+	app.flushPendingMiddlewares()
+
 	wrapppedHandler := app.wrapHandler(handler)
 	if app.newRelic != nil {
 		path, wrapppedHandler = newrelic.WrapHandleFunc(app.newRelic, path, wrapppedHandler)
@@ -491,6 +525,9 @@ func (app *App) WrapScheduler(wrapper cron.Wrapper) {
 }
 
 func (app *App) Start() error {
+	// ensure any pending middlewares and default routes are registered
+	app.flushPendingMiddlewares()
+
 	log := plog.Get()
 	app.Handler = InitHandler(app.Http)
 	secureMiddleware := secure.New(secure.Options{

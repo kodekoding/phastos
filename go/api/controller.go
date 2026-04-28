@@ -149,6 +149,12 @@ type ControllerImpl struct {
 	registeredMiddlewares map[string]any
 }
 
+func NewControllerImpl() *ControllerImpl {
+	return &ControllerImpl{
+		registeredMiddlewares: make(map[string]any),
+	}
+}
+
 // SetRegisteredMiddlewares is called by App.AddController to inject the app-level middleware registry.
 func (ctrl *ControllerImpl) SetRegisteredMiddlewares(m map[string]any) {
 	ctrl.registeredMiddlewares = m
