@@ -6,7 +6,9 @@ import (
 	"io"
 	"io/fs"
 	"mime/multipart"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -234,6 +236,16 @@ func (g *google) GetSignedURLFile(ctx context.Context, imgPath string) (signedUr
 		Scheme:  storage.SigningSchemeV4,
 		Method:  "GET",
 		Expires: time.Now().Add(time.Duration(imgExpiredTime) * time.Minute),
+	}
+
+	// Pengecekan ekstensi file untuk merubah Content-Type jika PPTX
+	ext := strings.ToLower(filepath.Ext(imgPath))
+	if ext == ".pptx" {
+		fileName := filepath.Base(imgPath)
+		opts.QueryParameters = url.Values{
+			"response-content-disposition": []string{fmt.Sprintf("attachment; filename=\"%s\"", fileName)},
+			"response-content-type":        []string{"application/vnd.openxmlformats-officedocument.presentationml.presentation"},
+		}
 	}
 
 	signedUrl, err = g.bucket.SignedURL(imgPath, opts)
