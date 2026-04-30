@@ -76,12 +76,20 @@ func connectDB(engine string, dbType string) (*sqlx.DB, error) {
 	}
 
 	cfgMaxConnLifeTime, _ := strconv.Atoi(os.Getenv("DATABASE_CONN_MAX_LIFETIME"))
+	if cfgMaxConnLifeTime == 0 {
+		// set default max conn lifetime to 5 minutes
+		cfgMaxConnLifeTime = 300
+	}
 	maxLifetime := time.Duration(cfgMaxConnLifeTime) * time.Second
 	db.SetConnMaxLifetime(maxLifetime)
 
 	cfgMaxIdleTime, _ := strconv.Atoi(os.Getenv("DATABASE_CONN_MAX_IDLE_TIME"))
 
 	maxIdleTime := time.Duration(cfgMaxIdleTime) * time.Second
+	if maxIdleTime == 0 {
+		// set default max iddle time to 45 seconds
+		maxIdleTime = 45
+	}
 	db.SetConnMaxIdleTime(maxIdleTime)
 
 	// set maximum open connection to DB
@@ -93,7 +101,7 @@ func connectDB(engine string, dbType string) (*sqlx.DB, error) {
 
 	maxIdleConn, _ := strconv.Atoi(os.Getenv("DATABASE_MAX_IDLE_CONN"))
 	if maxIdleConn == 0 {
-		maxIdleConn = 4
+		maxIdleConn = 2
 	}
 	db.SetMaxIdleConns(maxIdleConn)
 	return db, nil
