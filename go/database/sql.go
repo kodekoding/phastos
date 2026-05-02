@@ -189,6 +189,7 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 			_, err = sendNilResponse(err, "phastos.database.ReadTrx.PrepareContext", finalQuery, params)
 			return err
 		}
+		defer stmt.Close() //nolint:errcheck
 
 		if opts.IsList {
 			if err = stmt.SelectContext(ctx, opts.Result, params...); err != nil {
@@ -250,7 +251,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	)
 
 	softDelete := true
-	if isSoftDelete != nil && len(isSoftDelete) > 0 {
+	if len(isSoftDelete) > 0 {
 		softDelete = isSoftDelete[0]
 	}
 	data := opts.CUDRequest
@@ -327,11 +328,12 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		if active, valid := postgresEngineGroup[this.engine]; valid && active && (data.Action == ActionUpdate || data.Action == ActionUpdateById) {
 			query.WriteString(" RETURNING id")
 		}
-		stmt, err := trx.PreparexContext(ctx, query.String())
+		stmt, err := trx.PreparexContext(ctx, query.String()) //nolint:govet // shadow
 		if err != nil {
 			_, err = sendNilResponse(err, "phastos.database.Write.PrepareContext", query.String(), data.Values)
 			return result, err
 		}
+		defer stmt.Close() //nolint:errcheck
 
 		if active, valid := postgresEngineGroup[this.engine]; valid && active {
 			if err = stmt.QueryRowContext(ctx, data.Values...).Scan(&lastInsertID); err != nil {
@@ -363,7 +365,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 				return result, err
 			}
 		} else {
-			exec, err = this.Master.ExecContext(ctx, query.String(), data.Values...)
+			exec, err = this.ExecContext(ctx, query.String(), data.Values...)
 			if err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Write.WithoutTrx.ExecContext", query.String(), data.Values)
 				return result, err
@@ -498,7 +500,7 @@ func GenerateAddOnQuery(ctx context.Context, reqData *TableRequest) (string, []i
 			log.Warn().Str("engine", reqData.engine).Any("request_data", reqData).Msg("engine not defined !! please check your code again")
 		}
 	}
-	whereResult := strings.Replace(addOnBuilder.String(), " OR )", ")", -1)
+	whereResult := strings.ReplaceAll(addOnBuilder.String(), " OR )", ")")
 	whereResult = " " + whereResult
 	return whereResult, addOnParams, nil
 }
@@ -522,7 +524,7 @@ func checkKeyword(_ context.Context, reqData *TableRequest, addOnBuilder *string
 			wg.Add(1)
 			go func(column string, mutex *sync.Mutex, wait *sync.WaitGroup) {
 				mutex.Lock()
-				addOnBuilder.WriteString(fmt.Sprintf("%s LIKE ? OR ", column))
+				fmt.Fprintf(addOnBuilder, "%s LIKE ? OR ", column)
 				*addOnParams = append(*addOnParams, generateParamArgsForLike(reqData.Keyword))
 				mutex.Unlock()
 				wait.Done()
@@ -539,7 +541,7 @@ func checkSortParam(_ context.Context, reqData *TableRequest, addOnBuilder *stri
 	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-checkSortParam")
 	//defer trc.Finish()
 	if reqData.OrderBy != "" {
-		addOnBuilder.WriteString(fmt.Sprintf(" ORDER BY %s", reqData.OrderBy))
+		fmt.Fprintf(addOnBuilder, " ORDER BY %s", reqData.OrderBy)
 	}
 }
 
@@ -562,9 +564,9 @@ func checkCreatedDateParam(_ context.Context, reqData *TableRequest, addOnBuilde
 		startDate := fmt.Sprintf("%s 00:00:00", reqData.CreatedStart)
 
 		if _, isMySQL := mySQLEngineGroup[reqData.engine]; isMySQL {
-			addOnBuilder.WriteString(fmt.Sprintf("DATE_FORMAT(%s, '%%Y-%%m-%%d %%H:%%i:%%s') >= STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s')", col))
+			fmt.Fprintf(addOnBuilder, "DATE_FORMAT(%s, '%%Y-%%m-%%d %%H:%%i:%%s') >= STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s')", col)
 		} else {
-			addOnBuilder.WriteString(fmt.Sprintf("%s >= ?", col))
+			fmt.Fprintf(addOnBuilder, "%s >= ?", col)
 		}
 		*addOnParams = append(*addOnParams, startDate)
 	}
@@ -585,9 +587,9 @@ func checkCreatedDateParam(_ context.Context, reqData *TableRequest, addOnBuilde
 		endDate := fmt.Sprintf("%s 23:59:59", reqData.CreatedEnd)
 
 		if _, isMySQL := mySQLEngineGroup[reqData.engine]; isMySQL {
-			addOnBuilder.WriteString(fmt.Sprintf("DATE_FORMAT(%s, '%%Y-%%m-%%d %%H:%%i:%%s') <= STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s')", col))
+			fmt.Fprintf(addOnBuilder, "DATE_FORMAT(%s, '%%Y-%%m-%%d %%H:%%i:%%s') <= STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s')", col)
 		} else {
-			addOnBuilder.WriteString(fmt.Sprintf("%s <= ?", col))
+			fmt.Fprintf(addOnBuilder, "%s <= ?", col)
 		}
 		*addOnParams = append(*addOnParams, endDate)
 	}
@@ -605,9 +607,9 @@ func checkCreatedDateParam(_ context.Context, reqData *TableRequest, addOnBuilde
 			addOnBuilder.WriteString(" AND ")
 		}
 		if reqData.IsDeleted != "1" {
-			addOnBuilder.WriteString(fmt.Sprintf("(%s IS NULL OR CAST(%s AS CHAR(20)) = '0000-00-00 00:00:00') ", col, col))
+			fmt.Fprintf(addOnBuilder, "(%s IS NULL OR CAST(%s AS CHAR(20)) = '0000-00-00 00:00:00') ", col, col)
 		} else {
-			addOnBuilder.WriteString(fmt.Sprintf("(%s IS NOT NULL) ", col))
+			fmt.Fprintf(addOnBuilder, "(%s IS NOT NULL) ", col)
 		}
 	}
 }
@@ -618,7 +620,7 @@ func checkInitiateWhere(_ context.Context, reqData *TableRequest, addOnBuilder *
 	//defer trc.Finish()
 	if reqData.InitiateWhere != nil {
 		for _, condition := range reqData.InitiateWhere {
-			addOnBuilder.WriteString(fmt.Sprintf("%s AND ", condition))
+			fmt.Fprintf(addOnBuilder, "%s AND ", condition)
 		}
 		initWhere := addOnBuilder.String()
 		initWhere = initWhere[:len(initWhere)-5]
@@ -629,7 +631,7 @@ func checkInitiateWhere(_ context.Context, reqData *TableRequest, addOnBuilder *
 	}
 }
 
-func sendNilResponse(err error, ctxMsg string, params ...interface{}) (interface{}, error) {
+func sendNilResponse(err error, ctxMsg string, params ...interface{}) (interface{}, error) { //nolint:unparam
 	if strings.Contains(err.Error(), "no rows") {
 		// return nil for result struct if no rows
 		return nil, nil
@@ -638,7 +640,7 @@ func sendNilResponse(err error, ctxMsg string, params ...interface{}) (interface
 	customErr := custerr.New(err).SetCode(500)
 	for i, paramValue := range params {
 		keyParam := fmt.Sprintf("param %d", i+1)
-		customErr.AppendData(keyParam, paramValue)
+		customErr.AppendData(keyParam, paramValue) //nolint:errcheck
 	}
 	return nil, errors.Wrap(customErr, ctxMsg)
 }

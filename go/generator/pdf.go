@@ -45,7 +45,7 @@ func NewPDF(options ...*ConverterOptions) (*PDF, error) {
 	var pageSize = wkhtmltopdf.PageSizeA4
 	var marginBottom, marginTop, marginLeft, marginRight uint = 10, 10, 11, 11
 
-	if options != nil && len(options) > 0 {
+	if len(options) > 0 {
 		pdfOption := options[0]
 		pageSize = pdfOption.PageSize
 		marginBottom = pdfOption.MarginBottom

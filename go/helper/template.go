@@ -20,7 +20,7 @@ func ParseTemplate(embedFS embed.FS, file string, args interface{}, additionalBo
 	if args != nil {
 
 		// read the block-kit definition as a go template
-		t, err := template.ParseFS(embedFS, file)
+		t, err := template.ParseFS(embedFS, file) //nolint:govet // shadow
 		if err != nil {
 			return tpl, errors.Wrap(err, "phastos.go.helper.template.ParseTemplate.ParseFS")
 		}
@@ -71,7 +71,7 @@ func ParseTemplateFromPath(filePath string, data any, optionalParams ...any) (st
 	tmpl := template.New(name)
 
 	// checking optional params
-	if optionalParams != nil && len(optionalParams) > 0 {
+	if len(optionalParams) > 0 {
 		for _, param := range optionalParams {
 			switch value := param.(type) {
 			case string:
@@ -94,12 +94,12 @@ func ParseTemplateFromPath(filePath string, data any, optionalParams ...any) (st
 	// getting template contents
 	if isURLPath {
 		// if templatePath is url, ex: https://................/file.html
-		resp, err := http.Get(filePath)
+		resp, err := http.Get(filePath) //nolint:govet // shadow
 		if err != nil {
 			err = errors.Wrap(err, "phastos.helper.template.ParseTemplateFromPath.GetTemplateFromURL")
 			return result, err
 		}
-		defer resp.Body.Close()
+		defer resp.Body.Close() //nolint:errcheck
 
 		htmlContent, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -109,7 +109,7 @@ func ParseTemplateFromPath(filePath string, data any, optionalParams ...any) (st
 		templateContent.Write(htmlContent)
 	} else {
 		// if templatePath is local path, ex: /tmp/templates/file.html
-		contentByte, err := os.ReadFile(filePath)
+		contentByte, err := os.ReadFile(filePath) //nolint:govet // shadow
 		if err != nil {
 			err = errors.Wrap(err, "phastos.helper.template.ParseTemplateFromPath.ReadFileFromLocalPath")
 			return result, err

@@ -3,10 +3,11 @@ package middlewares
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/newrelic/go-agent/v3/newrelic"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/newrelic/go-agent/v3/newrelic"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/pkg/errors"
@@ -28,7 +29,7 @@ func JWTAuth(next http.Handler) http.Handler {
 		}
 		traceIdCtx, _ := r.Context().Value(common.RequestIdContextKey).(string)
 
-		var token = ""
+		var token string
 		if authHeader := r.Header.Get("Authorization"); authHeader != "" {
 			token = strings.Replace(authHeader, "Bearer ", "", 1)
 		} else {
@@ -45,8 +46,7 @@ func JWTAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		var keyFunc jwt.Keyfunc
-		keyFunc = func(token *jwt.Token) (interface{}, error) {
+		var keyFunc jwt.Keyfunc = func(token *jwt.Token) (interface{}, error) {
 			if token.Method.Alg() != "HS256" {
 				return nil, fmt.Errorf("unexpected jwt signing method=%v", token.Header["alg"])
 			}

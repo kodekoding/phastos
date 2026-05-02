@@ -16,7 +16,7 @@ type BaseRead struct {
 
 func NewBaseRead(db database.ISQL, tableName string, isSoftDelete ...bool) *BaseRead {
 	sofDelete := true
-	if isSoftDelete != nil && len(isSoftDelete) > 0 {
+	if len(isSoftDelete) > 0 {
 		sofDelete = isSoftDelete[0]
 	}
 	return &BaseRead{&baseAction{db, tableName, sofDelete}}
@@ -86,7 +86,7 @@ func (b *BaseRead) GetDetailById(ctx context.Context, resultStruct interface{}, 
 		Result: resultStruct,
 	}
 
-	if optionalTableName != nil && len(optionalTableName) > 0 {
+	if len(optionalTableName) > 0 {
 		opts.OptionalTableName = optionalTableName[0]
 	}
 
@@ -101,7 +101,7 @@ func (b *BaseRead) Count(ctx context.Context, reqData *database.TableRequest, ta
 		defer countSegment.End()
 	}
 	selectedTableName := b.tableName
-	if tableName != nil && len(tableName) > 0 {
+	if len(tableName) > 0 {
 		selectedTableName = tableName[0]
 	}
 	queryTotal := fmt.Sprintf("SELECT COUNT(1) FROM %s ", selectedTableName)

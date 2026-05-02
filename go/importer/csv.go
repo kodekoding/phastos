@@ -10,10 +10,6 @@ import (
 	"strings"
 )
 
-type (
-	csv struct{}
-)
-
 func (e excel) readFromCSV(structSource reflect.Value, file multipart.File, ctx ...context.Context) <-chan rowData {
 	chanOut := make(chan rowData)
 	go func() {
@@ -29,7 +25,7 @@ func (e excel) readFromCSV(structSource reflect.Value, file multipart.File, ctx 
 
 		// clean header names (remove "*" marker)
 		for i, h := range headers {
-			headers[i] = strings.Replace(h, "*", "", -1)
+			headers[i] = strings.ReplaceAll(h, "*", "")
 		}
 
 		// stream row-by-row instead of loading entire file into memory

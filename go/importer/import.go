@@ -31,16 +31,15 @@ type (
 		file              multipart.File
 		trx               database.Transactions
 		fn                processFn
-		dataListReflVal   reflect.Value
+		dataListReflVal   reflect.Value //nolint:unused
 		structDestReflVal reflect.Value
 		sentNotifToSlack  bool
 		slackNotifChannel string
-		sheetName         string
+		sheetName         string //nolint:unused
 		sourceType        string
 		worker            int
 		processName       string
 		excel
-		csv
 
 		// pivot config
 		headerRowIndex int
@@ -123,7 +122,7 @@ func WithExtFile(ext string) ImportOptions {
 			reader.sourceType = UndefinedFileType
 		} else {
 			reader.sourceType = val
-			reader.excel.fileType = val
+			reader.fileType = val
 		}
 	}
 }
@@ -156,7 +155,7 @@ func WithSentNotifToSlack(sent bool, channel ...string) ImportOptions {
 	return func(reader *importer) {
 		reader.sentNotifToSlack = sent
 		reader.slackNotifChannel = os.Getenv("NOTIFICATION_SLACK_INFO_WEBHOOK")
-		if channel != nil && len(channel) > 0 {
+		if len(channel) > 0 {
 			reader.slackNotifChannel = channel[0]
 		}
 	}
@@ -208,13 +207,6 @@ func WithOnPivotEntry(fn func(key, value string)) ImportOptions {
 	return func(reader *importer) {
 		reader.onPivotEntry = fn
 	}
-}
-
-func (r *importer) resetField() {
-	r.file = nil
-	r.trx = nil
-	r.structDestination = nil
-	r.fn = nil
 }
 
 // buildRowMap creates a new map for a single row, mapping header names to cell values.
@@ -528,7 +520,7 @@ func (r *importer) processData(asyncContext context.Context, nrTrx *newrelic.Tra
 				failedList[pr.Error.Message] = make([]any, 0)
 			}
 			if pr.Error.Message != "Failed Parsed Single Data" {
-				failedList[pr.Error.Message] = append(failedList[pr.Error.Message], pr.Error.Data.(map[string]any))
+				failedList[pr.Error.Message] = append(failedList[pr.Error.Message], pr.Error.Data.(map[string]any)) //nolint:errcheck
 			} else {
 				failedList[pr.Error.Message] = append(failedList[pr.Error.Message], "failed")
 			}

@@ -18,7 +18,7 @@ type baseAction struct {
 
 func NewBase(db database.ISQL, tableName string, isSoftDelete ...bool) *Base {
 	sofDelete := true
-	if isSoftDelete != nil && len(isSoftDelete) > 0 {
+	if len(isSoftDelete) > 0 {
 		sofDelete = isSoftDelete[0]
 	}
 	return &Base{

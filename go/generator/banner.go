@@ -165,7 +165,7 @@ func (b *Banner) Save(destPath string) error {
 	if err != nil {
 		return errors.Wrap(err, "phastos.go.generator.banner.Generate.CreateNewFile")
 	}
-	defer newFile.Close()
+	defer newFile.Close() //nolint:errcheck
 
 	splitSavePath := strings.Split(destPath, ".")
 	saveFileExt := splitSavePath[len(splitSavePath)-1]

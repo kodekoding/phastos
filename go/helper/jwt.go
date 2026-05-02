@@ -1,17 +1,18 @@
 package helper
 
 import (
+	"os"
+	"time"
+
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/kodekoding/phastos/v2/go/entity"
 	"github.com/pkg/errors"
-	"os"
-	"time"
 )
 
 func GenerateJWTToken(data interface{}, expireTime ...time.Duration) (string, error) {
 	nowTime := time.Now()
 	expiredTime := nowTime.Add(24 * time.Hour)
-	if expireTime != nil && len(expireTime) > 0 {
+	if len(expireTime) > 0 {
 		expiredTime = nowTime.Add(expireTime[0])
 	}
 

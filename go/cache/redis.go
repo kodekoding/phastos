@@ -202,7 +202,7 @@ func (r *Store) Get(ctx context.Context, key string, typeDestination any, fallba
 	wrapResult, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
 		txn := monitoring.BeginTrxFromContext(ctx)
 		segmentName := "Redis-Get"
-		if fallbackFn != nil && len(fallbackFn) > 0 {
+		if len(fallbackFn) > 0 {
 			segmentName = fmt.Sprintf("%sWithFallback", segmentName)
 		}
 		segment := txn.StartSegment(segmentName)
@@ -215,10 +215,10 @@ func (r *Store) Get(ctx context.Context, key string, typeDestination any, fallba
 			return "", errors.Wrap(err, "cache.redis.Get.GetContext")
 		}
 
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck
 		resp, err := redigo.String(conn.Do("GET", fmt.Sprintf("%s%s", r.prefixKey, key)))
 		if errors.Is(err, redigo.ErrNil) {
-			if fallbackFn != nil && len(fallbackFn) > 0 {
+			if len(fallbackFn) > 0 {
 				fallbackAction := fallbackFn[0]
 				return r.fallbackAction(ctx, key, "", fallbackAction, segment, conn)
 			}
@@ -328,7 +328,7 @@ func (r *Store) Del(ctx context.Context, key string) (int64, error) {
 		if err != nil {
 			return 0, errors.Wrap(err, "cache.redis.Del.GetContext")
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck
 		resp, err := redigo.Int64(conn.Do("DEL", fmt.Sprintf("%s%s", r.prefixKey, key)))
 		if err != nil {
 			return int64(0), errors.Wrap(err, "infrastructure.cache.redis.Del")
@@ -339,7 +339,7 @@ func (r *Store) Del(ctx context.Context, key string) (int64, error) {
 		return 0, err
 	}
 
-	return wrapResult.(int64), nil
+	return wrapResult.(int64), nil //nolint:errcheck
 }
 
 func (r *Store) PublishStream(ctx context.Context, streamName string, data ...map[string]any) (string, error) {
@@ -348,9 +348,9 @@ func (r *Store) PublishStream(ctx context.Context, streamName string, data ...ma
 		if err != nil {
 			return "", errors.Wrap(err, "cache.redis.PublishStream.GetContext")
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck
 
-		if data == nil || len(data) == 0 {
+		if len(data) == 0 {
 			return "", errors.New("please provide the data at least 1 data")
 		}
 
@@ -369,7 +369,7 @@ func (r *Store) PublishStream(ctx context.Context, streamName string, data ...ma
 	if err != nil {
 		return "", err
 	}
-	return wrapResult.(string), nil
+	return wrapResult.(string), nil //nolint:errcheck
 }
 
 func (r Store) SubscribeStream(ctx context.Context, streamName string, actionFn func(ctx context.Context, data *StreamData) error) {
@@ -379,7 +379,7 @@ func (r Store) SubscribeStream(ctx context.Context, streamName string, actionFn 
 		log.Fatal().Err(err).Str("streamName", streamName).Str("context", "redis.Subscribe.Stream").Msg("Failed to get redis pool")
 		return
 	}
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck
 
 	lastID := "0" // Mulai membaca dari awal. Gunakan "$" untuk hanya pesan baru.
 
@@ -391,11 +391,11 @@ func (r Store) SubscribeStream(ctx context.Context, streamName string, actionFn 
 		case <-ctx.Done():
 			// info the stream listening should be stopped gracefully
 			log.Info().Msg("Subscribed stream stopped, because context is done (shutdown gracefully)")
-			break
+			return
 		default:
 			if failedCounter > 10 {
 				log.Info().Msg("Subscribed stream stopped, because of reached limit of failed process")
-				break
+				return
 			}
 			// BLOCK 0 artinya tunggu selamanya sampai ada pesan masuk
 			// STREAMS mystream 0 -> baca dari stream 'mystream' mulai dari ID '0'
@@ -411,12 +411,12 @@ func (r Store) SubscribeStream(ctx context.Context, streamName string, actionFn 
 			}
 
 			// Struktur reply XREAD cukup kompleks: [ [streamName, [ [id, [fields]] ] ] ]
-			streams := reply[0].([]any)
-			messages := streams[1].([]any)
+			streams := reply[0].([]any)    //nolint:errcheck
+			messages := streams[1].([]any) //nolint:errcheck
 
 			for _, msg := range messages {
-				item := msg.([]any)
-				id := string(item[0].([]byte))
+				item := msg.([]any)            //nolint:errcheck
+				id := string(item[0].([]byte)) //nolint:errcheck
 				fields, errCast := redigo.StringMap(item[1], nil)
 				if errCast != nil {
 					log.Err(errCast).
@@ -463,7 +463,7 @@ func (r *Store) HSet(ctx context.Context, key, field string, value any, expire .
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.HSET.GetPoolContext")
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck
 
 		params := []any{key, field}
 		if val, isStringType := value.(string); isStringType {
@@ -479,7 +479,7 @@ func (r *Store) HSet(ctx context.Context, key, field string, value any, expire .
 		}
 
 		expireTime := 0
-		if expire != nil && len(expire) > 0 {
+		if len(expire) > 0 {
 			expireTime = int(10 * time.Minute.Seconds())
 			if expire[0] > 0 {
 				expireTime = expire[0]
@@ -510,7 +510,7 @@ func (r *Store) HGet(ctx context.Context, key, field string, typeDestination any
 	wrapResult, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
 		txn := monitoring.BeginTrxFromContext(ctx)
 		segmentName := "Redis-HGET"
-		if fallbackFn != nil && len(fallbackFn) > 0 {
+		if len(fallbackFn) > 0 {
 			segmentName = fmt.Sprintf("%sWithFallback", segmentName)
 		}
 		segment := txn.StartSegment(segmentName)
@@ -522,9 +522,9 @@ func (r *Store) HGet(ctx context.Context, key, field string, typeDestination any
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.HGET.GetPoolContext")
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck
 		resp, err := redigo.String(conn.Do("HGET", fmt.Sprintf("%s%s", r.prefixKey, key), field))
-		if errors.Is(err, redigo.ErrNil) && (fallbackFn != nil && len(fallbackFn) > 0) {
+		if errors.Is(err, redigo.ErrNil) && len(fallbackFn) > 0 {
 			fallbackAction := fallbackFn[0]
 			return r.fallbackAction(ctx, key, field, fallbackAction, segment, conn)
 		}
@@ -565,7 +565,7 @@ func (r *Store) HDel(ctx context.Context, key, field string) error {
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.HDEL.GetPoolContext")
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck
 		resp, err := redigo.Int64(conn.Do("HDEL", fmt.Sprintf("%s%s", r.prefixKey, key), field))
 		if err != nil {
 			return int64(0), errors.Wrap(err, "phastos.cache.redis.HDEL")
@@ -592,7 +592,7 @@ func (r *Store) Set(ctx context.Context, key string, value any, expire ...int) e
 		if err != nil {
 			return "", errors.Wrap(err, "cache.redis.Set.GetContext")
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck
 		var setParams []any
 		setParams = append(setParams, fmt.Sprintf("%s%s", r.prefixKey, key))
 
@@ -603,7 +603,7 @@ func (r *Store) Set(ctx context.Context, key string, value any, expire ...int) e
 			setParams = append(setParams, string(byteValue))
 		}
 		expireTime := int(10 * time.Minute.Seconds())
-		if expire != nil && len(expire) > 0 {
+		if len(expire) > 0 {
 			expireTime = expire[0]
 		}
 		if segment != nil {

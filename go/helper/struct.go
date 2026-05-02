@@ -4,17 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	plog "github.com/kodekoding/phastos/v2/go/log"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
+
+	plog "github.com/kodekoding/phastos/v2/go/log"
 
 	"github.com/volatiletech/null"
 
 	"github.com/kodekoding/phastos/v2/go/database"
 	"github.com/kodekoding/phastos/v2/go/monitoring"
 )
+
+const colTagJSON = "json"
 
 func ConstructColNameAndValueBulk(ctx context.Context, arrayOfData interface{}, conditions ...map[string][]interface{}) (*database.CUDConstructData, error) {
 	reflectVal := reflect.ValueOf(arrayOfData)
@@ -38,10 +41,8 @@ func ConstructColNameAndValueBulk(ctx context.Context, arrayOfData interface{}, 
 	var arrayOfValues [][]interface{}
 
 	mapBulkValues := make(map[string][]interface{})
-	conditionSend := false
-	if conditions != nil && len(conditions) > 0 {
-		conditionSend = true
-	}
+	conditionSend := len(conditions) > 0
+
 	for i := 0; i < totalData; i++ {
 		wg.Add(1)
 		data := reflect.Indirect(reflectVal.Index(i))
@@ -215,7 +216,7 @@ func readField(ctx context.Context, reflectVal reflect.Value, isNullStruct ...bo
 			continue
 		}
 		fieldTypeData := fieldType.Type.String()
-		nullStruct := strings.Contains(fieldTypeData, "null.") || colTagVal == "json"
+		nullStruct := strings.Contains(fieldTypeData, "null.") || colTagVal == colTagJSON
 
 		if nullStruct {
 			containsNullStruct = true
@@ -238,7 +239,7 @@ func readField(ctx context.Context, reflectVal reflect.Value, isNullStruct ...bo
 		case reflect.Struct:
 			embeddedCols, embeddedVals := ConstructColNameAndValue(ctx, field.Interface(), containsNullStruct)
 
-			if colTagVal == "json" && embeddedVals != nil {
+			if colTagVal == colTagJSON && embeddedVals != nil {
 				cols = append(cols, colName)
 				values = append(values, value)
 				continue
@@ -254,7 +255,7 @@ func readField(ctx context.Context, reflectVal reflect.Value, isNullStruct ...bo
 		}
 
 		if fieldType.Name == "Valid" {
-			if !(value.(bool)) {
+			if !(value.(bool)) { //nolint:errcheck
 
 				cols = nil
 				values = nil
@@ -263,7 +264,7 @@ func readField(ctx context.Context, reflectVal reflect.Value, isNullStruct ...bo
 		}
 
 		if fieldType.Name == "NullContent" {
-			if value.(bool) {
+			if value.(bool) { //nolint:errcheck
 
 				cols = append(cols, colName)
 				values = append(values, "null")
@@ -452,7 +453,7 @@ func GenerateSelectCols(ctx context.Context, source interface{}, opts ...GenSele
 	mtx := new(sync.Mutex)
 	for i := 0; i < elemNumField; i++ {
 		wg.Add(1)
-		go func(index int, element reflect.Value, columns *[]string, wait *sync.WaitGroup, mute *sync.Mutex) {
+		go func(index int, _ reflect.Value, columns *[]string, wait *sync.WaitGroup, mute *sync.Mutex) {
 			mute.Lock()
 			defer func() {
 				wait.Done()
@@ -470,7 +471,7 @@ func GenerateSelectCols(ctx context.Context, source interface{}, opts ...GenSele
 			fieldTypeData := fieldType.Type.String()
 			colTagVal, hasColTag := fieldType.Tag.Lookup("col")
 
-			if strings.Contains(fieldTypeData, "null.") || (hasColTag && colTagVal == "json") {
+			if strings.Contains(fieldTypeData, "null.") || (hasColTag && colTagVal == colTagJSON) {
 				populateColumns(includedColsNotNull, excludedColsNotNull, columns, fieldName, optionalParams)
 				return
 			}

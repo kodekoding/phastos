@@ -3,10 +3,11 @@ package helper
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
 	context2 "github.com/kodekoding/phastos/v2/go/context"
 	"github.com/pkg/errors"
-	"strings"
 )
 
 type (

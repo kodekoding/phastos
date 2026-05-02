@@ -17,7 +17,7 @@ type (
 		SetFileName(fileName *string) QRs
 	}
 	QR struct {
-		content  string
+		content  string //nolint:unused
 		obj      *qrcode.QRCode
 		logoPath string
 		fileName string

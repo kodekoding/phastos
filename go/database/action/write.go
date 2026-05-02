@@ -24,7 +24,7 @@ type BaseWrite struct {
 
 func NewBaseWrite(db database.ISQL, tableName string, isSoftDelete ...bool) *BaseWrite {
 	sofDelete := true
-	if isSoftDelete != nil && len(isSoftDelete) > 0 {
+	if len(isSoftDelete) > 0 {
 		sofDelete = isSoftDelete[0]
 	}
 	return &BaseWrite{&baseAction{db, tableName, sofDelete}}
@@ -37,7 +37,7 @@ func (b *BaseWrite) Insert(ctx context.Context, data interface{}, optTrx ...*sql
 		defer insertSegment.End()
 	}
 	var trx *sqlx.Tx
-	if optTrx != nil && len(optTrx) > 0 {
+	if len(optTrx) > 0 {
 		trx = optTrx[0]
 	}
 	return b.cudProcess(ctx, database.ActionInsert, data, nil, trx)
@@ -50,7 +50,7 @@ func (b *BaseWrite) BulkInsert(ctx context.Context, data interface{}, optTrx ...
 		defer bulkInsertSegment.End()
 	}
 	var trx *sqlx.Tx
-	if optTrx != nil && len(optTrx) > 0 {
+	if len(optTrx) > 0 {
 		trx = optTrx[0]
 	}
 	return b.cudProcess(ctx, database.ActionBulkInsert, data, nil, trx)
@@ -69,9 +69,8 @@ func (b *BaseWrite) BulkUpdate(ctx context.Context, data interface{}, condition 
 	qOpts := &database.QueryOpts{
 		CUDRequest: cudRequestData,
 	}
-	if optTrx != nil && len(optTrx) > 0 {
-		var trx *sqlx.Tx
-		trx = optTrx[0]
+	if len(optTrx) > 0 {
+		trx := optTrx[0]
 		qOpts.Trx = trx
 	}
 
@@ -90,7 +89,7 @@ func (b *BaseWrite) Update(ctx context.Context, data interface{}, condition map[
 		defer updateSegment.End()
 	}
 	var trx *sqlx.Tx
-	if optTrx != nil && len(optTrx) > 0 {
+	if len(optTrx) > 0 {
 		trx = optTrx[0]
 	}
 	return b.cudProcess(ctx, database.ActionUpdate, data, condition, trx)
@@ -106,7 +105,7 @@ func (b *BaseWrite) UpdateById(ctx context.Context, data interface{}, id interfa
 		"id = ?": id,
 	}
 	var trx *sqlx.Tx
-	if optTrx != nil && len(optTrx) > 0 {
+	if len(optTrx) > 0 {
 		trx = optTrx[0]
 	}
 	return b.cudProcess(ctx, database.ActionUpdateById, data, condition, trx)
@@ -127,9 +126,8 @@ func (b *BaseWrite) Delete(ctx context.Context, condition map[string]interface{}
 	qOpts := &database.QueryOpts{
 		CUDRequest: data,
 	}
-	if optTrx != nil && len(optTrx) > 0 {
-		var trx *sqlx.Tx
-		trx = optTrx[0]
+	if len(optTrx) > 0 {
+		trx := optTrx[0]
 		qOpts.Trx = trx
 	}
 
@@ -157,9 +155,8 @@ func (b *BaseWrite) DeleteById(ctx context.Context, id interface{}, optTrx ...*s
 	qOpts := &database.QueryOpts{
 		CUDRequest: data,
 	}
-	if optTrx != nil && len(optTrx) > 0 {
-		var trx *sqlx.Tx
-		trx = optTrx[0]
+	if len(optTrx) > 0 {
+		trx := optTrx[0]
 		qOpts.Trx = trx
 	}
 	return b.db.Write(ctx, qOpts, b.isSoftDelete)
@@ -188,10 +185,10 @@ func (b *BaseWrite) Upsert(ctx context.Context, data interface{}, condition map[
 
 	var trx *sqlx.Tx
 	var includeDeleted bool
-	if opts != nil && len(opts) > 0 {
-		trx = opts[0].(*sqlx.Tx)
+	if len(opts) > 0 {
+		trx = opts[0].(*sqlx.Tx) //nolint:errcheck
 		if len(opts) > 1 {
-			includeDeleted = opts[1].(bool)
+			includeDeleted = opts[1].(bool) //nolint:errcheck
 		}
 	}
 
@@ -237,7 +234,7 @@ func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interfac
 		cudRequestData = helper.ConstructColNameAndValueForUpdate(ctx, data)
 		cudRequestData.Values = append(cudRequestData.Values, cudRequestData.Values...)
 	case database.ActionDelete:
-		cudRequestData = data.(*database.CUDConstructData)
+		cudRequestData = data.(*database.CUDConstructData) //nolint:errcheck
 	default:
 		return nil, errors.New("undefined action")
 	}
@@ -252,9 +249,9 @@ func (b *BaseWrite) cudProcess(ctx context.Context, action string, data interfac
 
 	totalOpts := len(opts)
 	if opts != nil && totalOpts > 0 {
-		qOpts.Trx = opts[0].(*sqlx.Tx)
+		qOpts.Trx = opts[0].(*sqlx.Tx) //nolint:errcheck
 		if totalOpts > 1 {
-			qOpts.UpsertInsertId = opts[1].(int64)
+			qOpts.UpsertInsertId = opts[1].(int64) //nolint:errcheck
 		}
 	}
 

@@ -34,13 +34,6 @@ type ExportFile struct {
 	Content *bytes.Buffer `json:"-"`
 }
 
-var mapDefaultErrMsg = map[int]string{
-	500: "Internal Server Error",
-	400: "Bad Request",
-	403: "Forbidden Access",
-	401: "Unauthorized",
-}
-
 func NewJSON() *JSON {
 	return &JSON{}
 }
@@ -276,7 +269,6 @@ func (jr *JSON) Send(w http.ResponseWriter) {
 	}
 	w.WriteHeader(jr.Code)
 	_, _ = w.Write(b)
-	return
 }
 
 func (jr *JSON) sendExport(w http.ResponseWriter) {
@@ -285,6 +277,4 @@ func (jr *JSON) sendExport(w http.ResponseWriter) {
 	if _, err := io.Copy(w, jr.ExportFile.Content); err != nil {
 		NewJSON().InternalServerError(err)
 	}
-
-	return
 }

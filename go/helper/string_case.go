@@ -7,6 +7,7 @@ import (
 )
 
 // ToCamelCase - will be convert string to camel case format
+//
 //	example:"AnyKind of_string"
 //	result:"AnyKindOfString"
 func ToCamelCase(str string) string {
@@ -14,6 +15,7 @@ func ToCamelCase(str string) string {
 }
 
 // ToLowerCamelCase - will be convert string to camel case format with lower case at first letter
+//
 //	example:"AnyKind of_string"
 //	result:"anyKindOfString"
 func ToLowerCamelCase(str string) string {
@@ -21,6 +23,7 @@ func ToLowerCamelCase(str string) string {
 }
 
 // ToSnakeCase - will be convert string to snake case format
+//
 //	example:"AnyKind of_string"
 //	result:"any_kind_of_string"
 func ToSnakeCase(s string) string {

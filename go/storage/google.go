@@ -3,15 +3,16 @@ package storage
 import (
 	"context"
 	"fmt"
-	"github.com/go-resty/resty/v2"
-	"github.com/iancoleman/strcase"
-	"google.golang.org/api/option"
 	"io"
 	"io/fs"
 	"mime/multipart"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/go-resty/resty/v2"
+	"github.com/iancoleman/strcase"
+	"google.golang.org/api/option"
 
 	"cloud.google.com/go/storage"
 	"github.com/mauri870/gcsfs"
@@ -97,7 +98,7 @@ func (g *google) UploadImageFromLocalPath(ctx context.Context, filePath string, 
 		return errors.Wrap(err, "phastos.go.storage.google.Upload.Copy")
 	}
 	defer func() {
-		if deleteAfterSuccess != nil && len(deleteAfterSuccess) > 0 && deleteAfterSuccess[0] {
+		if len(deleteAfterSuccess) > 0 && deleteAfterSuccess[0] {
 			_ = os.RemoveAll(filePath)
 		}
 	}()
@@ -111,7 +112,7 @@ func (g *google) UploadFileFromLocalPath(ctx context.Context, filePath string, f
 		return errors.Wrap(err, "phastos.go.storage.google.Upload.Copy")
 	}
 	defer func() {
-		if deleteAfterSuccess != nil && len(deleteAfterSuccess) > 0 && deleteAfterSuccess[0] {
+		if len(deleteAfterSuccess) > 0 && deleteAfterSuccess[0] {
 			_ = os.RemoveAll(filePath)
 		}
 	}()
@@ -133,7 +134,7 @@ func (g *google) UploadImageFromLocalPathPublic(ctx context.Context, filePath st
 		return errors.Wrap(err, "phastos.go.storage.google.UploadImageFromLocalPathPublic.PublicCopy")
 	}
 	defer func() {
-		if deleteAfterSuccess != nil && len(deleteAfterSuccess) > 0 && deleteAfterSuccess[0] {
+		if len(deleteAfterSuccess) > 0 && deleteAfterSuccess[0] {
 			_ = os.RemoveAll(filePath)
 		}
 	}()
@@ -147,7 +148,7 @@ func (g *google) UploadFileFromLocalPathPublic(ctx context.Context, filePath str
 		return errors.Wrap(err, "phastos.go.storage.google.UploadImageFromLocalPathPublic.Copy")
 	}
 	defer func() {
-		if deleteAfterSuccess != nil && len(deleteAfterSuccess) > 0 && deleteAfterSuccess[0] {
+		if len(deleteAfterSuccess) > 0 && deleteAfterSuccess[0] {
 			_ = os.RemoveAll(filePath)
 		}
 	}()
@@ -156,15 +157,12 @@ func (g *google) UploadFileFromLocalPathPublic(ctx context.Context, filePath str
 }
 
 func (g *google) uploadProcess(ctx context.Context, file multipart.File, fileName *string, fileType string) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*60)
+	_, cancel := context.WithTimeout(ctx, time.Second*60)
 	defer cancel()
 
 	currentEnv := env.ServiceEnv()
 	splitType := strings.Split(fileType, "/")
-	isPublic := false
-	if splitType[0] == "public" {
-		isPublic = true
-	}
+	isPublic := splitType[0] == "public"
 
 	*fileName = fmt.Sprintf("%s/%s/%s", fileType, currentEnv, *fileName)
 	obj := g.bucket.Object(*fileName).NewWriter(ctx)
@@ -199,7 +197,7 @@ func (g *google) ReadFile(ctx context.Context, filePath string) ([]byte, error) 
 	if err != nil {
 		return nil, errors.Wrap(err, "phastos.pkg.uti.storage.google.ReadFile.NewReader")
 	}
-	defer reader.Close()
+	defer reader.Close() //nolint:errcheck
 
 	content, err := io.ReadAll(reader)
 	if err != nil {
@@ -213,8 +211,9 @@ func (g *google) GetFileFS(ctx context.Context, filePath string) (fs.File, error
 }
 
 func (g *google) GetSignedURLFile(ctx context.Context, imgPath string) (signedUrl string, err error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*60)
+	timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*60)
 	defer cancel()
+	_ = timeoutCtx
 
 	imgExpiredTime := 60
 	if g.imageExpTime != 0 {
@@ -292,7 +291,7 @@ func (g *google) GenerateSignedURL(urlType string, path string, expires ...time.
 		defaultExpires = 5 * time.Minute // 5 minutes for download
 	}
 
-	if expires != nil && len(expires) > 0 {
+	if len(expires) > 0 {
 		defaultExpires = expires[0]
 	}
 	opts := &storage.SignedURLOptions{

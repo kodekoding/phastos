@@ -73,7 +73,7 @@ func NewApp(opts ...Options) *App {
 	}
 
 	apiApp.Config = new(server.Config)
-	apiApp.Config.Ctx = context.Background()
+	apiApp.Ctx = context.Background()
 	apiApp.Port = 8000
 	apiApp.ReadTimeout = 3
 	apiApp.WriteTimeout = 3
@@ -95,7 +95,7 @@ func NewApp(opts ...Options) *App {
 		// override commitHash value to ENV value
 		commitHash = commitHashFromEnv
 	}
-	apiApp.Config.Version = appVersion
+	apiApp.Version = appVersion
 
 	for _, opt := range opts {
 		opt(&apiApp)
@@ -148,7 +148,7 @@ func WithTimezone(timezone string) Options {
 func WithCronJob(timezone ...string) Options {
 	return func(app *App) {
 		cronTimeZone := "Asia/Jakarta"
-		if timezone != nil && len(timezone) > 0 {
+		if len(timezone) > 0 {
 			cronTimeZone = timezone[0]
 		}
 		cronOpts := cron.WithTimeZone(cronTimeZone)
@@ -224,7 +224,7 @@ func (app *App) SSE() sse.Events {
 }
 
 func (app *App) SetVersion(version string) {
-	app.Config.Version = version
+	app.Version = version
 	appVersion = version
 }
 
@@ -327,7 +327,7 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 		ctx := r.Context()
 		log := plog.Ctx(ctx)
 
-		requestId := ctx.Value(common.RequestIdContextKey).(string)
+		requestId := ctx.Value(common.RequestIdContextKey).(string) //nolint:errcheck
 		timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*time.Duration(app.apiTimeout))
 		defer cancel()
 
@@ -352,16 +352,16 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 
 			uniqueReqKey = generateUniqueRequestKey(r)
 
-			sfResponse, err, _ := app.sf.Do(uniqueReqKey, func() (interface{}, error) {
+			sfResponse, sfErr, _ := app.sf.Do(uniqueReqKey, func() (interface{}, error) {
 				handlerResp := h(*request, ctx)
 				return handlerResp, nil
 			})
-			if err != nil {
-				log.Err(err).Msg("[SINGLEFLIGHT] - Error when do singleFlight request")
-				respChan <- NewResponse().SetError(err)
+			if sfErr != nil {
+				log.Err(sfErr).Msg("[SINGLEFLIGHT] - Error when do singleFlight request")
+				respChan <- NewResponse().SetError(sfErr)
 				return
 			}
-			respChan <- sfResponse.(*Response)
+			respChan <- sfResponse.(*Response) //nolint:errcheck
 		}()
 
 		select {
@@ -556,7 +556,7 @@ func (app *App) Start() error {
 
 	for _, wrapper := range app.wrapper {
 		app.Handler = wrapper.WrapToHandler(app.Handler)
-		app.Config.Ctx = wrapper.WrapToContext(app.Config.Ctx)
+		app.Ctx = wrapper.WrapToContext(app.Ctx)
 	}
 
 	log.Info().Int("total_endpoint(s)", app.TotalEndpoints).Msg("Server Starting")

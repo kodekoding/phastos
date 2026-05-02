@@ -100,7 +100,7 @@ func (resp *Response) SetData(data any, isPaginate ...bool) *Response {
 		resp.Data = selectResponseData.Data
 	}
 
-	if isPaginate != nil && len(isPaginate) > 0 {
+	if len(isPaginate) > 0 {
 		resp.isPaginationData = isPaginate[0]
 	}
 	return resp

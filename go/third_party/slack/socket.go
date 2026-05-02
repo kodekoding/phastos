@@ -73,7 +73,7 @@ func WithSocketMode() AppOptions {
 func WithHttp(port ...int) AppOptions {
 	return func(app *App) {
 		servedPort := 8000
-		if port != nil && len(port) > 0 {
+		if len(port) > 0 {
 			servedPort = port[0]
 		}
 		app.App = api.NewApp(api.WithAppPort(servedPort))
@@ -142,7 +142,7 @@ func (app *App) wrapHandler(handler handler2.EventHandler, shouldAck ...bool) so
 		}
 
 		needAck := true
-		if shouldAck != nil && len(shouldAck) > 0 {
+		if len(shouldAck) > 0 {
 			needAck = shouldAck[0]
 		}
 
@@ -150,7 +150,7 @@ func (app *App) wrapHandler(handler handler2.EventHandler, shouldAck ...bool) so
 			log2.Err(err).Msg("handler got error")
 		} else if needAck {
 			// if not err then ack the request
-			client.Ack(*event.Request)
+			client.Ack(*event.Request) //nolint:errcheck
 		}
 	}
 }

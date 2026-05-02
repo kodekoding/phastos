@@ -3,6 +3,7 @@ package slack
 import (
 	"context"
 	"fmt"
+
 	"github.com/go-resty/resty/v2"
 	slackentity "github.com/kodekoding/phastos/v2/go/entity/slack"
 	"github.com/pkg/errors"
@@ -39,11 +40,11 @@ type (
 
 	slack struct {
 		client       *resty.Client
-		api          *slackpkg.Client
-		socket       *socketmode.Client
+		api          *slackpkg.Client   //nolint:unused
+		socket       *socketmode.Client //nolint:unused
 		botToken     string
-		appToken     string
-		userToken    string
+		appToken     string //nolint:unused
+		userToken    string //nolint:unused
 		clientID     string
 		clientSecret string
 	}
@@ -72,7 +73,7 @@ func (s *slack) newCURL(ctx context.Context, contentType ...string) *resty.Reque
 // - isPrivate: is private channel ?? default is false, then should be create public channel
 func (s *slack) CreateNewChannel(ctx context.Context, name string, isPrivate ...bool) (*slackentity.Response[slackentity.Channel], error) {
 	isPrivateChannel := false
-	if isPrivate != nil && len(isPrivate) > 0 {
+	if len(isPrivate) > 0 {
 		isPrivateChannel = isPrivate[0]
 	}
 
@@ -170,8 +171,4 @@ func (s *slack) GetOauthAccess(ctx context.Context, codeCallback string) (*slack
 		result.Error = oauthResp.Error
 	}
 	return result, nil
-}
-
-func (s *slack) name() {
-
 }

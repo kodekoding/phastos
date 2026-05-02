@@ -69,7 +69,7 @@ func requestLogger(next http.Handler) http.Handler {
 		log := plog.Get()
 		ctx := r.Context()
 
-		requestId := ctx.Value(common.RequestIdContextKey).(string)
+		requestId := ctx.Value(common.RequestIdContextKey).(string) //nolint:errcheck
 		// register `X-Request-Id` to header response
 		w.Header().Add("X-Request-Id", requestId)
 

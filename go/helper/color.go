@@ -2,9 +2,10 @@ package helper
 
 import (
 	"fmt"
-	plog "github.com/kodekoding/phastos/v2/go/log"
 	"image"
 	"image/color"
+
+	plog "github.com/kodekoding/phastos/v2/go/log"
 )
 
 func ParseHexColor(s string) (c color.RGBA, err error) {

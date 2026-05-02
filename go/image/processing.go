@@ -1,13 +1,14 @@
 package image
 
 import (
-	"github.com/disintegration/imaging"
-	"github.com/pkg/errors"
 	imglib "image"
 	"io"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/disintegration/imaging"
+	"github.com/pkg/errors"
 )
 
 type (
@@ -28,7 +29,7 @@ func Load(path string) (*processing, error) {
 		err     error
 	)
 
-	defer imgFile.Close()
+	defer imgFile.Close() //nolint:errcheck
 	if strings.Contains(path, "http") {
 		// load image from URL, then download it first
 		splitPath := strings.Split(path, "/")
@@ -39,14 +40,14 @@ func Load(path string) (*processing, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "phastos.go.image.processing.Load.CreateNewFile")
 		}
-		defer os.RemoveAll(fileName)
-		res, err := http.Get(path)
+		defer os.RemoveAll(fileName) //nolint:errcheck
+		res, err := http.Get(path)   //nolint:govet // shadow
 
 		if err != nil {
 			return nil, errors.Wrap(err, "phastos.go.image.processing.Load.GetImage")
 		}
 
-		defer res.Body.Close()
+		defer res.Body.Close() //nolint:errcheck
 
 		_, err = io.Copy(imgFile, res.Body)
 

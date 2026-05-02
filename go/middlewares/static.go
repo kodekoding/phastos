@@ -13,7 +13,7 @@ func StaticAuth(next http.Handler) http.Handler {
 		traceIdCtx, _ := r.Context().Value(common.RequestIdContextKey).(string)
 
 		expectedToken := os.Getenv(common.EnvServiceSecret)
-		var token = ""
+		var token string
 		if authHeader := r.Header.Get(common.HeaderSecret); authHeader != "" {
 			token = authHeader
 		} else {

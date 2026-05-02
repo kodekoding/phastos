@@ -26,7 +26,7 @@ type (
 )
 
 func (s *Service) SetDestination(destination interface{}) {
-	s.chatId = destination.(int64)
+	s.chatId = destination.(int64) //nolint:errcheck
 }
 
 func (s *Service) resetChatId() {

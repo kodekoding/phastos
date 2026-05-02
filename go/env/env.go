@@ -45,7 +45,7 @@ func SetFromEnvFile(filepath string) error {
 		return err
 	}
 	scanner := bufio.NewScanner(f)
-	if err := scanner.Err(); err != nil {
+	if err := scanner.Err(); err != nil { //nolint:govet // shadow
 		return err
 	}
 	for scanner.Scan() {

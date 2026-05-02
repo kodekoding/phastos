@@ -168,7 +168,7 @@ func readPivotFromXlsx(config pivotReadConfig) (*PivotReadResult, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "phastos.importer.readPivot.Xlsx.Rows")
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	result := &PivotReadResult{}
 
@@ -387,7 +387,7 @@ func streamPivotXlsx(config pivotReadConfig, chanOut chan<- rowData) {
 		log.Err(err).Msg("[IMPORTER][PHASTOS] - streamPivotXlsx: Get rows")
 		return
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	rowIndex := 0
 	var headers []string

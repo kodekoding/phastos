@@ -39,7 +39,7 @@ func (c *csv) AppendDataRow(data []string) CSVs {
 	if c.err != nil {
 		return c
 	}
-	if c.content != nil && len(c.content) > 0 {
+	if len(c.content) > 0 {
 		totalColumnExisting := len(c.content[0])
 		totalColumnData := len(data)
 		if totalColumnData != totalColumnExisting {
@@ -55,7 +55,7 @@ func (c *csv) SetHeader(data []string) CSVs {
 	if c.err != nil {
 		return c
 	}
-	if c.content != nil && len(c.content) > 0 {
+	if len(c.content) > 0 {
 		totalColumnExisting := len(c.content[0])
 		totalColumnData := len(data)
 		if totalColumnData != totalColumnExisting {
@@ -75,7 +75,7 @@ func (c *csv) Generate() error {
 	if err != nil {
 		return errors.Wrap(err, "phastos.go.generator.csv.Generate.CreateCSVFile")
 	}
-	defer csvNewFile.Close()
+	defer csvNewFile.Close() //nolint:errcheck
 
 	csvWriter := csvpkg.NewWriter(csvNewFile)
 	if err = csvWriter.WriteAll(c.content); err != nil {

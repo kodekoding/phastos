@@ -106,7 +106,7 @@ func (e excel) readFromXlsxStream(structSource reflect.Value, file multipart.Fil
 		log.Err(err).Msg("[IMPORTER][PHASTOS] - Get streaming rows from xlsx")
 		return
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var headers []string
 	for rows.Next() {
@@ -120,7 +120,7 @@ func (e excel) readFromXlsxStream(structSource reflect.Value, file multipart.Fil
 		if headers == nil {
 			headers = make([]string, len(cols))
 			for i, col := range cols {
-				headers[i] = strings.Replace(col, "*", "", -1)
+				headers[i] = strings.ReplaceAll(col, "*", "")
 			}
 			continue
 		}
@@ -156,7 +156,7 @@ func (e excel) readFromXls(structSource reflect.Value, file multipart.File, chan
 		lastCol := headerRow.LastCol()
 		headers = make([]string, lastCol)
 		for i := 0; i < lastCol; i++ {
-			headers[i] = strings.Replace(headerRow.Col(i), "*", "", -1)
+			headers[i] = strings.ReplaceAll(headerRow.Col(i), "*", "")
 		}
 	}
 

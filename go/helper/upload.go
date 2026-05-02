@@ -25,7 +25,7 @@ func UploadToTmp(ctx context.Context, path *string, file multipart.File, cloudSt
 	}
 	basePath += "/"
 
-	isTmpToCloudStorage := cloudStorage != nil && len(cloudStorage) > 0
+	isTmpToCloudStorage := len(cloudStorage) > 0
 	if isTmpToCloudStorage {
 		basePath = ""
 	}
@@ -45,7 +45,7 @@ func UploadToTmp(ctx context.Context, path *string, file multipart.File, cloudSt
 		if err != nil {
 			return errors.Wrap(err, "pkg.helper.upload.UploadToTmp.CreateFile")
 		}
-		defer tmpFile.Close()
+		defer tmpFile.Close() //nolint:errcheck
 
 		if _, err = io.Copy(tmpFile, file); err != nil {
 			return errors.Wrap(err, "phastos.go.helper.upload.UploadToTmp.CopyToDestinationFile")

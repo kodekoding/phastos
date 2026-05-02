@@ -1,7 +1,6 @@
 package helper
 
 import (
-	"fmt"
 	"math/rand"
 	"time"
 
@@ -33,7 +32,7 @@ func GenerateRandomString(length int) string {
 }
 
 func GenerateUUID() string {
-	return fmt.Sprintf("%s", generateUUID(uuid.New(), nil))
+	return generateUUID(uuid.New(), nil).String()
 }
 
 func GenerateUUIDV4() string {

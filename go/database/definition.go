@@ -99,7 +99,7 @@ type (
 	SQL struct {
 		Master
 		Follower
-		timeout            time.Duration
+		timeout            time.Duration //nolint:unused
 		slowQueryThreshold float64
 		engine             string
 		isNR               bool
@@ -176,7 +176,7 @@ type (
 		Page                  int           `json:"page,omitempty" schema:"page"`
 		Limit                 int           `json:"limit,omitempty" schema:"limit"`
 		OrderBy               string        `json:"order_by,omitempty" schema:"order_by"`
-		GroupBy               string        `json:"group_by,omitempty,omitempty" schema:"group_by"`
+		GroupBy               string        `json:"group_by,omitempty" schema:"group_by"`
 		CreatedStart          string        `json:"date_start,omitempty" schema:"date_start"`
 		CreatedEnd            string        `json:"date_end,omitempty" schema:"date_end"`
 		CustomDateColFilter   string        `json:"-"` // specify this field manually at each of usecase services

@@ -2,8 +2,9 @@ package null
 
 // extended version from "github.com/volatiletech/null" to set null content
 import (
-	"github.com/volatiletech/null"
 	"time"
+
+	"github.com/volatiletech/null"
 )
 
 type String struct {

@@ -78,7 +78,7 @@ func (c *excel) AppendDataRow(data []string) Excels {
 	if c.err != nil {
 		return c
 	}
-	if c.content != nil && len(c.content) > 0 {
+	if len(c.content) > 0 {
 		totalColumnExisting := len(c.content[0])
 		totalColumnData := len(data)
 		if totalColumnData != totalColumnExisting {
@@ -94,7 +94,7 @@ func (c *excel) SetHeader(data []string) Excels {
 	if c.err != nil {
 		return c
 	}
-	if c.content != nil && len(c.content) > 0 {
+	if len(c.content) > 0 {
 		totalColumnExisting := len(c.content[0])
 		totalColumnData := len(data)
 		if totalColumnData != totalColumnExisting {
@@ -131,7 +131,7 @@ func (c *excel) Generate() error {
 
 	c.excelFile.SetActiveSheet(sheetIndex)
 
-	headerStyle, err := c.excelFile.NewStyle(&excelize.Style{
+	headerStyle, _ := c.excelFile.NewStyle(&excelize.Style{
 		Font:      &excelize.Font{Bold: true},
 		Alignment: &excelize.Alignment{Horizontal: "center"},
 	})

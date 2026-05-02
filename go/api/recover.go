@@ -17,7 +17,7 @@ func panicRecover(r *http.Request, traceId string, uniqueKey ...string) {
 
 		marshalErr, _ := json.Marshal(err)
 		notifDetail := new(sgw.Attachment)
-		if uniqueKey != nil && len(uniqueKey) > 0 {
+		if len(uniqueKey) > 0 {
 			uniqueKeyReq := uniqueKey[0]
 			notifDetail.AddField(sgw.Field{
 				Title: "Unique Key Request",

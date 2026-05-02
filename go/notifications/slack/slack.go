@@ -18,7 +18,7 @@ type (
 		url        string
 		defaultURL string
 		attachment *sgw.Attachment
-		message    string
+		message    string //nolint:unused
 		traceID    string
 		recipient  string
 		isActive   bool
@@ -31,7 +31,7 @@ type (
 )
 
 func (p *Service) SetDestination(destination interface{}) {
-	p.url = destination.(string)
+	p.url = destination.(string) //nolint:errcheck
 }
 
 func (p *Service) resetURL() {

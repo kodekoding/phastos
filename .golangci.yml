@@ -32,8 +32,24 @@ linters:
     gosec:
       excludes:
         - G104 # unhandled errors — already covered by errcheck
+        - G304 # file inclusion via variable — expected in utility/library code
+        - G107 # HTTP request with variable URL — expected in utility/library code
+        - G301 # directory permissions — acceptable for tmp/dev tooling
+        - G501 # blocklisted crypto import — md5 used for non-security hashing (QR filenames)
+        - G401 # weak crypto primitive — md5 used for non-security hashing (QR filenames)
+        - G404 # weak random — acceptable for non-crypto string generation
     errcheck:
       check-type-assertions: true
+    staticcheck:
+      checks:
+        - "all"
+        - "-ST1000" # package comments — too noisy, will add incrementally
+        - "-ST1003" # naming conventions (Id→ID, etc.) — changing would break public API
+        - "-ST1006" # receiver name 'this' — changing would break public API consumers
+        - "-ST1020" # comment format — too noisy for existing codebase
+        - "-ST1023" # omit type from declaration — style preference
+        - "-SA1019" # deprecated API usage — requires separate migration plan
+        - "-SA1029" # built-in type as context key — changing would break public API
 
 formatters:
   enable:
@@ -43,9 +59,10 @@ formatters:
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-  exclude-dirs:
-    - vendor
-    - go/generator  # excluded: causes printf analyzer panic with Go 1.25 (golangci-lint known issue)
+  exclude-rules:
+    - path: "go/generator/"
+      linters:
+        - govet  # causes printf analyzer panic with Go 1.25 (golangci-lint known issue)
 
 output:
   formats:

@@ -19,12 +19,11 @@ const (
 )
 
 var (
-	ErrInvalidContentType     = errors.New("Unrecognized content type")
+	ErrInvalidContentType     = errors.New("unrecognized content type")
 	doHandleDecodeSchema      = decodeSchemaRequest
 	readAllContent            = ioutil.ReadAll
 	decodeJSON                = (*json.Decoder).Decode
 	decodeSchema              = (*schema.Decoder).Decode
-	doHandleNullValidator     = nullValidator
 	validatorJSONStruct       = (*validator.Validate).Struct
 	parseFormRequest          = (*http.Request).ParseForm
 	parseMultiPartFormRequest = (*http.Request).ParseMultipartForm

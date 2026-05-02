@@ -20,7 +20,7 @@ type (
 
 	Mandrill struct {
 		client           *mandrill.Client
-		recipient        []string
+		recipient        []string //nolint:unused
 		message          *mandrill.Message
 		templateName     string
 		templateContent  map[string]string

@@ -89,10 +89,10 @@ func Example_importCSVWithProcess() {
 	// --- Akses data yang BERHASIL ---
 	// result.SuccessList = []map[string]any
 	// Setiap map key-nya = header kolom dari file
-	for i, row := range result.SuccessList {
-		fmt.Printf("Success[%d]: Name=%s, Email=%s, Role=%s\n",
-			i, row["Name"], row["Email"], row["Role"])
-	}
+	//for i, row := range result.SuccessList {
+	//	fmt.Printf("Success[%d]: Name=%s, Email=%s, Role=%s\n",
+	//		i, row["Name"], row["Email"], row["Role"])
+	//}
 
 	// --- Akses data yang GAGAL ---
 	// result.FailedList = map[string][]any
@@ -250,10 +250,10 @@ func Example_processPivotData() {
 	fmt.Printf("Total Failed : %d\n", result.TotalFailed)
 
 	// SuccessList berisi entry yang berhasil
-	for i, row := range result.SuccessList {
-		fmt.Printf("Success[%d]: Employee=%s, Date=%s, Shift=%s\n",
-			i, row["Employee ID"], row["pivot_header"], row["pivot_value"])
-	}
+	//for i, row := range result.SuccessList {
+	//	fmt.Printf("Success[%d]: Employee=%s, Date=%s, Shift=%s\n",
+	//		//i, row["Employee ID"], row["pivot_header"], row["pivot_value"])
+	//}
 
 	// FailedList berisi entry yang gagal (per error group)
 	for errMsg, dataList := range result.FailedList {

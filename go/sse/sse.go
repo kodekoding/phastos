@@ -391,7 +391,7 @@ func (hub *Hub) Handle(w http.ResponseWriter, r *http.Request) {
 		Event: "connected",
 		Data:  map[string]string{"client_id": clientID, "timestamp": time.Now().Format(time.RFC3339)},
 	}
-	client.sendMessage(initialMsg)
+	client.sendMessage(initialMsg) //nolint:errcheck
 
 	// Handle client disconnect
 	defer func() {

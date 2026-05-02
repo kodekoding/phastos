@@ -3,14 +3,15 @@ package api
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/go-playground/validator"
-	"github.com/gorilla/schema"
 	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-playground/validator"
+	"github.com/gorilla/schema"
 
 	uuid "github.com/satori/go.uuid"
 )
@@ -50,7 +51,7 @@ func ValidateStruct(data interface{}) []*ValidationError {
 	var errors []*ValidationError
 	err := validate.Struct(data)
 	if err != nil {
-		for _, err := range err.(validator.ValidationErrors) {
+		for _, err := range err.(validator.ValidationErrors) { //nolint:errcheck
 			var element ValidationError
 			element.Field = err.StructNamespace()
 			element.Tag = err.Tag()
@@ -92,9 +93,9 @@ func GetStructValue(value reflect.Value) interface{} {
 	case bool:
 		return value.Bool()
 	case time.Time:
-		return value.Interface().(time.Time).String()
+		return value.Interface().(time.Time).String() //nolint:errcheck
 	case uuid.UUID:
-		return value.Interface().(uuid.UUID).String()
+		return value.Interface().(uuid.UUID).String() //nolint:errcheck
 	default:
 		return value.String()
 	}

@@ -117,17 +117,17 @@ func (bg *BulkGenerator) GenerateZip(zipFileName string) ([]byte, []BulkResult, 
 		baseName := filepath.Base(filePath)
 		w, err := zipWriter.Create(baseName)
 		if err != nil {
-			srcFile.Close()
+			srcFile.Close() //nolint:errcheck
 			result.Error = err
 			continue
 		}
 
 		if _, err = io.Copy(w, srcFile); err != nil {
-			srcFile.Close()
+			srcFile.Close() //nolint:errcheck
 			result.Error = err
 			continue
 		}
-		srcFile.Close()
+		srcFile.Close() //nolint:errcheck
 	}
 
 	if err := zipWriter.Close(); err != nil {
