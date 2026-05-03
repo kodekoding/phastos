@@ -29,6 +29,7 @@ linters:
       disable:
         - fieldalignment # too noisy for existing codebase
         - printf         # causes panic on generator_test with Go 1.25 (golang.org/x/tools bug)
+        - inline         # optimization hint only; too noisy with current Go toolchain
     gosec:
       excludes:
         - G104 # unhandled errors — already covered by errcheck
@@ -50,6 +51,7 @@ linters:
         - "-ST1023" # omit type from declaration — style preference
         - "-SA1019" # deprecated API usage — requires separate migration plan
         - "-SA1029" # built-in type as context key — changing would break public API
+        - "-QF1012" # fmt.Sprintf inside WriteString — style/perf micro-optimization
 
 formatters:
   enable:
