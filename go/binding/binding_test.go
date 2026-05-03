@@ -59,9 +59,7 @@ func TestBind(t *testing.T) {
 		validatorJSONStruct = func(v *validator.Validate, i interface{}) error {
 			return nil
 		}
-		doHandleNullValidator = func(httpMethod string, structName interface{}, validationLists ...string) error {
-			return nil
-		}
+
 		actualErr := Bind(mockRequest, mockStructValue)
 		assert.Equal(t, false, actualErr != nil)
 	})

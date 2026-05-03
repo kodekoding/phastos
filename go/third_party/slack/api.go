@@ -50,7 +50,10 @@ type (
 	}
 )
 
-const prefixURL = "https://slack.com/api"
+const (
+	prefixURL    = "https://slack.com/api"
+	channelField = "channel"
+)
 
 func NewSlack(botToken, clientId, clientSecret string) *slack {
 	client := resty.New()
@@ -94,8 +97,8 @@ func (s *slack) CreateNewChannel(ctx context.Context, name string, isPrivate ...
 func (s *slack) InviteUserToChannel(ctx context.Context, channelId string, users ...string) error {
 	if _, err := s.newCURL(ctx).
 		SetBody(map[string]interface{}{
-			"channel": channelId,
-			"users":   users,
+			channelField: channelId,
+			"users":      users,
 		}).Post(fmt.Sprintf("%s/conversation.invite", prefixURL)); err != nil {
 		return errors.Wrap(err, "phastos.third_party.slack.InviteUserToChannel.Post")
 	}
@@ -106,7 +109,7 @@ func (s *slack) InviteUserToChannel(ctx context.Context, channelId string, users
 func (s *slack) ArchiveChannel(ctx context.Context, channelId string) error {
 	if _, err := s.newCURL(ctx).
 		SetBody(map[string]interface{}{
-			"channel": channelId,
+			channelField: channelId,
 		}).Post(fmt.Sprintf("%s/conversation.archive", prefixURL)); err != nil {
 		return errors.Wrap(err, "phastos.third_party.slack.ArchiveChannel.Post")
 	}
@@ -117,9 +120,9 @@ func (s *slack) ArchiveChannel(ctx context.Context, channelId string) error {
 func (s *slack) AddReminderToChannel(ctx context.Context, channelId, textReminder, time string) error {
 	if _, err := s.newCURL(ctx).
 		SetBody(map[string]interface{}{
-			"text":    textReminder,
-			"time":    time,
-			"channel": channelId,
+			"text":       textReminder,
+			"time":       time,
+			channelField: channelId,
 		}).Post(fmt.Sprintf("%s/reminders.add", prefixURL)); err != nil {
 		return errors.Wrap(err, "phastos.third_party.slack.AddReminderToChannel.Post")
 	}
@@ -130,8 +133,8 @@ func (s *slack) AddReminderToChannel(ctx context.Context, channelId, textReminde
 func (s *slack) PostMessageText(ctx context.Context, destId string, text string) error {
 	if _, err := s.newCURL(ctx).
 		SetBody(map[string]interface{}{
-			"text":    text,
-			"channel": destId,
+			"text":       text,
+			channelField: destId,
 		}).Post(fmt.Sprintf("%s/chat.postMessage", prefixURL)); err != nil {
 		return errors.Wrap(err, "phastos.third_party.slack.PostMessageText.Post")
 	}
@@ -142,8 +145,8 @@ func (s *slack) PostMessageText(ctx context.Context, destId string, text string)
 func (s *slack) PostMessageBlocks(ctx context.Context, destId string, blocksString string) error {
 	if _, err := s.newCURL(ctx).
 		SetBody(map[string]interface{}{
-			"blocks":  blocksString,
-			"channel": destId,
+			"blocks":     blocksString,
+			channelField: destId,
 		}).Post(fmt.Sprintf("%s/chat.postMessage", prefixURL)); err != nil {
 		return errors.Wrap(err, "phastos.third_party.slack.PostMessageText.Post")
 	}

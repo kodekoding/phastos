@@ -55,6 +55,7 @@ func InitNewRelic(opts ...NewRelicOpts) *newRelic {
 	)
 	newRelicPlatform.app = app
 	if err != nil {
+		//nolint:gosec // G706: operational fatal log includes controlled error output for startup diagnostics
 		log.Fatalln("Failed to connect new relic: ", err.Error())
 		return nil
 	}

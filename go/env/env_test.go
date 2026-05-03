@@ -60,19 +60,19 @@ func TestGetSet(t *testing.T) {
 }
 
 func TestServiceEnv(t *testing.T) {
-	// test no TKPENV -> development
+	// test no APPS_ENV -> development
 	require.Equal(t, env.DevelopmentEnv, env.ServiceEnv())
 	require.True(t, env.IsDevelopment())
 	require.False(t, env.IsStaging())
 
 	// set to staging
-	os.Setenv("TKPENV", "staging")
+	os.Setenv("APPS_ENV", "staging")
 	require.Equal(t, env.StagingEnv, env.ServiceEnv())
 	require.False(t, env.IsDevelopment())
 	require.True(t, env.IsStaging())
 
 	// set to production
-	os.Setenv("TKPENV", "production")
+	os.Setenv("APPS_ENV", "production")
 	require.Equal(t, env.ProductionEnv, env.ServiceEnv())
 	require.False(t, env.IsDevelopment())
 	require.False(t, env.IsStaging())

@@ -81,6 +81,7 @@ func serveHTTPs(config *Config, secure bool) error {
 	appName := os.Getenv("APP_NAME")
 	environment := os.Getenv("APPS_ENV")
 
+	//nolint:gosec // G706: startup log uses local environment metadata for operational visibility
 	log.Printf("%s %s Server %s is running on %s", appName, protocol, environment, listenPort)
 
 	go func() {
