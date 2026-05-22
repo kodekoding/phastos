@@ -107,6 +107,20 @@ func TestEncryptDecrypt(t *testing.T) {
 	})
 }
 
+func TestEncrypt_AesErrorWithShortKey(t *testing.T) {
+	t.Run("should fail Encrypt with short key", func(t *testing.T) {
+		cm := &CryptoManager{key: []byte("short")}
+		_, err := cm.Encrypt("test")
+		assert.Error(t, err)
+	})
+
+	t.Run("should fail Decrypt with short key", func(t *testing.T) {
+		cm := &CryptoManager{key: []byte("short")}
+		_, err := cm.Decrypt("dGVzdA==")
+		assert.Error(t, err)
+	})
+}
+
 func TestGeneratePublicKey(t *testing.T) {
 	t.Run("should generate consistent public key", func(t *testing.T) {
 		apiKey := "my-api-key"

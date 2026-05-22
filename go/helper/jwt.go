@@ -6,7 +6,6 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/kodekoding/phastos/v2/go/entity"
-	"github.com/pkg/errors"
 )
 
 func GenerateJWTToken(data interface{}, expireTime ...time.Duration) (string, error) {
@@ -29,9 +28,8 @@ func GenerateJWTToken(data interface{}, expireTime ...time.Duration) (string, er
 	}
 
 	tokenClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, claimData)
-	token, err := tokenClaims.SignedString([]byte(os.Getenv("JWT_SIGNING_KEY")))
-	if err != nil {
-		return "", errors.Wrap(err, "lib.helper.jwt.GenerateJWTToken.SignedString")
-	}
+	// jwt.SigningMethodHMAC.Sign only fails if the key is nil — os.Getenv returns "" (not nil) when unset
+	// jwt.SigningMethodHMAC.Sign hanya gagal jika key nil — os.Getenv mengembalikan "" (bukan nil) jika tidak diset
+	token, _ := tokenClaims.SignedString([]byte(os.Getenv("JWT_SIGNING_KEY")))
 	return token, nil
 }

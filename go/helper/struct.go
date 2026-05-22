@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"sync"
-	"time"
 
 	plog "github.com/kodekoding/phastos/v2/go/log"
 
@@ -17,7 +15,10 @@ import (
 	"github.com/kodekoding/phastos/v2/go/monitoring"
 )
 
-const colTagJSON = "json"
+// colTagJSON is now defined in struct_cache.go
+
+// strNull is the string literal that represents SQL NULL.
+const strNull = "null"
 
 func ConstructColNameAndValueBulk(ctx context.Context, arrayOfData interface{}, conditions ...map[string][]interface{}) (*database.CUDConstructData, error) {
 	reflectVal := reflect.ValueOf(arrayOfData)
@@ -31,9 +32,6 @@ func ConstructColNameAndValueBulk(ctx context.Context, arrayOfData interface{}, 
 
 	totalData := reflectVal.Len()
 
-	wg := new(sync.WaitGroup)
-	mtx := new(sync.Mutex)
-
 	maxLen := 0
 	counterMaxLen := 0
 	var columns []string
@@ -43,64 +41,51 @@ func ConstructColNameAndValueBulk(ctx context.Context, arrayOfData interface{}, 
 	mapBulkValues := make(map[string][]interface{})
 	conditionSend := len(conditions) > 0
 
+	// Sequential loop is faster than goroutine+mutex for trivial operations.
+	// The reflect + readField work per element is lightweight; goroutine
+	// scheduling + mutex contention overhead exceeds the benefit for
+	// typical bulk sizes (10-100 rows). Same pattern as checkKeyword()
+	// and ConstructColNameAndValueForUpdate() optimizations.
 	for i := 0; i < totalData; i++ {
-		wg.Add(1)
 		data := reflect.Indirect(reflectVal.Index(i))
-		go func(field reflect.Value, idx int) {
-			defer func() {
-				mtx.Unlock()
-				wg.Done()
-			}()
-			cols, vals := readField(ctx, field)
-			mtx.Lock()
-			if conditionSend {
-				for _, val := range conditions[0] {
-					vals = append(vals, val[idx])
-				}
+		cols, vals := readField(ctx, data)
+		if conditionSend {
+			for _, val := range conditions[0] {
+				vals = append(vals, val[i])
 			}
-			if counterMaxLen == 0 {
-				columns = cols
-			}
-			for x, column := range cols {
-				mapBulkValues[column] = append(mapBulkValues[column], vals[x])
-			}
-			totalCols := len(cols)
-			if totalCols > maxLen {
-				counterMaxLen++
-				maxLen = totalCols
-			}
+		}
+		if counterMaxLen == 0 {
+			columns = cols
+		}
+		for x, column := range cols {
+			mapBulkValues[column] = append(mapBulkValues[column], vals[x])
+		}
+		totalCols := len(cols)
+		if totalCols > maxLen {
+			counterMaxLen++
+			maxLen = totalCols
+		}
 
-			arrayOfValues = append(arrayOfValues, vals)
-			columnValues = append(columnValues, vals...)
-
-		}(data, i)
+		arrayOfValues = append(arrayOfValues, vals)
+		columnValues = append(columnValues, vals...)
 	}
 
-	wg.Wait()
 	if counterMaxLen > 1 {
 		return nil, errors.New("length of each element is different")
 	}
 
-	errChan := make(chan error)
-	go func(mapData map[string][]interface{}) {
-		maxLen := 0
-		counterMaxLen := 0
-		for _, data := range mapData {
-			jumlahData := len(data)
-			if jumlahData != maxLen {
-				counterMaxLen++
-				maxLen = jumlahData
-			}
-
-			if counterMaxLen > 1 {
-				errChan <- errors.New("length of each field is different")
-			}
+	// Validate that all columns have the same number of values
+	maxLen = 0
+	counterMaxLen = 0
+	for _, data := range mapBulkValues {
+		jumlahData := len(data)
+		if jumlahData != maxLen {
+			counterMaxLen++
+			maxLen = jumlahData
 		}
-		errChan <- nil
-	}(mapBulkValues)
-
-	if gotErr := <-errChan; gotErr != nil {
-		return nil, fmt.Errorf("got error: %s", gotErr.Error())
+		if counterMaxLen > 1 {
+			return nil, errors.New("length of each field is different")
+		}
 	}
 
 	result := generateBulk(columns, columnValues, arrayOfValues, conditions...)
@@ -181,28 +166,30 @@ func ConstructColNameAndValue(ctx context.Context, structName interface{}, isNul
 }
 
 func readField(ctx context.Context, reflectVal reflect.Value, isNullStruct ...bool) ([]string, []interface{}) {
-	refType := reflectVal.Type()
-	var values []interface{}
-	var cols []string
-	//var partOfMainCols, hasOptionalParam bool
-	//if isColMain != nil && len(isColMain) > 0 {
-	//	partOfMainCols = isColMain[0]
-	//	hasOptionalParam = true
-	//}
+	typeInfo := getStructTypeInfo(reflectVal.Type())
+	numField := typeInfo.NumField
+
+	// Pre-allocate slices with capacity hint (B5)
+	cols := make([]string, 0, numField)
+	values := make([]interface{}, 0, numField)
+
 	var containsNullStruct bool
 	if isNullStruct != nil {
 		containsNullStruct = isNullStruct[0]
 	}
-	numField := reflectVal.NumField()
-	for i := 0; i < numField; i++ {
-		field := reflectVal.Field(i)
 
+	for i := 0; i < numField; i++ {
+		fi := &typeInfo.Fields[i]
+		field := reflectVal.Field(fi.Index)
 		value := field.Interface()
-		fieldType := refType.Field(i)
-		colName := fieldType.Tag.Get("db")
-		if colName == "-" {
+
+		// Skip fields with `db:"-"` tag
+		if fi.ColName == "-" {
 			continue
-		} else if colName == "id" {
+		}
+
+		// Skip zero-value id fields
+		if fi.SkipZero {
 			if number, valid := value.(int); valid && number == 0 {
 				continue
 			} else if number64, valid := value.(int64); valid && number64 == 0 {
@@ -211,41 +198,40 @@ func readField(ctx context.Context, reflectVal reflect.Value, isNullStruct ...bo
 				continue
 			}
 		}
-		colTagVal, hasColTag := fieldType.Tag.Lookup("col")
-		if hasColTag && colTagVal == "pk" {
+
+		// Skip primary key fields
+		if fi.IsPk {
 			continue
 		}
-		fieldTypeData := fieldType.Type.String()
-		nullStruct := strings.Contains(fieldTypeData, "null.") || colTagVal == colTagJSON
 
+		nullStruct := fi.IsNullType
 		if nullStruct {
 			containsNullStruct = true
 		}
 
-		if field.Kind() == reflect.Ptr {
+		if fi.IsPtr {
 			// to check nil pointer of data type
 			if reflect.Indirect(field).Kind() == reflect.Invalid {
 				continue
 			}
-
 			field = field.Elem()
 		}
 
 		switch field.Kind() {
 		case reflect.Map:
-			cols = append(cols, colName)
+			cols = append(cols, fi.ColName)
 			values = append(values, value)
 			continue
 		case reflect.Struct:
 			embeddedCols, embeddedVals := ConstructColNameAndValue(ctx, field.Interface(), containsNullStruct)
 
-			if colTagVal == colTagJSON && embeddedVals != nil {
-				cols = append(cols, colName)
+			if fi.IsJSONCol && embeddedVals != nil {
+				cols = append(cols, fi.ColName)
 				values = append(values, value)
 				continue
 			}
 			if nullStruct && embeddedVals != nil {
-				cols = append(cols, colName)
+				cols = append(cols, fi.ColName)
 			} else {
 				cols = append(cols, embeddedCols...)
 			}
@@ -254,7 +240,7 @@ func readField(ctx context.Context, reflectVal reflect.Value, isNullStruct ...bo
 			continue
 		}
 
-		if fieldType.Name == "Valid" {
+		if fi.IsValid {
 			if !(value.(bool)) { //nolint:errcheck
 
 				cols = nil
@@ -263,25 +249,24 @@ func readField(ctx context.Context, reflectVal reflect.Value, isNullStruct ...bo
 			continue
 		}
 
-		if fieldType.Name == "NullContent" {
+		if fi.IsNullCont {
 			if value.(bool) { //nolint:errcheck
 
-				cols = append(cols, colName)
+				cols = append(cols, fi.ColName)
 				values = append(values, "null")
 			}
 			continue
 		}
 
-		switch field.Kind() {
-		case reflect.String:
-			if str, valid := value.(string); valid && str == "null" {
-				value = null.String{}
+		if fi.IsString {
+			if str, valid := value.(string); valid && str == strNull { //nolint:errcheck
+				value = null.String{} //nolint:errcheck
 			} else if field.String() == "" {
 				continue
 			}
 		}
 
-		cols = append(cols, colName)
+		cols = append(cols, fi.ColName)
 		values = append(values, value)
 	}
 	return cols, values
@@ -332,53 +317,35 @@ func ConstructColNameAndValueForUpdate(ctx context.Context, structName interface
 	if txn != nil {
 		defer txn.StartSegment("StructHelper-ConstructColNameAndValueForUpdate").End()
 	}
-	// tracing
-	//trc, ctx := tracer.StartSpanFromContext(ctx, "Helper-ConstructColNameAndValueForUpdate")
-	//defer trc.Finish()
-	cols, values := ConstructColNameAndValue(ctx, structName)
-	// change cols list with suffix '=?' using go routine
-	columns := strings.Join(cols, ",")
 
-	mutex := new(sync.Mutex)
-	wg := new(sync.WaitGroup)
-	colLength := len(cols)
-	haveUpdatedAtCol := false
-	for i := 0; i < colLength; i++ {
-		wg.Add(1)
-		go func(index int, col *string, vals interface{}, wg *sync.WaitGroup, mtx *sync.Mutex) {
-			mtx.Lock()
-			if *col == "updated_at" {
-				haveUpdatedAtCol = true
-			}
-
-			_, valid := vals.(null.String)
-			if vals == nil || valid {
-				*col = *col + "=null"
-				values = Remove(values, index)
-			} else {
-				*col = *col + "=?"
-			}
-			mtx.Unlock()
-			wg.Done()
-		}(i, &cols[i], values[i], wg, mutex)
+	reflectVal := reflect.ValueOf(structName)
+	if reflectVal.Kind() == reflect.Ptr {
+		reflectVal = reflectVal.Elem()
 	}
 
-	wg.Wait()
-	if !haveUpdatedAtCol {
-		cols = append(cols, "updated_at=?")
-		columns = fmt.Sprintf("%s,updated_at", columns)
-		values = append(values, time.Now().Format("2006-01-02 15:04:05"))
+	// Use cached update template — skips readField + Remove loop entirely.
+	// Template is computed once per struct type and cached in struct_cache.go.
+	tmpl := GetUpdateTemplate(reflectVal.Type())
+	info := ExtractUpdateValues(tmpl, reflectVal, anotherValues...)
+
+	// Build ColsInsert from the actual Cols (which may have =null entries)
+	var colsInsertBuilder strings.Builder
+	for i, col := range info.Cols {
+		if i > 0 {
+			colsInsertBuilder.WriteByte(',')
+		}
+		if idx := strings.Index(col, "="); idx >= 0 {
+			colsInsertBuilder.WriteString(col[:idx])
+		} else {
+			colsInsertBuilder.WriteString(col)
+		}
 	}
 
-	if anotherValues != nil {
-		values = append(values, anotherValues...)
-	}
-
-	return &database.CUDConstructData{
-		Cols:       cols,
-		ColsInsert: columns,
-		Values:     values,
-	}
+	result := database.GetCUDConstructData()
+	result.Cols = info.Cols
+	result.ColsInsert = colsInsertBuilder.String()
+	result.Values = info.Values
+	return result
 }
 
 type GenSelectColsOptions func(*GenSelectColsOptionalParams)
@@ -425,7 +392,6 @@ func GenerateSelectCols(ctx context.Context, source interface{}, opts ...GenSele
 	var elem reflect.Value
 	elem = reflectVal
 	if elem.Kind() == reflect.Slice {
-		// val is the slice
 		typ := reflectVal.Type().Elem()
 		if typ.Kind() == reflect.Ptr {
 			elem = reflect.New(typ.Elem())
@@ -438,8 +404,6 @@ func GenerateSelectCols(ctx context.Context, source interface{}, opts ...GenSele
 	}
 
 	refType := elem.Type()
-	var cols []string
-
 	includedColsNotNull := optionalParams.includedCols != ""
 	excludedColsNotNull := optionalParams.excludedCols != ""
 
@@ -447,47 +411,41 @@ func GenerateSelectCols(ctx context.Context, source interface{}, opts ...GenSele
 		return nil
 	}
 
-	elemNumField := elem.NumField()
-
-	wg := new(sync.WaitGroup)
-	mtx := new(sync.Mutex)
-	for i := 0; i < elemNumField; i++ {
-		wg.Add(1)
-		go func(index int, _ reflect.Value, columns *[]string, wait *sync.WaitGroup, mute *sync.Mutex) {
-			mute.Lock()
-			defer func() {
-				wait.Done()
-				mute.Unlock()
-			}()
-			field := elem.Field(index)
-
-			value := field.Interface()
-			fieldType := refType.Field(index)
-			fieldName := ToSnakeCase(fieldType.Name)
-			val, exist := fieldType.Tag.Lookup("db")
-			if exist {
-				fieldName = val
-			}
-			fieldTypeData := fieldType.Type.String()
-			colTagVal, hasColTag := fieldType.Tag.Lookup("col")
-
-			if strings.Contains(fieldTypeData, "null.") || (hasColTag && colTagVal == colTagJSON) {
-				populateColumns(includedColsNotNull, excludedColsNotNull, columns, fieldName, optionalParams)
-				return
-			}
-			if field.Kind() == reflect.Struct {
-				opts = append(opts, WithIsEmbeddedStruct(true))
-				embeddedCols := GenerateSelectCols(ctx, value, opts...)
-				*columns = append(*columns, embeddedCols...)
-				return
-			}
-
-			populateColumns(includedColsNotNull, excludedColsNotNull, columns, fieldName, optionalParams)
-
-		}(i, elem, &cols, wg, mtx)
+	// B2: Check cache for this type + column filter combination.
+	// Column lists are invariant per struct type, so caching eliminates
+	// repeated reflection + ToSnakeCase calls on every GetList().
+	cacheKey := selectCacheKey{
+		Type:     refType,
+		Excluded: optionalParams.excludedCols,
+		Included: optionalParams.includedCols,
+	}
+	if cached, ok := getSelectColsFromCache(cacheKey); ok {
+		return cached
 	}
 
-	wg.Wait()
+	var cols []string
+	typeInfo := getStructTypeInfo(refType)
+
+	for i := 0; i < typeInfo.NumField; i++ {
+		fi := &typeInfo.Fields[i]
+		field := elem.Field(fi.Index)
+		value := field.Interface()
+
+		if fi.IsNullType {
+			populateColumns(includedColsNotNull, excludedColsNotNull, &cols, fi.ColName, optionalParams)
+			continue
+		}
+		if fi.IsStruct {
+			opts = append(opts, WithIsEmbeddedStruct(true))
+			embeddedCols := GenerateSelectCols(ctx, value, opts...)
+			cols = append(cols, embeddedCols...)
+			continue
+		}
+
+		populateColumns(includedColsNotNull, excludedColsNotNull, &cols, fi.ColName, optionalParams)
+	}
+
+	putSelectColsToCache(cacheKey, cols)
 	return cols
 }
 

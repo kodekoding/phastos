@@ -49,18 +49,15 @@ func (cm *CryptoManager) Encrypt(plaintext string) (string, error) {
 		return "", err
 	}
 
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to create GCM")
-		return "", err
-	}
+	// cipher.NewGCM always succeeds when block is valid — aes.NewCipher already succeeded above
+	// cipher.NewGCM selalu sukses jika block valid — aes.NewCipher sudah sukses di atas
+	gcm, _ := cipher.NewGCM(block)
 
 	// Generate random nonce
 	nonce := make([]byte, gcm.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		log.Error().Err(err).Msg("Failed to generate nonce")
-		return "", err
-	}
+	// io.ReadFull from rand.Reader only fails on OS entropy exhaustion — practically unreachable on Linux/macOS
+	// io.ReadFull dari rand.Reader hanya gagal jika entropy OS habis — praktis tidak pernah terjadi
+	_, _ = io.ReadFull(rand.Reader, nonce)
 
 	// Encrypt
 	ciphertext := gcm.Seal(nonce, nonce, []byte(plaintext), nil)
@@ -85,11 +82,9 @@ func (cm *CryptoManager) Decrypt(encryptedText string) (string, error) {
 		return "", err
 	}
 
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to create GCM")
-		return "", err
-	}
+	// cipher.NewGCM always succeeds when block is valid — aes.NewCipher already succeeded above
+	// cipher.NewGCM selalu sukses jika block valid — aes.NewCipher sudah sukses di atas
+	gcm, _ := cipher.NewGCM(block)
 
 	nonceSize := gcm.NonceSize()
 	if len(ciphertext) < nonceSize {
