@@ -1,12 +1,13 @@
 package binding
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
 	"reflect"
+
+	"github.com/kodekoding/phastos/v2/go/common"
 
 	"github.com/go-playground/validator"
 	"github.com/gorilla/schema"
@@ -74,13 +75,13 @@ func Bind(r *http.Request, val interface{}) error {
 				return err
 			}
 
-			ioReader := ioutil.NopCloser(bytes.NewBuffer(body))
+			ioReader := ioutil.NopCloser(common.GetBuffer(body))
 			err = decodeJSON(json.NewDecoder(ioReader), val)
 			if err != nil {
 				return err
 			}
 
-			r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+			r.Body = ioutil.NopCloser(common.GetBuffer(body))
 		case ContentFormData:
 			err := parseMultiPartFormRequest(r, 32<<20)
 			if err != nil {
