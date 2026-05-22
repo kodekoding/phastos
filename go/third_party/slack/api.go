@@ -62,7 +62,7 @@ func NewSlack(botToken, clientId, clientSecret string) *slack {
 
 func (s *slack) newCURL(ctx context.Context, contentType ...string) *resty.Request {
 	cType := "application/json"
-	if len(contentType) > 1 && contentType != nil {
+	if len(contentType) > 0 {
 		cType = contentType[0]
 	}
 	return s.client.R().
