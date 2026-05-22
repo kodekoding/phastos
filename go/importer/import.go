@@ -443,6 +443,7 @@ func (r *importer) ProcessPivotData() *ImportResult {
 			successList = append(successList, pr.RawData)
 		}
 		totalData++
+		putProcessedResult(pr)
 	}
 
 	if failedList != nil {
@@ -529,6 +530,7 @@ func (r *importer) processData(asyncContext context.Context, nrTrx *newrelic.Tra
 			successList = append(successList, pr.ParsedStruct)
 		}
 		totalData++
+		putProcessedResult(pr)
 	}
 
 	if failedList != nil {
@@ -567,7 +569,8 @@ func (r importer) processEachData(ctx context.Context, data <-chan rowData, nrTx
 					defer workerSegment.End()
 				}
 				for dt := range data {
-					pr := &processedResult{rowData: dt}
+					pr := getProcessedResult()
+					pr.rowData = dt
 					skipProcess := false
 					// only validate struct for regular import (not pivot)
 					if r.structDestination != nil {

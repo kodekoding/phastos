@@ -266,8 +266,8 @@ func readPivotFromXls(config pivotReadConfig) (*PivotReadResult, error) {
 // Value: the cell content at that column.
 // When config.OnEntry is set, entries are passed to the callback instead of stored in the map.
 func buildPivotEntries(data map[string]string, headers []string, row []string, config pivotReadConfig) {
-	// build the key prefix from key columns using strings.Builder (avoids []string alloc + Join)
-	var keyPrefix strings.Builder
+	// build the key prefix from key columns using pooled strings.Builder (avoids []string alloc + Join)
+	keyPrefix := getBuilder()
 	for i, colIdx := range config.KeyColumns {
 		if i > 0 {
 			keyPrefix.WriteString(config.KeySeparator)
@@ -277,9 +277,10 @@ func buildPivotEntries(data map[string]string, headers []string, row []string, c
 		}
 	}
 	prefix := keyPrefix.String()
+	putBuilder(keyPrefix)
 
-	// iterate value columns and build entries
-	var compositeKey strings.Builder
+	// iterate value columns and build entries using pooled strings.Builder
+	compositeKey := getBuilder()
 	for colIdx := config.ValueStartCol; colIdx < len(row); colIdx++ {
 		if colIdx >= len(headers) {
 			break
@@ -301,6 +302,7 @@ func buildPivotEntries(data map[string]string, headers []string, row []string, c
 			data[compositeKey.String()] = value
 		}
 	}
+	putBuilder(compositeKey)
 }
 
 // ---------------------------------------------------------------------------
