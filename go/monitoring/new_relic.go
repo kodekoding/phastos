@@ -9,6 +9,9 @@ import (
 	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
+var newNewApplication = newrelic.NewApplication
+var logFatalln = log.Fatalln
+
 type (
 	NewRelicOpts func(relics *newRelic)
 	NewRelics    interface {
@@ -35,7 +38,7 @@ func InitNewRelic(opts ...NewRelicOpts) *newRelic {
 		opt(&newRelicPlatform)
 	}
 
-	app, err := newrelic.NewApplication(
+	app, err := newNewApplication(
 		newrelic.ConfigAppName(newRelicPlatform.appName),
 		newrelic.ConfigLicense(newRelicPlatform.licenseKey),
 		newrelic.ConfigAppLogDecoratingEnabled(true),
@@ -56,7 +59,7 @@ func InitNewRelic(opts ...NewRelicOpts) *newRelic {
 	newRelicPlatform.app = app
 	if err != nil {
 		//nolint:gosec // G706: operational fatal log includes controlled error output for startup diagnostics
-		log.Fatalln("Failed to connect new relic: ", err.Error())
+		logFatalln("Failed to connect new relic: ", err.Error())
 		return nil
 	}
 
