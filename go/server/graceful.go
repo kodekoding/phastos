@@ -116,7 +116,10 @@ func WaitTermSig(ctx context.Context, handler func(context.Context) error) <-cha
 
 		// wait for the sigterm
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-		<-c
+		select {
+		case <-c:
+		case <-ctx.Done():
+		}
 
 		cancel()
 		// We received an os signal, shut down.
