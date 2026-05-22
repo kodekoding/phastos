@@ -13,5 +13,12 @@ bin/
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
+# CPU/memory profile files from benchmarks
+*.prof
+
+# Archive/build artifacts
+*.zip
+
 # Dependency directories (remove the comment below to include it)
 # vendor/
+.aider*
