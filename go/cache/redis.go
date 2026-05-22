@@ -70,6 +70,17 @@ func New(options ...Options) *Store {
 
 	log := plog.Get()
 
+	// Apply default pool settings if not provided
+	if cfg.MaxIdle == 0 {
+		cfg.MaxIdle = 10 // sensible default
+	}
+	if cfg.MaxActive == 0 {
+		cfg.MaxActive = cfg.MaxIdle * 5 // default active connections
+	}
+	if cfg.MaxRetry == 0 {
+		cfg.MaxRetry = 10
+	}
+
 	store := &Store{
 		Pool: &redigo.Pool{
 			MaxIdle:     cfg.MaxIdle,
@@ -114,11 +125,7 @@ func New(options ...Options) *Store {
 		prefixKey = defaultPrefixKey
 	}
 	store.prefixKey = prefixKey
-	maxRetry := cfg.MaxRetry
-	if maxRetry == 0 {
-		maxRetry = 10
-	}
-	store.maxRetry = maxRetry
+	store.maxRetry = cfg.MaxRetry
 	log.Info().Int("db", cfg.dbNo).Msg("Successful connect to redis")
 
 	return store
