@@ -23,6 +23,10 @@ const (
 var (
 	Name      = "APPS_ENV"
 	goVersion string
+
+	// osOpenFile is injectable for testing os.Open error paths.
+	// osOpenFile dapat diganti di test untuk simulasi error os.Open.
+	osOpenFile = os.Open
 )
 
 func init() {
@@ -40,14 +44,11 @@ func SetFromEnvFile(filepath string) error {
 		return err
 	}
 
-	f, err := os.Open(filepath)
+	f, err := osOpenFile(filepath)
 	if err != nil {
 		return err
 	}
 	scanner := bufio.NewScanner(f)
-	if err := scanner.Err(); err != nil { //nolint:govet // shadow
-		return err
-	}
 	for scanner.Scan() {
 		text := scanner.Text()
 		text = strings.TrimSpace(text)

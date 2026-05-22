@@ -28,6 +28,20 @@ func TestSetFromEnvFile(t *testing.T) {
 	}
 }
 
+func TestSetFromEnvFile_InvalidLine(t *testing.T) {
+	err := env.SetFromEnvFile("testfile/env_invalid.txt")
+	if err != nil {
+		t.Error(err)
+	}
+	// Line "NOEQUALS" triggers the len(vars) < 2 branch (returns nil)
+}
+
+func TestSetFromEnvFile_InvalidEnvVar(t *testing.T) {
+	err := env.SetFromEnvFile("testfile/env_empty_key.txt")
+	// os.Setenv("", "value") fails with syscall.EINVAL on Unix
+	require.Error(t, err)
+}
+
 func TestGetSet(t *testing.T) {
 	cases := []struct {
 		key   string
