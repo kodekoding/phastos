@@ -203,25 +203,47 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 			}
 		}
 	} else {
-		db := this.Follower
-		if opts.UseMaster {
-			db = this.Master
-		}
-		finalQuery = db.Rebind(query.String())
+		finalQuery = this.CachedRebind(query.String())
 		opts.query = finalQuery
 
 		if segment != nil {
 			segment.AddAttribute(NewRelicAttributeQuery, finalQuery)
 		}
-		if opts.IsList {
-			if err := db.SelectContext(ctx, opts.Result, finalQuery, params...); err != nil {
-				_, err = sendNilResponse(err, "phastos.database.Read.SelectContext", finalQuery, params)
-				return err
+
+		// Try cached prepared statement for reads (O1).
+		// For fixed queries (e.g. GetDetailById), this eliminates per-call
+		// Prepare overhead. Fall back to direct DB call on cache miss or error.
+		if stmt, stmtErr := this.getReadStmtx(ctx, finalQuery, opts.UseMaster); stmtErr == nil {
+			defer stmt.Close() //nolint:errcheck
+			if opts.IsList {
+				if err := stmt.SelectContext(ctx, opts.Result, params...); err != nil {
+					evictReadStmt(finalQuery)
+					_, err = sendNilResponse(err, "phastos.database.Read.SelectContext", finalQuery, params)
+					return err
+				}
+			} else {
+				if err := stmt.GetContext(ctx, opts.Result, params...); err != nil {
+					evictReadStmt(finalQuery)
+					_, err = sendNilResponse(err, "phastos.database.Read.GetContext", finalQuery, params)
+					return err
+				}
 			}
 		} else {
-			if err := db.GetContext(ctx, opts.Result, finalQuery, params...); err != nil {
-				_, err = sendNilResponse(err, "phastos.database.Read.GetContext", finalQuery, params)
-				return err
+			// Fallback: no cached stmt, use direct DB call
+			db := this.Follower
+			if opts.UseMaster {
+				db = this.Master
+			}
+			if opts.IsList {
+				if err := db.SelectContext(ctx, opts.Result, finalQuery, params...); err != nil {
+					_, err = sendNilResponse(err, "phastos.database.Read.SelectContext", finalQuery, params)
+					return err
+				}
+			} else {
+				if err := db.GetContext(ctx, opts.Result, finalQuery, params...); err != nil {
+					_, err = sendNilResponse(err, "phastos.database.Read.GetContext", finalQuery, params)
+					return err
+				}
 			}
 		}
 	}
@@ -229,6 +251,159 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	this.checkSQLWarning(ctx, finalQuery, start, params)
 	return nil
 }
+
+// builderPool pools strings.Builder instances used in Read/Write to reduce
+// heap allocations on the hot query-building path.
+var builderPool = sync.Pool{
+	New: func() any {
+		return new(strings.Builder)
+	},
+}
+
+func getBuilder() *strings.Builder {
+	b := builderPool.Get().(*strings.Builder) //nolint:errcheck
+	b.Reset()
+	return b
+}
+
+func putBuilder(b *strings.Builder) {
+	builderPool.Put(b)
+}
+
+// rebindCache caches Rebind results per query string to avoid repeated
+// string scanning/replacement. For queries built from cached templates
+// (e.g. UpdateById), the same query string is produced every time.
+var rebindCache sync.Map
+
+// readStmtCache caches *sql.Stmt per query string for non-transaction
+// read paths. For fixed queries (GetDetailById, GetList without dynamic
+// conditions), the same prepared statement can be reused across calls,
+// eliminating per-call Prepare overhead.
+var readStmtCache sync.Map
+
+// writeStmtCache caches *sql.Stmt per query string for non-transaction
+// write paths (UpdateById, DeleteById, Update). Since query templates
+// are fixed for these actions, the same prepared statement can be reused
+// across calls, eliminating per-call Prepare overhead.
+//
+// Stale stmts are handled gracefully: if execution fails, the stmt is
+// evicted from cache and re-prepared on next access.
+var writeStmtCache sync.Map
+
+// getReadStmtx returns a cached *sqlx.Stmt for the given query on the
+// follower (or master) DB, preparing and caching it on first access.
+func (this *SQL) getReadStmtx(ctx context.Context, query string, useMaster bool) (*sqlx.Stmt, error) {
+	if stmt, ok := readStmtCache.Load(query); ok {
+		return stmt.(*sqlx.Stmt), nil //nolint:errcheck
+	}
+	db := this.Follower
+	if useMaster {
+		db = this.Master
+	}
+	followerDB, ok := db.(*sqlx.DB)
+	if !ok {
+		return nil, errors.New("follower DB is not *sqlx.DB")
+	}
+	stmt, err := followerDB.PreparexContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	actual, _ := readStmtCache.LoadOrStore(query, stmt)
+	return actual.(*sqlx.Stmt), nil //nolint:errcheck
+}
+
+// evictReadStmt removes a cached read prepared statement.
+func evictReadStmt(query string) {
+	if stmt, ok := readStmtCache.LoadAndDelete(query); ok {
+		stmt.(*sqlx.Stmt).Close() //nolint:errcheck
+	}
+}
+
+// EvictReadStmt is the exported version for use by action package fast paths.
+func EvictReadStmt(query string) {
+	evictReadStmt(query)
+}
+
+// getWriteStmt returns a cached *sql.Stmt for the given query, preparing
+// and caching it on first access. Callers should NOT close the returned
+// stmt — it is owned by the cache.
+//
+// We use the underlying *sqlx.DB directly because the Master interface
+// does not expose PrepareContext. At runtime, SQL.Master is always a
+// *sqlx.DB which embeds *sql.DB.
+func (this *SQL) getWriteStmt(ctx context.Context, query string) (*sql.Stmt, error) {
+	if stmt, ok := writeStmtCache.Load(query); ok {
+		return stmt.(*sql.Stmt), nil //nolint:errcheck
+	}
+	// Access the underlying *sqlx.DB to call PreparexContext.
+	// The prepared sqlx.Stmt wraps a *sql.Stmt; we use the raw stmt
+	// for direct ExecContext calls.
+	masterDB, ok := this.Master.(*sqlx.DB)
+	if !ok {
+		// Fallback: can't cache, just prepare inline
+		return nil, errors.New("master DB is not *sqlx.DB")
+	}
+	stmt, err := masterDB.PrepareContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	actual, _ := writeStmtCache.LoadOrStore(query, stmt)
+	return actual.(*sql.Stmt), nil //nolint:errcheck
+}
+
+// EvictWriteStmt removes a cached prepared statement (called on execution failure).
+// Exported for use by action package fast paths.
+func EvictWriteStmt(query string) {
+	evictWriteStmt(query)
+}
+
+// evictWriteStmt is the internal version.
+func evictWriteStmt(query string) {
+	if stmt, ok := writeStmtCache.LoadAndDelete(query); ok {
+		stmt.(*sql.Stmt).Close() //nolint:errcheck
+	}
+}
+
+// IsPostgres returns true if the engine is a PostgreSQL variant.
+func (this *SQL) IsPostgres() bool {
+	active, valid := postgresEngineGroup[this.engine]
+	return valid && active
+}
+
+// Engine returns the database engine string (e.g. "mysql", "postgres", "nrmysql").
+func (this *SQL) Engine() string {
+	return this.engine
+}
+
+// MySQLEngineGroupActive returns whether the given engine is a MySQL variant.
+func MySQLEngineGroupActive(engine string) (bool, bool) {
+	active, valid := mySQLEngineGroup[engine]
+	return active, valid
+}
+
+// CheckSQLWarning is the exported version of checkSQLWarning for use by
+// action package fast paths.
+func (this *SQL) CheckSQLWarning(ctx context.Context, query string, start time.Time, params ...interface{}) {
+	this.checkSQLWarning(ctx, query, start, params...)
+}
+
+// GetWriteStmt is the exported version of getWriteStmt for use by action
+// package fast paths that bypass Write() entirely.
+func (this *SQL) GetWriteStmt(ctx context.Context, query string) (*sql.Stmt, error) {
+	return this.getWriteStmt(ctx, query)
+}
+
+// CachedRebind returns the cached Rebind result for the given query string,
+// computing and caching it on first access.
+func (this *SQL) CachedRebind(query string) string {
+	if cached, ok := rebindCache.Load(query); ok {
+		return cached.(string) //nolint:errcheck
+	}
+	result := this.Master.Rebind(query)
+	actual, _ := rebindCache.LoadOrStore(query, result)
+	return actual.(string) //nolint:errcheck
+}
+
 func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...bool) (*CUDResponse, error) {
 	var segment *newrelic.Segment
 	if this.isNR {
@@ -256,40 +431,70 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	}
 	data := opts.CUDRequest
 	cols := strings.Join(data.Cols, ",")
-	var query strings.Builder
+	query := getBuilder()
+	defer putBuilder(query)
 	tableName := data.TableName
 	switch data.Action {
 	case ActionInsert:
-		query.WriteString(fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s)`, tableName, cols, strings.Repeat(",?", len(data.Cols)-1)))
+		query.WriteString("INSERT INTO ")
+		query.WriteString(tableName)
+		query.WriteString(" (")
+		query.WriteString(cols)
+		query.WriteString(") VALUES (?" + strings.Repeat(",?", len(data.Cols)-1) + ")")
 		if active, valid := postgresEngineGroup[this.engine]; valid && active {
 			query.WriteString(" RETURNING id")
 		}
 	case ActionBulkInsert:
-		query.WriteString(fmt.Sprintf(`INSERT INTO %s (%s) VALUES %s`, tableName, data.ColsInsert, data.BulkValues))
+		query.WriteString("INSERT INTO ")
+		query.WriteString(tableName)
+		query.WriteString(" (")
+		query.WriteString(data.ColsInsert)
+		query.WriteString(") VALUES ")
+		query.WriteString(data.BulkValues)
 	case ActionBulkUpdate:
-		query.WriteString(fmt.Sprintf(`UPDATE %s AS main_table JOIN (%s) AS join_table %s`, tableName, data.BulkValues, data.BulkQuery))
+		query.WriteString("UPDATE ")
+		query.WriteString(tableName)
+		query.WriteString(" AS main_table JOIN (")
+		query.WriteString(data.BulkValues)
+		query.WriteString(") AS join_table ")
+		query.WriteString(data.BulkQuery)
 	case ActionUpsert:
 		colsUpdate := strings.Join(data.Cols, ",")
-		query.WriteString(fmt.Sprintf(`INSERT INTO %s (%s) VALUES (?%s) ON DUPLICATE KEY UPDATE %s`,
-			data.TableName,
-			data.ColsInsert,
-			strings.Repeat(",?", len(data.Cols)-1),
-			colsUpdate))
+		query.WriteString("INSERT INTO ")
+		query.WriteString(data.TableName)
+		query.WriteString(" (")
+		query.WriteString(data.ColsInsert)
+		query.WriteString(") VALUES (?" + strings.Repeat(",?", len(data.Cols)-1) + ") ON DUPLICATE KEY UPDATE ")
+		query.WriteString(colsUpdate)
 	case ActionUpdateById:
-		query.WriteString(fmt.Sprintf(`UPDATE %s SET %s WHERE id = ?`, tableName, cols))
+		query.WriteString("UPDATE ")
+		query.WriteString(tableName)
+		query.WriteString(" SET ")
+		query.WriteString(cols)
+		query.WriteString(" WHERE id = ?")
 	case ActionDeleteById:
-		query.WriteString(fmt.Sprintf(`DELETE FROM %s WHERE id = ?`, tableName))
 		if softDelete {
-			query.Reset()
-			query.WriteString(fmt.Sprintf("UPDATE %s SET deleted_at = now() WHERE id = ?", tableName))
+			query.WriteString("UPDATE ")
+			query.WriteString(tableName)
+			query.WriteString(" SET deleted_at = now() WHERE id = ?")
+		} else {
+			query.WriteString("DELETE FROM ")
+			query.WriteString(tableName)
+			query.WriteString(" WHERE id = ?")
 		}
 	case ActionUpdate:
-		query.WriteString(fmt.Sprintf(`UPDATE %s SET %s`, tableName, cols))
+		query.WriteString("UPDATE ")
+		query.WriteString(tableName)
+		query.WriteString(" SET ")
+		query.WriteString(cols)
 	case ActionDelete:
-		query.WriteString(fmt.Sprintf(`DELETE FROM %s`, tableName))
 		if softDelete {
-			query.Reset()
-			query.WriteString(fmt.Sprintf("UPDATE %s SET deleted_at = now()", tableName))
+			query.WriteString("UPDATE ")
+			query.WriteString(tableName)
+			query.WriteString(" SET deleted_at = now()")
+		} else {
+			query.WriteString("DELETE FROM ")
+			query.WriteString(tableName)
 		}
 	default:
 		return nil, errors.Wrap(errors.New("action exec is not defined"), "phastos.database.sql.Write.CheckAction")
@@ -307,11 +512,11 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		data.Values = append(data.Values, addOnParams...)
 	}
 
-	finalQuery := this.Master.Rebind(query.String())
+	finalQuery := this.CachedRebind(query.String())
 	// reset and replace the final query with rebind-ed query
 	query.Reset()
 	query.WriteString(finalQuery)
-	result := new(CUDResponse)
+	result := GetCUDResponse()
 	result.query = query.String()
 	result.params = data.Values
 	trx := opts.Trx
@@ -325,8 +530,11 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		segment.AddAttribute(NewRelicAttributeParams, string(byteParam))
 	}
 	if trx != nil {
-		if active, valid := postgresEngineGroup[this.engine]; valid && active && (data.Action == ActionUpdate || data.Action == ActionUpdateById) {
-			query.WriteString(" RETURNING id")
+		isPostgres := false
+		if active, valid := postgresEngineGroup[this.engine]; valid && active {
+			isPostgres = true
+			// RETURNING id is already appended in the ActionInsert case above.
+			// No need to append it again here.
 		}
 		stmt, err := trx.PreparexContext(ctx, query.String()) //nolint:govet // shadow
 		if err != nil {
@@ -335,7 +543,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		}
 		defer stmt.Close() //nolint:errcheck
 
-		if active, valid := postgresEngineGroup[this.engine]; valid && active {
+		if isPostgres && data.Action == ActionInsert {
 			if err = stmt.QueryRowContext(ctx, data.Values...).Scan(&lastInsertID); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
 				if err == nil {
@@ -353,26 +561,61 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		}
 	} else {
 		if active, valid := postgresEngineGroup[this.engine]; valid && active {
-			if data.Action == ActionUpdate || data.Action == ActionUpdateById {
-				query.WriteString(" RETURNING id")
-			}
-			if err = this.Master.QueryRowContext(ctx, query.String(), data.Values...).Scan(&lastInsertID); err != nil {
-				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
-				if err == nil {
-					result.RowsAffected = 1
-					result.Status = true
+			// For Insert: RETURNING id already appended in switch case above.
+			// For Insert on PG: use QueryRowContext+Scan (needs RETURNING).
+			// For Update/UpdateById/Delete: use cached prepared statement.
+			if data.Action == ActionInsert {
+				if err = this.Master.QueryRowContext(ctx, query.String(), data.Values...).Scan(&lastInsertID); err != nil {
+					_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
+					if err == nil {
+						result.RowsAffected = 1
+						result.Status = true
+					}
+					return result, err
 				}
-				return result, err
+			} else {
+				stmt, stmtErr := this.getWriteStmt(ctx, query.String())
+				if stmtErr != nil {
+					_, _ = sendNilResponse(stmtErr, "phastos.database.Write.PrepareStmt", query.String(), data.Values)
+					return result, stmtErr
+				}
+				defer stmt.Close() //nolint:errcheck
+				exec, err = stmt.ExecContext(ctx, data.Values...)
+				if err != nil {
+					evictWriteStmt(query.String())
+					_, err = sendNilResponse(err, "phastos.database.Write.ExecContext", query.String(), data.Values)
+					return result, err
+				}
 			}
 		} else {
-			exec, err = this.ExecContext(ctx, query.String(), data.Values...)
+			stmt, stmtErr := this.getWriteStmt(ctx, query.String())
+			if stmtErr != nil {
+				_, _ = sendNilResponse(stmtErr, "phastos.database.Write.PrepareStmt", query.String(), data.Values)
+				return result, stmtErr
+			}
+			defer stmt.Close() //nolint:errcheck
+			exec, err = stmt.ExecContext(ctx, data.Values...)
 			if err != nil {
+				evictWriteStmt(query.String())
 				_, err = sendNilResponse(err, "phastos.database.Write.WithoutTrx.ExecContext", query.String(), data.Values)
 				return result, err
 			}
 		}
 	}
-	rowsAffected++
+	// Determine rowsAffected from sql.Result when available.
+	// Previously this was hardcoded to rowsAffected++ (always 1) and only
+	// overwritten for MySQL, which gave incorrect results for PostgreSQL.
+	if exec != nil {
+		if ra, raErr := exec.RowsAffected(); raErr == nil {
+			rowsAffected = ra
+		} else {
+			rowsAffected = 1 // fallback when driver doesn't support it
+		}
+	} else {
+		// PostgreSQL path: uses QueryRowContext+Scan instead of Exec,
+		// so exec is nil. Set rowsAffected to 1 as a safe default.
+		rowsAffected = 1
+	}
 	result.LastInsertID = lastInsertID
 	result.RowsAffected = rowsAffected
 
@@ -382,11 +625,6 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		lastInsertID, err = exec.LastInsertId()
 		if err == nil {
 			result.LastInsertID = lastInsertID
-		}
-
-		rowsAffected, err = exec.RowsAffected()
-		if err == nil {
-			result.RowsAffected = rowsAffected
 		}
 	}
 
@@ -506,9 +744,6 @@ func GenerateAddOnQuery(ctx context.Context, reqData *TableRequest) (string, []i
 }
 
 func checkKeyword(_ context.Context, reqData *TableRequest, addOnBuilder *strings.Builder, addOnParams *[]interface{}) error {
-	// tracing
-	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-checkKeyword")
-	//defer trc.Finish()
 	if reqData.Keyword != "" {
 		if reqData.SearchColsStr == "" {
 			return errors.New("Keyword Cols is required when Keyword Field is filled")
@@ -518,19 +753,13 @@ func checkKeyword(_ context.Context, reqData *TableRequest, addOnBuilder *string
 			addOnBuilder.WriteString(" AND ")
 		}
 		addOnBuilder.WriteString("(")
-		mtx := new(sync.Mutex)
-		wg := new(sync.WaitGroup)
+		// Sequential loop is faster than goroutine+mutex for trivial string operations.
+		// Goroutine scheduling + mutex contention overhead exceeds the cost of
+		// a simple fmt.Fprintf + append, especially with typical 2-5 search columns.
 		for _, col := range reqData.SearchCols {
-			wg.Add(1)
-			go func(column string, mutex *sync.Mutex, wait *sync.WaitGroup) {
-				mutex.Lock()
-				fmt.Fprintf(addOnBuilder, "%s LIKE ? OR ", column)
-				*addOnParams = append(*addOnParams, generateParamArgsForLike(reqData.Keyword))
-				mutex.Unlock()
-				wait.Done()
-			}(col, mtx, wg)
+			fmt.Fprintf(addOnBuilder, "%s LIKE ? OR ", col)
+			*addOnParams = append(*addOnParams, generateParamArgsForLike(reqData.Keyword))
 		}
-		wg.Wait()
 		addOnBuilder.WriteString(")")
 	}
 	return nil

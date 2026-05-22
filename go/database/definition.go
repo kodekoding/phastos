@@ -94,6 +94,7 @@ type (
 		GetTransaction() Transactions
 		Read(ctx context.Context, opts *QueryOpts, additionalParams ...interface{}) error
 		Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...bool) (*CUDResponse, error)
+		CachedRebind(query string) string
 	}
 
 	SQL struct {
@@ -215,6 +216,20 @@ func (this *SQL) GetTransaction() Transactions {
 	return NewTransaction(this.Master)
 }
 
+// SetEngine sets the database engine (e.g. "mysql", "postgres", "nrmysql", "nrpostgres").
+// This is useful for testing and benchmarking where a SQL instance is created
+// programmatically rather than via Connect().
+func (this *SQL) SetEngine(engine string) {
+	this.engine = engine
+}
+
+// SetSlowQueryThreshold sets the threshold in seconds above which queries
+// are logged as slow. Set to a high value to effectively disable slow query
+// logging during benchmarks.
+func (this *SQL) SetSlowQueryThreshold(threshold float64) {
+	this.slowQueryThreshold = threshold
+}
+
 func (this *SQL) Get(dest interface{}, query string, args ...interface{}) error {
 	return this.Master.Get(dest, query, args...)
 }
@@ -284,8 +299,8 @@ func (req *TableRequest) SetWhereCondition(condition string, value ...interface{
 	}
 }
 
-func (req *CUDConstructData) SetValues(value interface{}) {
-	req.Values = append(req.Values, value)
+func (d *CUDConstructData) SetValues(value interface{}) {
+	d.Values = append(d.Values, value)
 }
 
 // GetGeneratedQuery - return query + params with format map[<query>]<params>
