@@ -59,8 +59,9 @@ func New(configOptions ...Options) *Engine {
 	}
 	scheduler := cron.New(cronOpts)
 	return &Engine{
-		engine: scheduler,
-		ctx:    context.Background(),
+		engine:      scheduler,
+		ctx:         context.Background(),
+		handlerList: make(map[string]cron.EntryID),
 	}
 }
 
