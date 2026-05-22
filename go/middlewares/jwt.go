@@ -27,20 +27,23 @@ func JWTAuth(next http.Handler) http.Handler {
 		if txn != nil {
 			defer txn.StartSegment("Middleware-JWTAuth").End()
 		}
-		traceIdCtx, _ := r.Context().Value(common.RequestIdContextKey).(string)
+		traceId := r.Header.Get(common.RequestIDHeader)
+		if traceId == "" {
+			traceId = r.Header.Get("X-Request-ID")
+		}
 
 		var token string
 		if authHeader := r.Header.Get("Authorization"); authHeader != "" {
 			token = strings.Replace(authHeader, "Bearer ", "", 1)
 		} else {
-			unauthorizedInvalidToken(w, traceIdCtx)
+			unauthorizedInvalidToken(w, traceId)
 			return
 		}
 
 		if os.Getenv(common.EnvJWTSigningKey) == "" {
 			err := errors.New("JWT Signing Key is nil")
 			newError := api.Unauthorized(err.Error(), "INVALID_KEY")
-			newError.TraceId = traceIdCtx
+			newError.TraceId = traceId
 			api.NewResponse().SetError(newError).Send(w)
 
 			return
@@ -60,14 +63,14 @@ func JWTAuth(next http.Handler) http.Handler {
 		tokenData, errToken := jwt.ParseWithClaims(tokenClient, data, keyFunc)
 		if errToken != nil {
 			invalidClaim := api.Unauthorized(errToken.Error(), "INVALID_CLAIMS")
-			invalidClaim.TraceId = traceIdCtx
+			invalidClaim.TraceId = traceId
 			api.NewResponse().SetError(invalidClaim).Send(w)
 
 			return
 		}
 		if !tokenData.Valid {
 			invalidTokenError := api.Unauthorized("Token is not valid", "TOKEN_NOT_VALID")
-			invalidTokenError.TraceId = traceIdCtx
+			invalidTokenError.TraceId = traceId
 			api.NewResponse().SetError(invalidTokenError).Send(w)
 
 			return
@@ -77,7 +80,7 @@ func JWTAuth(next http.Handler) http.Handler {
 		var result entity.JWTClaimData
 		if err := json.Unmarshal(claimByte, &result); err != nil {
 			invalidClaim := api.Unauthorized("invalid struct claim", "INVALID_STRUCT_CLAIM")
-			invalidClaim.TraceId = traceIdCtx
+			invalidClaim.TraceId = traceId
 			api.NewResponse().SetError(invalidClaim).Send(w)
 
 			return

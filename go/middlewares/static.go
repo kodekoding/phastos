@@ -10,19 +10,22 @@ import (
 
 func StaticAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		traceIdCtx, _ := r.Context().Value(common.RequestIdContextKey).(string)
+		traceId := r.Header.Get(common.RequestIDHeader)
+		if traceId == "" {
+			traceId = r.Header.Get("X-Request-ID")
+		}
 
 		expectedToken := os.Getenv(common.EnvServiceSecret)
 		var token string
 		if authHeader := r.Header.Get(common.HeaderSecret); authHeader != "" {
 			token = authHeader
 		} else {
-			unauthorizedInvalidToken(w, traceIdCtx)
+			unauthorizedInvalidToken(w, traceId)
 			return
 		}
 
 		if expectedToken != token {
-			unauthorizedInvalidToken(w, traceIdCtx)
+			unauthorizedInvalidToken(w, traceId)
 			return
 		}
 
