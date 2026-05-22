@@ -38,4 +38,37 @@ func TestSetAndGetJWT(t *testing.T) {
 		result := GetJWT(ctx)
 		assert.Nil(t, result)
 	})
+
+	t.Run("should overwrite JWT data", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		first := &entity.JWTClaimData{Data: "first", Token: "token1"}
+		second := &entity.JWTClaimData{Data: "second", Token: "token2"}
+
+		SetJWT(req, first)
+		SetJWT(req, second)
+
+		result := GetJWT(req.Context())
+		assert.NotNil(t, result)
+		assert.Equal(t, "token2", result.Token)
+		assert.Equal(t, "second", result.Data)
+	})
+
+	t.Run("should set nil JWT and get nil back", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		SetJWT(req, nil)
+		result := GetJWT(req.Context())
+		assert.Nil(t, result)
+	})
+
+	t.Run("should preserve JWT through context propagation", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		jwtData := &entity.JWTClaimData{Data: "propagated", Token: "token-prop"}
+		SetJWT(req, jwtData)
+
+		// Simulate propagating values to a derived context
+		derivedCtx := context.WithValue(req.Context(), "someKey", "someValue")
+		result := GetJWT(derivedCtx)
+		assert.NotNil(t, result)
+		assert.Equal(t, "token-prop", result.Token)
+	})
 }
