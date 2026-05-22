@@ -5,6 +5,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+var messagesSendFunc = func(c *mandrill.Client, msg *mandrill.Message) ([]*mandrill.Response, error) {
+	return c.MessagesSend(msg)
+}
+
+var messagesSendTemplateFunc = func(c *mandrill.Client, msg *mandrill.Message, templateName string, templateContent map[string]string) ([]*mandrill.Response, error) {
+	return c.MessagesSendTemplate(msg, templateName, templateContent)
+}
+
 type (
 	Mandrills interface {
 		AddRecipient(recipientEmail, recipientName string) Mandrills
@@ -96,9 +104,9 @@ func (m *Mandrill) SetTextContent(subject, textContent string) Mandrills {
 func (m *Mandrill) Send() error {
 	var err error
 	if m.templateName == "" {
-		_, err = m.client.MessagesSend(m.message)
+		_, err = messagesSendFunc(m.client, m.message)
 	} else {
-		_, err = m.client.MessagesSendTemplate(m.message, m.templateName, m.templateContent)
+		_, err = messagesSendTemplateFunc(m.client, m.message, m.templateName, m.templateContent)
 	}
 
 	if err != nil {

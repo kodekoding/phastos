@@ -6,10 +6,11 @@ import (
 	"net/smtp"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/kodekoding/phastos/v2/go/helper"
+	"github.com/pkg/errors"
 )
+
+var sendMailFunc = smtp.SendMail
 
 type (
 	SMTPOptions func(*SMTPConfig)
@@ -166,7 +167,7 @@ func (s *SMTP) Send() error {
 		return s.err
 	}
 
-	if err := smtp.SendMail(s.address, s.auth, s.EmailFrom, s.recipient, []byte(s.body.String())); err != nil {
+	if err := sendMailFunc(s.address, s.auth, s.EmailFrom, s.recipient, []byte(s.body.String())); err != nil {
 		return err
 	}
 
