@@ -6,7 +6,7 @@ import (
 
 	"github.com/kodekoding/phastos/v2/go/entity"
 	plog "github.com/kodekoding/phastos/v2/go/log"
-	"github.com/kodekoding/phastos/v2/go/notifications/slack"
+	slackpkg "github.com/kodekoding/phastos/v2/go/notifications/slack"
 	"github.com/kodekoding/phastos/v2/go/notifications/telegram"
 )
 
@@ -37,14 +37,14 @@ type (
 
 	Config struct {
 		Telegram *telegram.TelegramConfig `yaml:"telegram"`
-		Slack    *slack.SlackConfig       `yaml:"slack"`
+		Slack    *slackpkg.SlackConfig    `yaml:"slack"`
 	}
 )
 
 func New(opt ...Options) *Platform {
 	var (
 		telegramService = new(telegram.Service)
-		slackService    = new(slack.Service)
+		slackService    = new(slackpkg.Service)
 		listOfPlatform  []Action
 	)
 
@@ -61,11 +61,13 @@ func New(opt ...Options) *Platform {
 	return notifPlatform
 }
 
+var newSlackService = slackpkg.New
+
 func ActivateSlack(webhookURL string) Options {
 	return func(platform *Platform) {
 		log := plog.Get()
 		var err error
-		platform.slack, err = slack.New(&slack.SlackConfig{URL: webhookURL, IsActive: true})
+		platform.slack, err = newSlackService(&slackpkg.SlackConfig{URL: webhookURL, IsActive: true})
 		if err != nil {
 			log.Error().Msgf("slack cannot initialized: %s", err)
 			return

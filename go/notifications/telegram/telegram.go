@@ -9,6 +9,8 @@ import (
 	"github.com/kodekoding/phastos/v2/go/monitoring"
 )
 
+var NewBotAPIFunc = tbot.NewBotAPI
+
 type (
 	Service struct {
 		chatId        int64
@@ -42,7 +44,7 @@ func (s *Service) SetTraceId(traceId string) {
 }
 
 func New(cfg *TelegramConfig) (*Service, error) {
-	bot, err := tbot.NewBotAPI(cfg.BotToken)
+	bot, err := NewBotAPIFunc(cfg.BotToken)
 	if err != nil {
 		return nil, errors.Wrap(err, "pkg.notificications.telegram.NewBot")
 	}
