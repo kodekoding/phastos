@@ -1,7 +1,6 @@
 package api
 
 import (
-	"bytes"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -9,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kodekoding/phastos/v2/go/common"
 
 	"github.com/go-playground/validator"
 	"github.com/gorilla/schema"
@@ -150,12 +151,12 @@ func getBodyFromJSON(r *http.Request, dest interface{}) error {
 		return err
 	}
 
-	ioReader := ioutil.NopCloser(bytes.NewBuffer(body))
+	ioReader := ioutil.NopCloser(common.GetBuffer(body))
 
 	if err = decodeJSON(json.NewDecoder(ioReader), dest); err != nil {
 		return BadRequest(err.Error(), ErrParsedBodyCode)
 	}
 
-	r.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+	r.Body = ioutil.NopCloser(common.GetBuffer(body))
 	return nil
 }

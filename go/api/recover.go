@@ -65,6 +65,9 @@ func panicRecover(r *http.Request, traceId string, uniqueKey ...string) {
 		asyncCtx := context2.CreateAsyncContext(r.Context())
 		go func() {
 			notif := context2.GetNotif(asyncCtx)
+			if notif == nil {
+				return
+			}
 			allNotifPlatform := notif.GetAllPlatform()
 			for _, service := range allNotifPlatform {
 				if service.IsActive() {

@@ -18,6 +18,12 @@ import (
 	"github.com/kodekoding/phastos/v2/go/server"
 )
 
+// containerNameEnv is the env var key for container name.
+const containerNameEnv = "CONTAINER_NAME"
+
+// containerNameKey is the JSON key for container name in notifications.
+const containerNameKey = "container_name"
+
 func serveHTTPs(config *server.Config, secure bool) error {
 	log := plog.Get()
 	listenPort := fmt.Sprintf(":%d", config.Port)
@@ -89,7 +95,7 @@ func serveHTTPs(config *server.Config, secure bool) error {
 				helper.NotifTitle(fmt.Sprintf("[%s] %s Service is started", environment, appName)),
 				helper.NotifData(map[string]string{
 					"version":        config.Version,
-					"container_name": os.Getenv("CONTAINER_NAME"),
+					containerNameKey: os.Getenv(containerNameEnv),
 				}),
 			)
 
@@ -112,7 +118,10 @@ func WaitTermSig(ctx context.Context, handler func(context.Context) error) <-cha
 
 		// wait for the sigterm
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-		<-c
+		select {
+		case <-c:
+		case <-ctx.Done():
+		}
 
 		cancel()
 		// We received an os signal, shut down.
@@ -132,7 +141,7 @@ func WaitTermSig(ctx context.Context, handler func(context.Context) error) <-cha
 					helper.NotifTitle(fmt.Sprintf("[%s] %s Service is Stopped", environment, appName)),
 					helper.NotifMsgType(helper.NotifWarnType),
 					helper.NotifData(map[string]string{
-						"container_name": os.Getenv("CONTAINER_NAME"),
+						containerNameKey: os.Getenv(containerNameEnv),
 					}),
 				)
 			}

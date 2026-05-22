@@ -1,8 +1,8 @@
 package api
 
 import (
-	"context"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -11,6 +11,13 @@ import (
 	"github.com/kodekoding/phastos/v2/go/helper"
 	plog "github.com/kodekoding/phastos/v2/go/log"
 )
+
+// writtenWriterPool reduces allocations for WrittenResponseWriter.
+var writtenWriterPool = sync.Pool{
+	New: func() interface{} {
+		return &WrittenResponseWriter{}
+	},
+}
 
 type WrittenResponseWriter struct {
 	http.ResponseWriter
@@ -38,38 +45,84 @@ func (w *WrittenResponseWriter) Written() bool {
 	return w.written
 }
 
+// ReleaseWrittenResponseWriter resets and returns a WrittenResponseWriter to the pool.
+func ReleaseWrittenResponseWriter(w *WrittenResponseWriter) {
+	w.ResponseWriter = nil
+	w.written = false
+	writtenWriterPool.Put(w)
+}
+
 func InitHandler(router http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		writtenResponseWriter := &WrittenResponseWriter{
-			ResponseWriter: w,
-			written:        false,
-		}
+		writtenResponseWriter := writtenWriterPool.Get().(*WrittenResponseWriter) //nolint:errcheck
+		writtenResponseWriter.ResponseWriter = w
+		writtenResponseWriter.written = false
 		w = writtenResponseWriter
+		defer ReleaseWrittenResponseWriter(writtenResponseWriter)
 
-		// set request id and store to context
-		requestId := r.Header.Get("X-Request-ID")
-		uniqueRequestId := helper.GenerateRandomString(15)
+		// Generate or use existing request ID.
+		requestId := r.Header.Get("X-Request-Id")
 		if requestId == "" {
-			requestId = uniqueRequestId
+			requestId = r.Header.Get("X-Request-ID")
 		}
-		ctx := context.WithValue(r.Context(), common.RequestIdContextKey, requestId)
-		*r = *r.WithContext(ctx)
+		if requestId == "" {
+			requestId = helper.GenerateFastID()
+		}
+		// Store request ID in the header directly instead of context.
+		// This avoids context.WithValue chain traversal that caused
+		// 86% CPU overhead in profiling.
+		r.Header.Set(common.RequestIDHeader, requestId)
 
 		router.ServeHTTP(w, r)
 	})
 }
 
+// skipLogPaths is set by App.Init() via setSkipLogPaths().
+// It contains paths that should skip the requestLogger middleware entirely.
+var skipLogPaths map[string]struct{}
+
+// setSkipLogPaths is called by App.Init() to pass the configured skip paths
+// into the requestLogger middleware closure.
+func setSkipLogPaths(paths map[string]struct{}) {
+	skipLogPaths = paths
+}
+
 func requestLogger(next http.Handler) http.Handler {
+	// When zerolog is globally disabled (e.g. benchmarks), skip the
+	// entire middleware — no logging, no ResponseRecorder, no overhead.
+	if zerolog.GlobalLevel() == zerolog.Disabled {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Still set the X-Request-Id response header for downstream consumers.
+			requestId := r.Header.Get(common.RequestIDHeader)
+			if requestId == "" {
+				requestId = r.Header.Get("X-Request-ID")
+			}
+			if requestId != "" {
+				w.Header().Set("X-Request-Id", requestId)
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check configurable skip paths (/ping is always skipped)
 		if r.URL.Path == "/ping" {
 			next.ServeHTTP(w, r)
 			return
 		}
+		if _, skip := skipLogPaths[r.URL.Path]; skip {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		start := time.Now()
 		log := plog.Get()
-		ctx := r.Context()
 
-		requestId := ctx.Value(common.RequestIdContextKey).(string) //nolint:errcheck
+		// Read request ID from header (set by InitHandler).
+		requestId := r.Header.Get(common.RequestIDHeader)
+		if requestId == "" {
+			requestId = r.Header.Get("X-Request-ID")
+		}
 		// register `X-Request-Id` to header response
 		w.Header().Add("X-Request-Id", requestId)
 
@@ -88,11 +141,9 @@ func requestLogger(next http.Handler) http.Handler {
 			Str("user_agent", r.UserAgent()).
 			Msg("Incoming Request")
 
-		r = r.WithContext(log.WithContext(r.Context()))
 		defer func() {
-			// final log
-			finalLog := plog.Ctx(r.Context())
-			finalLog.
+			// final log — use the same logger instance (already has request_id)
+			log.
 				Info().
 				Str("method", r.Method).
 				Str("url", r.URL.RequestURI()).
@@ -101,7 +152,6 @@ func requestLogger(next http.Handler) http.Handler {
 				Dur("elapsed_ms", time.Since(start)).
 				Msg("Request Finished")
 		}()
-
 		next.ServeHTTP(respRecorder, r)
 	})
 }

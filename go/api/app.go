@@ -56,6 +56,10 @@ type (
 		globalMiddlewares  []func(http.Handler) http.Handler
 		pendingMiddlewares bool
 		sseEvent           *sse.Hub
+		useFastHttp        bool                // if true, server runs with fasthttp
+		sfActive           bool                // cached SINGLEFLIGHT_ACTIVE env var
+		syncMode           bool                // true when apiTimeout==0 && !sfActive → sync handler path
+		skipLogPaths       map[string]struct{} // paths that skip requestLogger
 	}
 
 	Options func(api *App)
@@ -168,6 +172,26 @@ func WithSSE() Options {
 	}
 }
 
+func WithFastHttp() Options {
+	return func(app *App) {
+		app.useFastHttp = true
+	}
+}
+
+// WithSkipLogPaths configures paths that skip the requestLogger middleware.
+// The /ping path is always skipped. Add additional paths (e.g. /health, /metrics)
+// to avoid per-request logging overhead for lightweight endpoints.
+func WithSkipLogPaths(paths ...string) Options {
+	return func(app *App) {
+		if app.skipLogPaths == nil {
+			app.skipLogPaths = make(map[string]struct{}, len(paths))
+		}
+		for _, p := range paths {
+			app.skipLogPaths[p] = struct{}{}
+		}
+	}
+}
+
 // WithGlobalMiddleware registers middleware(s) that will be applied to ALL endpoints
 // (both authenticated and unauthenticated). These run after the built-in middlewares
 // (request logger, recoverer, panic handler) but before any route-specific middleware.
@@ -198,6 +222,20 @@ func WithNewRelic() Options {
 
 func (app *App) Init() {
 	app.Http = chi.NewRouter()
+
+	// Cache SINGLEFLIGHT_ACTIVE env var at startup instead of per-request.
+	if val := os.Getenv("SINGLEFLIGHT_ACTIVE"); val != "" {
+		if parsed, err := strconv.ParseBool(val); err == nil {
+			app.sfActive = parsed
+		}
+	}
+
+	// Enable sync handler path when no timeout is needed and singleflight is off.
+	// This avoids goroutine + channel + context.WithTimeout per request.
+	app.syncMode = app.apiTimeout == 0 && !app.sfActive
+
+	// Pass skip paths to requestLogger middleware closure.
+	setSkipLogPaths(app.skipLogPaths)
 
 	app.initPlugins()
 
@@ -320,14 +358,34 @@ func (app *App) requestValidator(i interface{}) error {
 
 func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var response *Response
-		var err error
-
 		request := app.initRequest(r)
 		ctx := r.Context()
+		requestId := r.Header.Get(common.RequestIDHeader)
+		if requestId == "" {
+			requestId = r.Header.Get("X-Request-ID")
+		}
+
+		// --- Sync path: no timeout, no singleflight ---
+		// Executes the handler directly on the current goroutine,
+		// avoiding channel + goroutine + context.WithTimeout overhead.
+		// Panic recovery is still provided via defer panicRecover().
+		if app.syncMode {
+			var uniqueReqKey string
+			defer panicRecover(r, requestId, uniqueReqKey)
+			response := h(*request, ctx)
+			ReleaseRequest(request)
+			response.TraceId = requestId
+			app.handleResponseError(response, r, requestId, ctx)
+			response.Send(w)
+			ReleaseResponse(response)
+			return
+		}
+
+		// --- Async path: timeout + optional singleflight ---
+		var response *Response
+		var err error
 		log := plog.Ctx(ctx)
 
-		requestId := ctx.Value(common.RequestIdContextKey).(string) //nolint:errcheck
 		timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*time.Duration(app.apiTimeout))
 		defer cancel()
 
@@ -335,17 +393,12 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 		go func() {
 			// close the channel after finished the process
 			defer close(respChan)
+			defer ReleaseRequest(request)
 			var uniqueReqKey string
 			defer panicRecover(r, requestId, uniqueReqKey)
 
-			singleFlightEnvValue := os.Getenv("SINGLEFLIGHT_ACTIVE")
-			isSingleFlightActive := false
-			if singleFlightEnvValue != "" {
-				if isSingleFlightActive, err = strconv.ParseBool(singleFlightEnvValue); err != nil {
-					log.Warn().Msg("[REQUEST][WrapperHandler] Failed to parse single flight active flag")
-				}
-			}
-			if !isSingleFlightActive {
+			// Use cached sfActive instead of per-request env var parsing.
+			if !app.sfActive {
 				respChan <- h(*request, ctx)
 				return
 			}
@@ -380,43 +433,61 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 			response.TraceId = requestId
 			log = plog.Ctx(ctx)
 
-			if response.Err != nil {
-				var respErr *HttpError
-				var ok bool
-				if ok = errors.As(errors.Cause(response.Err), &respErr); !ok {
-					respErr = NewErr(WithErrorMessage(response.Err.Error()), WithTraceId(requestId))
-					response.SetHTTPError(respErr)
-				}
-				var asyncTrx *newrelic.Transaction
-				if app.newRelic != nil {
-					asyncTrx = monitoring.BeginTrxFromContext(ctx).NewGoroutine()
-				}
-				go func(asyncTxn *newrelic.Transaction) {
-					asyncCtx := ctx
-					if asyncTxn != nil {
-						asyncCtx = monitoring.NewContext(ctx, asyncTxn)
-						defer asyncTxn.StartSegment("PhastosAPIApp-WrapHandler-AsyncSentNotifAndLogError").End()
-					}
-					// sent error to notification + logs asynchronously
-					response.SentNotif(asyncCtx, response.InternalError, r, requestId)
-					logEvent := log.Err(response.InternalError)
-					if response.InternalError.Status < 500 {
-						// re-assign logEvent from 'error' to 'warn'
-						logEvent = log.Warn()
-					}
-
-					if response.InternalError.Data != nil {
-						logEvent.Any("error_data", response.InternalError.Data)
-					}
-					logEvent.
-						Str("trace_id", requestId).
-						Str("request_path", r.URL.String()).
-						Msg("Failed processing request")
-				}(asyncTrx)
-			}
+			app.handleResponseError(response, r, requestId, ctx)
 			response.Send(w)
+			ReleaseResponse(response)
 		}
 	}
+}
+
+// handleResponseError processes error responses: sets HTTPError, sends notifications,
+// and logs asynchronously. Shared by both sync and async handler paths.
+func (app *App) handleResponseError(response *Response, r *http.Request, requestId string, ctx context.Context) {
+	if response.Err == nil {
+		return
+	}
+	var respErr *HttpError
+	var ok bool
+	if ok = errors.As(errors.Cause(response.Err), &respErr); !ok {
+		respErr = NewErr(WithErrorMessage(response.Err.Error()), WithTraceId(requestId))
+		response.SetHTTPError(respErr)
+	}
+
+	// Snapshot values needed by the async goroutine before launching it.
+	// This prevents a data race: the goroutine would otherwise read
+	// response.InternalError and r.URL while the caller may proceed to
+	// ReleaseResponse (which resets those fields) or the runtime may
+	// recycle the request object.
+	snapshotInternalError := response.InternalError
+	snapshotURL := r.URL.String()
+
+	log := plog.Ctx(ctx)
+	var asyncTrx *newrelic.Transaction
+	if app.newRelic != nil {
+		asyncTrx = monitoring.BeginTrxFromContext(ctx).NewGoroutine()
+	}
+	go func(asyncTxn *newrelic.Transaction) {
+		asyncCtx := ctx
+		if asyncTxn != nil {
+			asyncCtx = monitoring.NewContext(ctx, asyncTxn)
+			defer asyncTxn.StartSegment("PhastosAPIApp-WrapHandler-AsyncSentNotifAndLogError").End()
+		}
+		// sent error to notification + logs asynchronously using snapshots
+		response.SentNotif(asyncCtx, snapshotInternalError, r, requestId)
+		logEvent := log.Err(snapshotInternalError)
+		if snapshotInternalError.Status < 500 {
+			// re-assign logEvent from 'error' to 'warn'
+			logEvent = log.Warn()
+		}
+
+		if snapshotInternalError.Data != nil {
+			logEvent.Any("error_data", snapshotInternalError.Data)
+		}
+		logEvent.
+			Str("trace_id", requestId).
+			Str("request_path", snapshotURL).
+			Msg("Failed processing request")
+	}(asyncTrx)
 }
 
 func generateUniqueRequestKey(req *http.Request) string {
@@ -571,5 +642,9 @@ func (app *App) Start() error {
 		go app.sseEvent.Run()
 	}
 
+	if app.useFastHttp {
+
+		return serveFastHTTPs(app.Config, false)
+	}
 	return serveHTTPs(app.Config, false)
 }

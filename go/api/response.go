@@ -1,15 +1,16 @@
 package api
 
 import (
-	"bytes"
 	contextpkg "context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"sync"
 
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
+	"github.com/kodekoding/phastos/v2/go/common"
 	"github.com/pkg/errors"
 
 	"github.com/kodekoding/phastos/v2/go/context"
@@ -17,6 +18,15 @@ import (
 	"github.com/kodekoding/phastos/v2/go/env"
 	plog "github.com/kodekoding/phastos/v2/go/log"
 )
+
+// responsePool reduces GC pressure by recycling *Response objects.
+var responsePool = sync.Pool{
+	New: func() interface{} {
+		return &Response{
+			statusCode: http.StatusOK,
+		}
+	},
+}
 
 type ResponseRecorder struct {
 	http.ResponseWriter
@@ -48,9 +58,37 @@ type Response struct {
 	customHeader     map[string]string
 }
 
+// NewResponse creates a new Response from the sync.Pool.
+// After calling Response.Send(w), call ReleaseResponse(resp) to return it to the pool.
 func NewResponse() *Response {
-	return &Response{
-		statusCode: http.StatusOK,
+	resp := responsePool.Get().(*Response) //nolint:errcheck
+	return resp
+}
+
+// ReleaseResponse resets the Response and returns it to the sync.Pool.
+// Must be called after Send() to avoid resource leaks.
+func ReleaseResponse(resp *Response) {
+	resp.reset()
+	responsePool.Put(resp)
+}
+
+// reset clears all fields so the Response can be safely reused.
+func (resp *Response) reset() {
+	resp.Message = ""
+	resp.Data = nil
+	resp.Err = nil
+	resp.TraceId = ""
+	resp.isPaginationData = false
+	resp.statusCode = http.StatusOK
+	resp.InternalError = nil
+	resp.MetaData = nil
+	resp.fileData = nil
+	resp.fileContentType = ""
+	resp.fileDownloadName = ""
+	if resp.customHeader != nil {
+		for k := range resp.customHeader {
+			delete(resp.customHeader, k)
+		}
 	}
 }
 
@@ -106,9 +144,12 @@ func (resp *Response) SetData(data any, isPaginate ...bool) *Response {
 	return resp
 }
 
+// cachedContainerName pre-computed at init, avoids os.Getenv per request.
+var cachedContainerName = os.Getenv("CONTAINER_NAME")
+
 func (resp *Response) setCommonHeaders(w http.ResponseWriter) {
-	if containerName := os.Getenv("CONTAINER_NAME"); containerName != "" {
-		w.Header().Set("X-Container-Name", containerName)
+	if cachedContainerName != "" {
+		w.Header().Set("X-Container-Name", cachedContainerName)
 	}
 	if appVersion != "" {
 		w.Header().Set("X-App-Version", appVersion)
@@ -224,7 +265,9 @@ func (resp *Response) SentNotif(ctx contextpkg.Context, err *HttpError, r *http.
 					notif.SetTraceId(traceId)
 					if err.Status == 500 {
 						bodyReq, _ := readAllContent(r.Body)
-						r.Body = io.NopCloser(bytes.NewBuffer(bodyReq))
+						buf := common.GetBuffer(bodyReq)
+						defer common.PutBuffer(buf)
+						r.Body = io.NopCloser(buf)
 						if string(bodyReq) == "" || r.Method == http.MethodGet {
 							bodyReq, _ = json.Marshal(r.URL.Query())
 						}
