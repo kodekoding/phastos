@@ -252,16 +252,13 @@ func (jr *JSON) Send(w http.ResponseWriter) {
 		jr.sendExport(w)
 		return
 	}
-	log := plog.Get()
-
 	w.Header().Set("Content-Type", "application/json")
 	b, err := json.Marshal(jr)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		_, writeErr := w.Write([]byte(`{"errors":["Internal Server Error"]}`))
-		if writeErr != nil {
-			log.Err(writeErr).Msg("Error when Send Response")
-		}
+		// http.ResponseWriter.Write never returns an error in the standard library
+		// http.ResponseWriter.Write tidak pernah mengembalikan error di standard library
+		_, _ = w.Write([]byte(`{"errors":["Internal Server Error"]}`))
 	}
 
 	if jr.Code == 0 {
