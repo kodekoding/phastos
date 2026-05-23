@@ -39,12 +39,12 @@ jobs:
             exit 0
           fi
 
-          COMMITS=$(git log "$PREVIOUS_TAG..HEAD" --format=%B --no-decorate 2>/dev/null || echo "")
+          SUBJECTS=$(git log "$PREVIOUS_TAG..HEAD" --format=%s --no-decorate 2>/dev/null || echo "")
 
           BUMP="patch"
-          if echo "$COMMITS" | grep -qE "BREAKING CHANGE|feat(\(.*\))?!:"; then
+          if echo "$SUBJECTS" | grep -qiE 'BREAKING CHANGE|!:' 2>/dev/null; then
             BUMP="major"
-          elif echo "$COMMITS" | grep -qE "^feat(\(.*\))?:"; then
+          elif echo "$SUBJECTS" | grep -qE '^feat' 2>/dev/null; then
             BUMP="minor"
           fi
 
