@@ -18,6 +18,10 @@ import (
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/pkg/errors"
 	"github.com/unrolled/secure"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/singleflight"
 
 	"github.com/kodekoding/phastos/v2/go/common"
@@ -60,6 +64,8 @@ type (
 		sfActive           bool                // cached SINGLEFLIGHT_ACTIVE env var
 		syncMode           bool                // true when apiTimeout==0 && !sfActive → sync handler path
 		skipLogPaths       map[string]struct{} // paths that skip requestLogger
+		otelTp             *sdktrace.TracerProvider
+		otelSvcName        string
 	}
 
 	Options func(api *App)
@@ -218,6 +224,41 @@ func WithNewRelic() Options {
 		newRelicPlatform := monitoring.InitNewRelic()
 		app.newRelic = newRelicPlatform.GetApp()
 	}
+}
+
+func WithOTel() Options {
+	return func(app *App) {
+		serviceName := os.Getenv("OTEL_SERVICE_NAME")
+		if serviceName == "" {
+			serviceName = os.Getenv("APP_NAME")
+		}
+		cfg := monitoring.OTelConfig{
+			ServiceName:    serviceName,
+			ServiceVersion: os.Getenv("APP_VERSION"),
+			Environment:    os.Getenv("APP_ENV"),
+		}
+		tp, err := monitoring.InitOTelSDK(context.Background(), cfg)
+		if err != nil {
+			log := plog.Get()
+			log.Fatal().Err(err).Msg("Failed to initialize OpenTelemetry SDK")
+			return
+		}
+		app.otelTp = tp
+		app.otelSvcName = serviceName
+		app.WrapToApp(&otelHandlerWrapper{serviceName: serviceName})
+	}
+}
+
+type otelHandlerWrapper struct {
+	serviceName string
+}
+
+func (w *otelHandlerWrapper) WrapToHandler(handler http.Handler) http.Handler {
+	return monitoring.OTelHTTPMiddleware(w.serviceName)(handler)
+}
+
+func (w *otelHandlerWrapper) WrapToContext(ctx context.Context) context.Context {
+	return ctx
 }
 
 func (app *App) Init() {
@@ -466,11 +507,24 @@ func (app *App) handleResponseError(response *Response, r *http.Request, request
 	if app.newRelic != nil {
 		asyncTrx = monitoring.BeginTrxFromContext(ctx).NewGoroutine()
 	}
-	go func(asyncTxn *newrelic.Transaction) {
+	var asyncSpan trace.Span
+	if app.otelTp != nil {
+		_, asyncSpan = otel.Tracer("phastos.api").Start(ctx, "PhastosAPIApp-WrapHandler-AsyncSentNotifAndLogError",
+			trace.WithAttributes(
+				attribute.String("request_id", requestId),
+				attribute.String("request_path", snapshotURL),
+			),
+		)
+	}
+	go func(asyncTxn *newrelic.Transaction, oSpan trace.Span) {
 		asyncCtx := ctx
 		if asyncTxn != nil {
 			asyncCtx = monitoring.NewContext(ctx, asyncTxn)
 			defer asyncTxn.StartSegment("PhastosAPIApp-WrapHandler-AsyncSentNotifAndLogError").End()
+		}
+		if oSpan != nil {
+			defer oSpan.End()
+			asyncCtx = trace.ContextWithSpan(asyncCtx, oSpan)
 		}
 		// sent error to notification + logs asynchronously using snapshots
 		response.SentNotif(asyncCtx, snapshotInternalError, r, requestId)
@@ -487,7 +541,7 @@ func (app *App) handleResponseError(response *Response, r *http.Request, request
 			Str("trace_id", requestId).
 			Str("request_path", snapshotURL).
 			Msg("Failed processing request")
-	}(asyncTrx)
+	}(asyncTrx, asyncSpan)
 }
 
 func generateUniqueRequestKey(req *http.Request) string {
@@ -640,6 +694,14 @@ func (app *App) Start() error {
 	if app.sseEvent != nil {
 		defer app.sseEvent.Stop()
 		go app.sseEvent.Run()
+	}
+
+	if app.otelTp != nil {
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = app.otelTp.Shutdown(shutdownCtx)
+		}()
 	}
 
 	if app.useFastHttp {
