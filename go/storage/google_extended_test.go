@@ -45,14 +45,13 @@ func TestGoogleStorageExtended(t *testing.T) {
 	// Start local mock GCS server
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("MOCK_GCS: %s %s?%s\n", r.Method, r.URL.Path, r.URL.RawQuery)
-		w.Header().Set("Content-Type", "application/json")
 
 		// 1. Resumable upload initialization
 		if r.Method == "POST" && strings.Contains(r.URL.Path, "/upload/storage/v1/b/test-bucket/o") {
 			if r.URL.Query().Get("uploadType") == "resumable" {
+				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("Location", fmt.Sprintf("http://%s/upload-target?upload_id=mock-upload-id", r.Host))
 				w.WriteHeader(http.StatusOK)
-				// For Resty/InitResumableUploads, write back session URI as body/JSON string if expected
 				_, _ = w.Write([]byte(fmt.Sprintf(`"http://%s/upload-target?upload_id=mock-upload-id"`, r.Host)))
 				return
 			}
@@ -60,6 +59,7 @@ func TestGoogleStorageExtended(t *testing.T) {
 
 		// 2. Upload target (PUT to upload-target or directly simple upload)
 		if (r.Method == "PUT" && r.URL.Path == "/upload-target") || (r.Method == "POST" && strings.Contains(r.URL.Path, "/upload/storage/v1/b/test-bucket/o")) {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"name":"test-file", "bucket":"test-bucket"}`))
 			return
@@ -67,28 +67,54 @@ func TestGoogleStorageExtended(t *testing.T) {
 
 		// 3. ACL update (make public)
 		if r.Method == "PUT" && strings.Contains(r.URL.Path, "/acl/allUsers") {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"role":"READER", "entity":"allUsers"}`))
 			return
 		}
 
-		// 4. Read file content
-		if r.Method == "GET" && strings.Contains(r.URL.Path, "/test-bucket/") {
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("mock file content"))
-			return
-		}
-
-		// 5. Copy file
+		// 4. Copy file
 		if r.Method == "POST" && strings.Contains(r.URL.Path, "/rewriteTo/b/") {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"done": true, "resource": {"name":"copied-file", "size":"100"}}`))
 			return
 		}
 
-		// 6. Delete file
+		// 5. Delete file
 		if r.Method == "DELETE" && (strings.Contains(r.URL.Path, "/b/test-bucket/o/") || strings.Contains(r.URL.Path, "/storage/v1/b/test-bucket/o/")) {
 			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		// 6. Object metadata (JSON API GET object) and direct download
+		if r.Method == "GET" && strings.HasPrefix(r.URL.Path, "/b/test-bucket/o/") {
+			if r.URL.Query().Get("alt") == "media" {
+				// Direct download with alt=media: return raw content
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte("mock file content"))
+				return
+			}
+			// JSON object metadata
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"name":"file.txt","bucket":"test-bucket","size":"16","contentType":"text/plain"}`))
+			return
+		}
+
+		// 7. Object listing (JSON API list objects)
+		if r.Method == "GET" && r.URL.Path == "/b/test-bucket/o" && r.URL.Query().Get("alt") == "json" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"kind":"storage#objects","prefixes":null,"items":null}`))
+			return
+		}
+
+		// 8. Direct download via storage.googleapis.com/<bucket>/<object>
+		if r.Method == "GET" && strings.HasPrefix(r.URL.Path, "/test-bucket/") {
+			w.Header().Set("Content-Type", "application/octet-stream")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("mock file content"))
 			return
 		}
 
