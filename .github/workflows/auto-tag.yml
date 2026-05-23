@@ -20,19 +20,58 @@ jobs:
 
       - name: Bump version and create tag
         id: tag
-        uses: anothrNick/github-tag-action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEFAULT_BUMP: patch
-          RELEASE_BRANCHES: master
-          WITH_V: true
-          CONVENTIONAL_COMMITS: true
-          PRERELEASE: false
+        run: |
+          set -euo pipefail
+
+          PREVIOUS_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            PREVIOUS_TAG="v0.0.0"
+          fi
+
+          TAG_COMMIT=$(git rev-list -n 1 "$PREVIOUS_TAG" 2>/dev/null || true)
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+
+          if [ "$TAG_COMMIT" == "$CURRENT_COMMIT" ]; then
+            echo "No new commits since $PREVIOUS_TAG. Skipping..."
+            echo "tag=$PREVIOUS_TAG" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          COMMITS=$(git log "$PREVIOUS_TAG..HEAD" --format=%B --no-decorate 2>/dev/null || echo "")
+
+          BUMP="patch"
+          if echo "$COMMITS" | grep -q -i "BREAKING CHANGE\|^.*\!:"; then
+            BUMP="major"
+          elif echo "$COMMITS" | grep -q -E "^feat"; then
+            BUMP="minor"
+          fi
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "${PREVIOUS_TAG#v}"
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+
+          NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "Bumping $PREVIOUS_TAG → $NEW_TAG ($BUMP)"
+
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git tag -a "$NEW_TAG" -m "$NEW_TAG"
+          git push origin "$NEW_TAG"
+
+          echo "tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+          echo "prev_tag=$PREVIOUS_TAG" >> "$GITHUB_OUTPUT"
+          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
 
       - name: Generate Changelog
         if: steps.tag.outputs.tag
         run: |
-          PREVIOUS_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '2p')
+          PREVIOUS_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '2p')
           CURRENT_TAG="${{ steps.tag.outputs.tag }}"
 
           if [ -z "$PREVIOUS_TAG" ]; then
