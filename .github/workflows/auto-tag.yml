@@ -25,11 +25,53 @@ jobs:
           DEFAULT_BUMP: patch
           RELEASE_BRANCHES: master
           WITH_V: true
+          CONVENTIONAL_COMMITS: true
           PRERELEASE: false
+
+      - name: Generate Changelog
+        if: steps.tag.outputs.tag
+        run: |
+          PREVIOUS_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '2p')
+          CURRENT_TAG="${{ steps.tag.outputs.tag }}"
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "Initial release" > /tmp/changelog.md
+            exit 0
+          fi
+
+          {
+            echo "## What's Changed"
+            echo ""
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREVIOUS_TAG...$CURRENT_TAG"
+            echo ""
+
+            echo "### Features"
+            git log --pretty=format:"- %s" "$PREVIOUS_TAG..$CURRENT_TAG" --no-decorate --grep="^feat" || true
+            echo ""
+
+            echo "### Bug Fixes"
+            git log --pretty=format:"- %s" "$PREVIOUS_TAG..$CURRENT_TAG" --no-decorate --grep="^fix" || true
+            echo ""
+
+            echo "### Documentation"
+            git log --pretty=format:"- %s" "$PREVIOUS_TAG..$CURRENT_TAG" --no-decorate --grep="^docs" || true
+            echo ""
+
+            echo "### Tests"
+            git log --pretty=format:"- %s" "$PREVIOUS_TAG..$CURRENT_TAG" --no-decorate --grep="^test" || true
+            echo ""
+
+            echo "### Maintenance"
+            git log --pretty=format:"- %s" "$PREVIOUS_TAG..$CURRENT_TAG" --no-decorate --grep="^\(chore\|ci\|refactor\|perf\)" || true
+            echo ""
+
+            echo "### Dependencies"
+            git log --pretty=format:"- %s" "$PREVIOUS_TAG..$CURRENT_TAG" --no-decorate --grep="^build" || true
+          } > /tmp/changelog.md
 
       - name: Create GitHub Release
         if: steps.tag.outputs.tag
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          generate_release_notes: true
+          body_path: /tmp/changelog.md
