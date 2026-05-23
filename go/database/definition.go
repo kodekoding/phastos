@@ -104,6 +104,7 @@ type (
 		slowQueryThreshold float64
 		engine             string
 		isNR               bool
+		isOTel             bool
 	}
 
 	SQLs struct {
