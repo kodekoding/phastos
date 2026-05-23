@@ -187,7 +187,7 @@ func (app *App) Start() {
 		if app.socket != nil && app.socketHandler != nil {
 			log.Println("Slack Socket running, serving ", app.totalEvents, " event(s)")
 			if err := app.socketHandler.RunEventLoop(); err != nil {
-				log.Fatalln("cannot run socket socket: ", err.Error())
+				log.Println("cannot run socket socket: ", err.Error())
 			}
 		}
 	}()
