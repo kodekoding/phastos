@@ -8,6 +8,7 @@ import (
 	plog "github.com/kodekoding/phastos/v2/go/log"
 	"github.com/kodekoding/phastos/v2/go/monitoring"
 	"github.com/kodekoding/phastos/v2/go/notifications"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func CreateAsyncContext(ctx context.Context) context.Context {
@@ -36,6 +37,14 @@ func CreateAsyncContext(ctx context.Context) context.Context {
 	newRelicContext := monitoring.BeginTrxFromContext(ctx)
 	if newRelicContext != nil {
 		asyncContext = monitoring.NewContext(asyncContext, newRelicContext.NewGoroutine())
+	}
+
+	// embed otel span context if exists
+	if monitoring.IsOTelActive() {
+		span := trace.SpanFromContext(ctx)
+		if span.IsRecording() {
+			asyncContext = trace.ContextWithSpan(asyncContext, span)
+		}
 	}
 
 	return asyncContext
