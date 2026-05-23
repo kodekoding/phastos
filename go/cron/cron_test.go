@@ -15,7 +15,7 @@ func TestNewEngineDefault(t *testing.T) {
 	assert.NotNil(t, eng)
 	assert.NotNil(t, eng.engine)
 	assert.NotNil(t, eng.ctx)
-	assert.Nil(t, eng.handlerList)
+	assert.NotNil(t, eng.handlerList)
 	assert.Equal(t, 0, eng.handlerTotal)
 }
 
