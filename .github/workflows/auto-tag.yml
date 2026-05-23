@@ -42,7 +42,7 @@ jobs:
           SUBJECTS=$(git log "$PREVIOUS_TAG..HEAD" --format=%s --no-decorate 2>/dev/null || echo "")
 
           BUMP="patch"
-          if echo "$SUBJECTS" | grep -qiE 'BREAKING CHANGE|!:' 2>/dev/null; then
+          if echo "$SUBJECTS" | grep -qiE 'BREAKING[- ]CHANGE:|!:' 2>/dev/null; then
             BUMP="major"
           elif echo "$SUBJECTS" | grep -qE '^feat' 2>/dev/null; then
             BUMP="minor"
