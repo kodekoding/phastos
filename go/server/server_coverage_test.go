@@ -213,7 +213,6 @@ func generateTempCert() (certFile, keyFile string, cleanup func(), err error) {
 
 func TestWaitTermSigHandlerReturnsError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	handlerCalled := make(chan error, 1)
 	handler := func(ctx context.Context) error {
@@ -223,19 +222,22 @@ func TestWaitTermSigHandlerReturnsError(t *testing.T) {
 
 	done := WaitTermSig(ctx, handler)
 
-	// Wait a bit for the goroutine to start
-	time.Sleep(50 * time.Millisecond)
+	// Cancel context to trigger the WaitTermSig handler
+	cancel()
 
-	// Simulate sending signal by directly calling the internal mechanism
-	// Instead, we test the function structure by checking it returns a channel
 	select {
 	case <-done:
 		// Channel was closed, test passes
-	case <-time.After(100 * time.Millisecond):
-		// Timeout - channel should be blocking
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for WaitTermSig to finish")
 	}
 
-	<-handlerCalled // verify handler was called
+	select {
+	case <-handlerCalled:
+		// Handler was called
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for handler to be called")
+	}
 }
 
 func TestWaitTermSigSuccessCase(t *testing.T) {
@@ -248,27 +250,25 @@ func TestWaitTermSigSuccessCase(t *testing.T) {
 		os.Unsetenv("NOTIFY_SERVICE_STATUS")
 	}()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	handlerCalled := false
 	handler := func(ctx context.Context) error {
-		return nil // success case
+		handlerCalled = true
+		return nil
 	}
 
 	done := WaitTermSig(ctx, handler)
 
-	// The function starts a goroutine waiting for signal
-	// We can't easily test the full flow without killing the process
-	// But we can verify it returns immediately with a channel
-	assert.NotNil(t, done)
+	// Cancel context to trigger the handler
+	cancel()
 
-	// Give time for goroutine to start
-	time.Sleep(50 * time.Millisecond)
-
-	// Without signal, the channel should still be open
 	select {
 	case <-done:
-		t.Fatal("channel should not be closed without signal")
-	default:
-		// Good - channel is still open
+		assert.True(t, handlerCalled)
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for WaitTermSig to finish")
 	}
 }
 
@@ -282,20 +282,24 @@ func TestWaitTermSigGracefulShutdownError(t *testing.T) {
 		os.Unsetenv("NOTIFY_SERVICE_STATUS")
 	}()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	handler := func(ctx context.Context) error {
 		return assert.AnError // simulate error during shutdown
 	}
 
 	done := WaitTermSig(ctx, handler)
 
-	// Wait for goroutine to start
-	time.Sleep(50 * time.Millisecond)
+	// Cancel context to trigger the handler
+	cancel()
 
-	// Give time for potential operations
-	time.Sleep(100 * time.Millisecond)
-
-	_ = done // Just verify it doesn't panic
+	select {
+	case <-done:
+		// Channel closed, success
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for WaitTermSig to finish")
+	}
 }
 
 func TestConfigStruct(t *testing.T) {
@@ -334,15 +338,15 @@ func TestServeHTTPsWithDifferentConfigs(t *testing.T) {
 		{
 			name: "minimal config",
 			config: &Config{
-				Port:    0,
-				Handler: http.NewServeMux(),
-				Ctx:     context.Background(),
+				Port:        -1, // invalid port to trigger listen error
+				Handler:     http.NewServeMux(),
+				Ctx:         context.Background(),
 			},
 		},
 		{
 			name: "with timeouts",
 			config: &Config{
-				Port:          0,
+				Port:         -1, // invalid port to trigger listen error
 				ReadTimeout:   60,
 				WriteTimeout:  60,
 				MaxHeaderByte: 1 << 16,
@@ -355,7 +359,7 @@ func TestServeHTTPsWithDifferentConfigs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := serveHTTPs(tt.config, false)
-			assert.Error(t, err) // Port 0 should fail with "address already in use" or similar
+			assert.Error(t, err)
 		})
 	}
 }
@@ -424,20 +428,22 @@ func TestWaitTermSigNotifyServiceStatusEnv(t *testing.T) {
 		os.Unsetenv("NOTIFY_SERVICE_STATUS")
 	}()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	handler := func(ctx context.Context) error {
 		return nil
 	}
 
 	done := WaitTermSig(ctx, handler)
-	time.Sleep(50 * time.Millisecond)
 
-	// Channel should still be open (no signal received)
+	// Cancel context to trigger the handler
+	cancel()
+
 	select {
 	case <-done:
-		t.Fatal("should not close without signal")
-	default:
+		// Channel closed, success
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for WaitTermSig to finish")
 	}
-
-	_ = done
 }
