@@ -317,8 +317,11 @@ func ExtractUpdateValues(tmpl *UpdateTemplateInfo, structVal reflect.Value, anot
 			continue
 		}
 
-		// Handle "null" string literal
+		// Handle "null" string literal — both raw string and null.String types
 		if str, ok := value.(string); ok && str == strNull { //nolint:errcheck
+			value = null.String{} //nolint:errcheck
+		}
+		if ns, ok := value.(null.String); ok && ns.Valid && ns.String == strNull { //nolint:errcheck
 			value = null.String{} //nolint:errcheck
 		}
 
