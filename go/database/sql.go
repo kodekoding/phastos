@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"container/list"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
@@ -255,25 +257,229 @@ func putBuilder(b *strings.Builder) {
 	builderPool.Put(b)
 }
 
+const (
+	defaultMaxStmtCacheSize   = 500
+	defaultMaxRebindCacheSize = 2000
+)
+
+// boundedSyncMap wraps sync.Map with a capacity limit. When full, it
+// evicts an arbitrary entry (via Range) to make room. The onEvict
+// callback is invoked for evicted entries (e.g. to Close() a stmt).
+type boundedSyncMap struct {
+	m       sync.Map
+	count   atomic.Int64
+	cap     int64
+	onEvict func(key, val any)
+}
+
+func newBoundedSyncMap(cap int, onEvict func(key, val any)) *boundedSyncMap {
+	return &boundedSyncMap{cap: int64(cap), onEvict: onEvict}
+}
+
+func (c *boundedSyncMap) Load(key any) (any, bool) {
+	return c.m.Load(key)
+}
+
+func (c *boundedSyncMap) LoadOrStore(key, val any) (actual any, loaded bool) {
+	actual, loaded = c.m.LoadOrStore(key, val)
+	if !loaded {
+		if c.count.Add(1) > c.cap {
+			c.evictOne()
+		}
+	}
+	return
+}
+
+func (c *boundedSyncMap) LoadAndDelete(key any) (any, bool) {
+	val, ok := c.m.LoadAndDelete(key)
+	if ok {
+		c.count.Add(-1)
+	}
+	return val, ok
+}
+
+func (c *boundedSyncMap) Delete(key any) {
+	c.LoadAndDelete(key)
+}
+
+func (c *boundedSyncMap) Store(key, val any) {
+	_, loaded := c.m.Swap(key, val)
+	if !loaded {
+		if c.count.Add(1) > c.cap {
+			c.evictOne()
+		}
+	}
+}
+
+func (c *boundedSyncMap) Range(f func(key, val any) bool) {
+	c.m.Range(f)
+}
+
+func (c *boundedSyncMap) Len() int64 {
+	return c.count.Load()
+}
+
+func (c *boundedSyncMap) evictOne() {
+	c.m.Range(func(key, val any) bool {
+		if v, ok := c.m.LoadAndDelete(key); ok {
+			c.count.Add(-1)
+			if c.onEvict != nil {
+				c.onEvict(key, v)
+			}
+		}
+		return false
+	})
+}
+
 // rebindCache caches Rebind results per query string to avoid repeated
 // string scanning/replacement. For queries built from cached templates
 // (e.g. UpdateById), the same query string is produced every time.
-var rebindCache sync.Map
+var rebindCache = newBoundedSyncMap(defaultMaxRebindCacheSize, nil)
+
+// lruStmtCache is a bounded, LRU-evicting cache for prepared statements.
+// Eviction does NOT call Close() — entries removed at capacity are simply
+// discarded from the cache. DB-side prepared statements are cleaned up
+// when the connection is recycled (DATABASE_CONN_MAX_LIFETIME).
+// This guarantees no "sql: statement is closed" errors from eviction.
+type lruStmtCache struct {
+	mu    sync.Mutex
+	ll    *list.List
+	items map[string]*list.Element
+	cap   int
+}
+
+type lruEntry struct {
+	key   string
+	value any
+}
+
+func newLRUStmtCache(cap int) *lruStmtCache {
+	return &lruStmtCache{
+		ll:    list.New(),
+		items: make(map[string]*list.Element),
+		cap:   cap,
+	}
+}
+
+func (c *lruStmtCache) Load(key any) (any, bool) {
+	k, ok := key.(string)
+	if !ok {
+		return nil, false
+	}
+	c.mu.Lock()
+	if el, ok := c.items[k]; ok {
+		c.ll.MoveToFront(el)
+		c.mu.Unlock()
+		return el.Value.(*lruEntry).value, true
+	}
+	c.mu.Unlock()
+	return nil, false
+}
+
+func (c *lruStmtCache) LoadOrStore(key, val any) (actual any, loaded bool) {
+	k, ok := key.(string)
+	if !ok {
+		return nil, false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if el, ok := c.items[k]; ok {
+		c.ll.MoveToFront(el)
+		return el.Value.(*lruEntry).value, true
+	}
+	if c.ll.Len() >= c.cap {
+		c.evictLocked()
+	}
+	entry := &lruEntry{key: k, value: val}
+	el := c.ll.PushFront(entry)
+	c.items[k] = el
+	return val, false
+}
+
+func (c *lruStmtCache) LoadAndDelete(key any) (any, bool) {
+	k, ok := key.(string)
+	if !ok {
+		return nil, false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if el, ok := c.items[k]; ok {
+		c.ll.Remove(el)
+		delete(c.items, k)
+		return el.Value.(*lruEntry).value, true
+	}
+	return nil, false
+}
+
+func (c *lruStmtCache) Delete(key any) {
+	c.LoadAndDelete(key)
+}
+
+func (c *lruStmtCache) Store(key, val any) {
+	k, ok := key.(string)
+	if !ok {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if el, ok := c.items[k]; ok {
+		el.Value.(*lruEntry).value = val
+		c.ll.MoveToFront(el)
+		return
+	}
+	if c.ll.Len() >= c.cap {
+		c.evictLocked()
+	}
+	entry := &lruEntry{key: k, value: val}
+	el := c.ll.PushFront(entry)
+	c.items[k] = el
+}
+
+func (c *lruStmtCache) Range(f func(key, val any) bool) {
+	c.mu.Lock()
+	keys := make([]string, 0, len(c.items))
+	for k := range c.items {
+		keys = append(keys, k)
+	}
+	c.mu.Unlock()
+	for _, k := range keys {
+		c.mu.Lock()
+		el, ok := c.items[k]
+		if !ok {
+			c.mu.Unlock()
+			continue
+		}
+		val := el.Value.(*lruEntry).value
+		c.mu.Unlock()
+		if !f(k, val) {
+			return
+		}
+	}
+}
+
+func (c *lruStmtCache) Len() int64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return int64(c.ll.Len())
+}
+
+func (c *lruStmtCache) evictLocked() {
+	back := c.ll.Back()
+	if back == nil {
+		return
+	}
+	entry := back.Value.(*lruEntry)
+	c.ll.Remove(back)
+	delete(c.items, entry.key)
+}
 
 // readStmtCache caches *sql.Stmt per query string for non-transaction
-// read paths. For fixed queries (GetDetailById, GetList without dynamic
-// conditions), the same prepared statement can be reused across calls,
-// eliminating per-call Prepare overhead.
-var readStmtCache sync.Map
+// read paths.
+var readStmtCache = newLRUStmtCache(defaultMaxStmtCacheSize)
 
 // writeStmtCache caches *sql.Stmt per query string for non-transaction
-// write paths (UpdateById, DeleteById, Update). Since query templates
-// are fixed for these actions, the same prepared statement can be reused
-// across calls, eliminating per-call Prepare overhead.
-//
-// Stale stmts are handled gracefully: if execution fails, the stmt is
-// evicted from cache and re-prepared on next access.
-var writeStmtCache sync.Map
+// write paths.
+var writeStmtCache = newLRUStmtCache(defaultMaxStmtCacheSize)
 
 // getReadStmtx returns a cached *sqlx.Stmt for the given query on the
 // follower (or master) DB, preparing and caching it on first access.
@@ -293,7 +499,10 @@ func (this *SQL) getReadStmtx(ctx context.Context, query string, useMaster bool)
 	if err != nil {
 		return nil, err
 	}
-	actual, _ := readStmtCache.LoadOrStore(query, stmt)
+	actual, loaded := readStmtCache.LoadOrStore(query, stmt)
+	if loaded {
+		stmt.Close() //nolint:errcheck
+	}
 	return actual.(*sqlx.Stmt), nil //nolint:errcheck
 }
 
@@ -332,7 +541,10 @@ func (this *SQL) getWriteStmt(ctx context.Context, query string) (*sql.Stmt, err
 	if err != nil {
 		return nil, err
 	}
-	actual, _ := writeStmtCache.LoadOrStore(query, stmt)
+	actual, loaded := writeStmtCache.LoadOrStore(query, stmt)
+	if loaded {
+		stmt.Close() //nolint:errcheck
+	}
 	return actual.(*sql.Stmt), nil //nolint:errcheck
 }
 
