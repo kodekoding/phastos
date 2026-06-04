@@ -555,12 +555,11 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 					return result, err
 				}
 			} else {
-				stmt, stmtErr := this.getWriteStmt(ctx, query.String())
+				stmt, stmtErr := this.getWriteStmt(ctx, query.String()) //nolint:sqlclosecheck
 				if stmtErr != nil {
 					_, _ = sendNilResponse(stmtErr, "phastos.database.Write.PrepareStmt", query.String(), data.Values)
 					return result, stmtErr
 				}
-				defer stmt.Close() //nolint:errcheck
 				exec, err = stmt.ExecContext(ctx, data.Values...)
 				if err != nil {
 					evictWriteStmt(query.String())
@@ -569,12 +568,11 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 				}
 			}
 		} else {
-			stmt, stmtErr := this.getWriteStmt(ctx, query.String())
+			stmt, stmtErr := this.getWriteStmt(ctx, query.String()) //nolint:sqlclosecheck
 			if stmtErr != nil {
 				_, _ = sendNilResponse(stmtErr, "phastos.database.Write.PrepareStmt", query.String(), data.Values)
 				return result, stmtErr
 			}
-			defer stmt.Close() //nolint:errcheck
 			exec, err = stmt.ExecContext(ctx, data.Values...)
 			if err != nil {
 				evictWriteStmt(query.String())
