@@ -500,14 +500,10 @@ func TestConstructColNameAndValueForUpdate_MoreCases(t *testing.T) {
 		
 		result := ConstructColNameAndValueForUpdate(context.Background(), item)
 		assert.NotNil(t, result)
-		// Email should have =null since Valid=false
-		hasNullEmail := false
+		// Email should NOT appear (invalid null.String is skipped)
 		for _, col := range result.Cols {
-			if strings.Contains(col, "email=null") {
-				hasNullEmail = true
-			}
+			assert.False(t, strings.Contains(col, "email"), "email should be skipped for invalid null.String")
 		}
-		assert.True(t, hasNullEmail, "expected email=null for invalid null.String")
 	})
 }
 
