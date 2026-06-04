@@ -103,8 +103,6 @@ type (
 		timeout            time.Duration //nolint:unused
 		slowQueryThreshold float64
 		engine             string
-		isNR               bool
-		isOTel             bool
 	}
 
 	SQLs struct {

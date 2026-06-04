@@ -3,6 +3,7 @@ package monitoring
 import (
 	"context"
 	"net/http"
+	"os"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -52,15 +53,48 @@ func InitOTelSDK(ctx context.Context, cfg OTelConfig) (*sdktrace.TracerProvider,
 
 	isOTelInit = true
 
+	SetProvider(&otelProvider{tp: tp})
 	return tp, nil
 }
 
-func StartSpan(ctx context.Context, name string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
-	if !isOTelInit {
-		return ctx, trace.SpanFromContext(ctx)
+func initOTelFromEnv() {
+	serviceName := os.Getenv("OTEL_SERVICE_NAME")
+	if serviceName == "" {
+		serviceName = os.Getenv("APP_NAME")
 	}
-	ctx, span := otel.Tracer("phastos").Start(ctx, name, trace.WithAttributes(attrs...))
-	return ctx, span
+	if serviceName == "" {
+		return
+	}
+	cfg := OTelConfig{
+		ServiceName:    serviceName,
+		ServiceVersion: os.Getenv("APP_VERSION"),
+		Environment:    os.Getenv("APP_ENV"),
+	}
+	if cfg.Environment == "" {
+		cfg.Environment = "production"
+	}
+	_, _ = InitOTelSDK(context.Background(), cfg)
+}
+
+type otelProvider struct {
+	tp *sdktrace.TracerProvider
+}
+
+type otelSpan struct {
+	span trace.Span
+}
+
+func (p *otelProvider) StartSpan(ctx context.Context, name string) (context.Context, Span) {
+	ctx, s := otel.Tracer("phastos").Start(ctx, name)
+	return ctx, &otelSpan{span: s}
+}
+
+func (s *otelSpan) End() {
+	s.span.End()
+}
+
+func (s *otelSpan) SetAttributes(kv ...attribute.KeyValue) {
+	s.span.SetAttributes(kv...)
 }
 
 func OTelHTTPMiddleware(serviceName string) func(http.Handler) http.Handler {

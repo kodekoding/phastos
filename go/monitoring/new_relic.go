@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/newrelic/go-agent/v3/newrelic"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 var newNewApplication = newrelic.NewApplication
@@ -63,6 +64,7 @@ func InitNewRelic(opts ...NewRelicOpts) *newRelic {
 		return nil
 	}
 
+	SetProvider(&nrProvider{app: app})
 	return &newRelicPlatform
 }
 
@@ -87,5 +89,38 @@ func WithAppName(appName string) NewRelicOpts {
 func WithLicenseKey(licenseKey string) NewRelicOpts {
 	return func(relics *newRelic) {
 		relics.licenseKey = licenseKey
+	}
+}
+
+type nrProvider struct {
+	app *newrelic.Application
+}
+
+type nrSpan struct {
+	segment *newrelic.Segment
+	noop    bool
+}
+
+func (p *nrProvider) StartSpan(ctx context.Context, name string) (context.Context, Span) {
+	txn := newrelic.FromContext(ctx)
+	if txn == nil {
+		return ctx, &nrSpan{noop: true}
+	}
+	seg := txn.StartSegment(name)
+	return newrelic.NewContext(ctx, txn), &nrSpan{segment: seg}
+}
+
+func (s *nrSpan) End() {
+	if !s.noop && s.segment != nil {
+		s.segment.End()
+	}
+}
+
+func (s *nrSpan) SetAttributes(kv ...attribute.KeyValue) {
+	if s.noop || s.segment == nil {
+		return
+	}
+	for _, attr := range kv {
+		s.segment.AddAttribute(string(attr.Key), attr.Value.AsInterface())
 	}
 }

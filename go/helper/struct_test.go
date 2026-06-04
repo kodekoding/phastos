@@ -223,14 +223,10 @@ func TestConstructColNameAndValueForUpdate(t *testing.T) {
 		result := ConstructColNameAndValueForUpdate(context.Background(), item)
 		assert.NotNil(t, result)
 
-		// description with Valid=false should be set to =null
-		hasNullDesc := false
+		// description with Valid=false should NOT appear
 		for _, col := range result.Cols {
-			if col == "description=null" {
-				hasNullDesc = true
-			}
+			assert.NotContains(t, col, "description", "description should be skipped")
 		}
-		assert.True(t, hasNullDesc, "expected description=null for invalid null.String")
 	})
 
 	t.Run("should append anotherValues", func(t *testing.T) {

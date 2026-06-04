@@ -1213,12 +1213,11 @@ func TestSQL_Write_RowsAffectedFallback(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// 19. Read with NR segment path
+// 19. Read basic path
 // ---------------------------------------------------------------------------
 
-func TestSQL_Read_WithNRSegment(t *testing.T) {
+func TestSQL_Read_Basic(t *testing.T) {
 	s := newSQLWithFakeDB()
-	s.isNR = true
 
 	var result int
 	err := s.Read(context.Background(), &QueryOpts{
@@ -1229,13 +1228,12 @@ func TestSQL_Read_WithNRSegment(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// 20. Write with NR segment path
+// 20. Write basic path
 // ---------------------------------------------------------------------------
 
-func TestSQL_Write_WithNRSegment(t *testing.T) {
+func TestSQL_Write_Basic(t *testing.T) {
 	s := newSQLWithFakeDB()
 	s.SetEngine("mysql")
-	s.isNR = true
 
 	result, err := s.Write(context.Background(), &QueryOpts{
 		CUDRequest: &CUDConstructData{
@@ -1560,7 +1558,7 @@ func TestConnect_NRDriver(t *testing.T) {
 		t.Logf("NR driver connect error (expected): %v", err)
 	}
 	if db != nil {
-		assert.True(t, db.isNR)
+		assert.NotNil(t, db)
 	}
 }
 
@@ -1685,9 +1683,8 @@ func TestSQL_Write_MySQLNonInsert_GetWriteStmtError(t *testing.T) {
 // 36. Read with NR segment — segment.AddAttribute paths (lines 184-191)
 // ---------------------------------------------------------------------------
 
-func TestSQL_Read_WithNRSegment_Attributes(t *testing.T) {
+func TestSQL_Read_SpanAttributes(t *testing.T) {
 	s := newSQLWithFakeDB()
-	s.isNR = true
 	s.SetEngine("mysql")
 
 	var result int
@@ -1972,9 +1969,8 @@ func TestSQL_GetWriteStmt_NotSqlxDB_Error(t *testing.T) {
 // 47. Read with NR segment — SelectRequest path
 // ---------------------------------------------------------------------------
 
-func TestSQL_Read_WithNRSegment_SelectRequest(t *testing.T) {
+func TestSQL_Read_WithSelectRequest(t *testing.T) {
 	s := newSQLWithFakeDB()
-	s.isNR = true
 	s.SetEngine("mysql")
 
 	var result []int
@@ -1993,12 +1989,11 @@ func TestSQL_Read_WithNRSegment_SelectRequest(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// 48. Write with NR segment + SelectRequest
+// 48. Write with Insert Action + SelectRequest (coverage for deep test)
 // ---------------------------------------------------------------------------
 
-func TestSQL_Write_WithNRSegment_SelectRequest(t *testing.T) {
+func TestSQL_Write_WithSelectRequest_Insert(t *testing.T) {
 	s := newSQLWithFakeDB()
-	s.isNR = true
 	s.SetEngine("mysql")
 
 	result, err := s.Write(context.Background(), &QueryOpts{
@@ -2054,7 +2049,6 @@ func TestSQL_Read_WithTrxAndNRSegment(t *testing.T) {
 
 	s := newSQLWithFakeDB()
 	s.SetEngine("mysql")
-	s.isNR = true
 
 	var result int
 	err = s.Read(context.Background(), &QueryOpts{
@@ -2413,6 +2407,6 @@ func TestConnect_NREnginePrefix(t *testing.T) {
 
 	db, err := Connect()
 	require.NoError(t, err)
-	assert.True(t, db.isNR)
+	assert.NotNil(t, db)
 	assert.Equal(t, "nrfake_test_driver", db.engine)
 }

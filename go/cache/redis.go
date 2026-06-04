@@ -13,8 +13,8 @@ import (
 	"github.com/kodekoding/phastos/v2/go/entity"
 	plog "github.com/kodekoding/phastos/v2/go/log"
 	"github.com/kodekoding/phastos/v2/go/monitoring"
-	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // Store object
@@ -207,16 +207,13 @@ func (r *Store) Get(ctx context.Context, key string, typeDestination any, fallba
 		return errors.Wrap(errors.New("type destination params should be a pointer"), "phastos.cache.redis.Get.CheckTypeDestinationParam")
 	}
 	wrapResult, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
-		txn := monitoring.BeginTrxFromContext(ctx)
 		segmentName := "Redis-Get"
 		if len(fallbackFn) > 0 {
 			segmentName = fmt.Sprintf("%sWithFallback", segmentName)
 		}
-		segment := txn.StartSegment(segmentName)
-		if txn != nil {
-			segment.AddAttribute("key", key)
-			defer segment.End()
-		}
+		_, span := monitoring.StartSpan(ctx, segmentName)
+		defer span.End()
+		span.SetAttributes(attribute.String("key", key))
 		conn, err := r.Pool.GetContext(ctx)
 		if err != nil {
 			return "", errors.Wrap(err, "cache.redis.Get.GetContext")
@@ -227,7 +224,7 @@ func (r *Store) Get(ctx context.Context, key string, typeDestination any, fallba
 		if errors.Is(err, redigo.ErrNil) {
 			if len(fallbackFn) > 0 {
 				fallbackAction := fallbackFn[0]
-				return r.fallbackAction(ctx, key, "", fallbackAction, segment, conn)
+				return r.fallbackAction(ctx, key, "", fallbackAction, span, conn)
 			}
 			return "", err
 		}
@@ -256,7 +253,7 @@ func (r *Store) Get(ctx context.Context, key string, typeDestination any, fallba
 	return nil
 }
 
-func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackFn FallbackFn, segment *newrelic.Segment, conn redigo.Conn) (string, error) {
+func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackFn FallbackFn, span monitoring.Span, conn redigo.Conn) (string, error) {
 	log := plog.Ctx(ctx)
 	fallbackResult, fallbackExpire, fallbackErr := fallbackFn(ctx)
 	if fallbackErr != nil {
@@ -285,8 +282,8 @@ func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackF
 		// set default expired time to 10 minutes
 		fallbackExpire = int64(10 * time.Minute.Seconds())
 	}
-	if segment != nil {
-		segment.AddAttribute("expire", fallbackExpire)
+	if span != nil {
+		span.SetAttributes(attribute.Int64("expire", fallbackExpire))
 	}
 
 	redisCommand := "SET"
@@ -325,12 +322,9 @@ func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackF
 // Del key value
 func (r *Store) Del(ctx context.Context, key string) (int64, error) {
 	wrapResult, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
-		txn := monitoring.BeginTrxFromContext(ctx)
-		if txn != nil {
-			segment := txn.StartSegment("Redis-Delete")
-			segment.AddAttribute("key", key)
-			defer segment.End()
-		}
+		_, span := monitoring.StartSpan(ctx, "Redis-Delete")
+		defer span.End()
+		span.SetAttributes(attribute.String("key", key))
 		conn, err := r.Pool.GetContext(ctx)
 		if err != nil {
 			return 0, errors.Wrap(err, "cache.redis.Del.GetContext")
@@ -458,14 +452,10 @@ func (r Store) SubscribeStream(ctx context.Context, streamName string, actionFn 
 func (r *Store) HSet(ctx context.Context, key, field string, value any, expire ...int) error {
 	if _, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
 		log := plog.Ctx(ctx)
-		txn := monitoring.BeginTrxFromContext(ctx)
-		segmentName := "Redis-HSET"
-		segment := txn.StartSegment(segmentName)
 		key = fmt.Sprintf("%s%s", r.prefixKey, key)
-		if txn != nil {
-			segment.AddAttribute("key", key)
-			defer segment.End()
-		}
+		_, span := monitoring.StartSpan(ctx, "Redis-HSET")
+		defer span.End()
+		span.SetAttributes(attribute.String("key", key))
 		conn, err := r.Pool.GetContext(ctx)
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.HSET.GetPoolContext")
@@ -515,16 +505,13 @@ func (r *Store) HGet(ctx context.Context, key, field string, typeDestination any
 		return errors.Wrap(errors.New("type destination params should be a pointer"), "phastos.cache.redis.Get.CheckTypeDestinationParam")
 	}
 	wrapResult, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
-		txn := monitoring.BeginTrxFromContext(ctx)
 		segmentName := "Redis-HGET"
 		if len(fallbackFn) > 0 {
 			segmentName = fmt.Sprintf("%sWithFallback", segmentName)
 		}
-		segment := txn.StartSegment(segmentName)
-		if txn != nil {
-			segment.AddAttribute("key", key)
-			defer segment.End()
-		}
+		_, span := monitoring.StartSpan(ctx, segmentName)
+		defer span.End()
+		span.SetAttributes(attribute.String("key", key))
 		conn, err := r.Pool.GetContext(ctx)
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.HGET.GetPoolContext")
@@ -533,7 +520,7 @@ func (r *Store) HGet(ctx context.Context, key, field string, typeDestination any
 		resp, err := redigo.String(conn.Do("HGET", fmt.Sprintf("%s%s", r.prefixKey, key), field))
 		if errors.Is(err, redigo.ErrNil) && len(fallbackFn) > 0 {
 			fallbackAction := fallbackFn[0]
-			return r.fallbackAction(ctx, key, field, fallbackAction, segment, conn)
+			return r.fallbackAction(ctx, key, field, fallbackAction, span, conn)
 		}
 		return resp, err
 	})
@@ -561,13 +548,9 @@ func (r *Store) HGet(ctx context.Context, key, field string, typeDestination any
 // HDel set has map
 func (r *Store) HDel(ctx context.Context, key, field string) error {
 	if _, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
-		txn := monitoring.BeginTrxFromContext(ctx)
-		segmentName := "Redis-HDEL"
-		segment := txn.StartSegment(segmentName)
-		if txn != nil {
-			segment.AddAttribute("key", key)
-			defer segment.End()
-		}
+		_, span := monitoring.StartSpan(ctx, "Redis-HDEL")
+		defer span.End()
+		span.SetAttributes(attribute.String("key", key))
 		conn, err := r.Pool.GetContext(ctx)
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.HDEL.GetPoolContext")
@@ -588,13 +571,9 @@ func (r *Store) HDel(ctx context.Context, key, field string) error {
 // Set ill be used to set the value
 func (r *Store) Set(ctx context.Context, key string, value any, expire ...int) error {
 	_, err := r.wrapWithRetries(ctx, func(ctx context.Context) (result any, err error) {
-		txn := monitoring.BeginTrxFromContext(ctx)
-		var segment *newrelic.Segment
-		if txn != nil {
-			segment = txn.StartSegment("Redis-Set")
-			segment.AddAttribute("key", key)
-			defer segment.End()
-		}
+		_, span := monitoring.StartSpan(ctx, "Redis-Set")
+		defer span.End()
+		span.SetAttributes(attribute.String("key", key))
 		conn, err := r.Pool.GetContext(ctx)
 		if err != nil {
 			return "", errors.Wrap(err, "cache.redis.Set.GetContext")
@@ -613,9 +592,7 @@ func (r *Store) Set(ctx context.Context, key string, value any, expire ...int) e
 		if len(expire) > 0 {
 			expireTime = expire[0]
 		}
-		if segment != nil {
-			segment.AddAttribute("expire", expireTime)
-		}
+		span.SetAttributes(attribute.Int("expire", expireTime))
 
 		setParams = append(setParams, "EX")
 		setParams = append(setParams, expireTime)

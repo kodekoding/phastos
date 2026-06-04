@@ -17,9 +17,6 @@ const (
 
 	LockShare  = "share"
 	LockUpdate = "update"
-
-	NewRelicAttributeQuery  = "query"
-	NewRelicAttributeParams = "params"
 )
 
 var (
