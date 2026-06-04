@@ -298,12 +298,10 @@ func ExtractUpdateValues(tmpl *UpdateTemplateInfo, structVal reflect.Value, anot
 		field := structVal.FieldByIndex(fp.IndexPath)
 		value := field.Interface()
 
-		// Handle null.String — skip if not Valid (SQL NULL)
+		// Handle null.String — skip if not Valid
 		if fp.IsNullType {
 			if ns, ok := value.(null.String); ok {
 				if !ns.Valid {
-					// This field is NULL — add "=null" and skip value
-					result.Cols = append(result.Cols, fp.ColName+"=null")
 					continue
 				}
 			}
@@ -311,7 +309,6 @@ func ExtractUpdateValues(tmpl *UpdateTemplateInfo, structVal reflect.Value, anot
 
 		// Handle nil pointers — skip
 		if field.Kind() == reflect.Ptr && field.IsNil() {
-			result.Cols = append(result.Cols, fp.ColName+"=null")
 			continue
 		}
 
