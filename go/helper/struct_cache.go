@@ -325,7 +325,7 @@ func ExtractUpdateValues(tmpl *UpdateTemplateInfo, structVal reflect.Value, anot
 			value = null.String{} //nolint:errcheck
 		}
 
-		result.Cols = append(result.Cols, fp.ColName+"=null")
+		result.Cols = append(result.Cols, fp.ColName+"=?")
 		result.Values = append(result.Values, value)
 	}
 
