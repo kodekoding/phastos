@@ -1,12 +1,12 @@
 package database
 
 import (
+	"container/list"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
-	"container/list"
 	"reflect"
 	"strconv"
 	"strings"
@@ -370,7 +370,7 @@ func (c *lruStmtCache) Load(key any) (any, bool) {
 	if el, ok := c.items[k]; ok {
 		c.ll.MoveToFront(el)
 		c.mu.Unlock()
-		return el.Value.(*lruEntry).value, true
+		return el.Value.(*lruEntry).value, true //nolint:errcheck
 	}
 	c.mu.Unlock()
 	return nil, false
@@ -385,7 +385,7 @@ func (c *lruStmtCache) LoadOrStore(key, val any) (actual any, loaded bool) {
 	defer c.mu.Unlock()
 	if el, ok := c.items[k]; ok {
 		c.ll.MoveToFront(el)
-		return el.Value.(*lruEntry).value, true
+		return el.Value.(*lruEntry).value, true //nolint:errcheck
 	}
 	if c.ll.Len() >= c.cap {
 		c.evictLocked()
@@ -406,7 +406,7 @@ func (c *lruStmtCache) LoadAndDelete(key any) (any, bool) {
 	if el, ok := c.items[k]; ok {
 		c.ll.Remove(el)
 		delete(c.items, k)
-		return el.Value.(*lruEntry).value, true
+		return el.Value.(*lruEntry).value, true //nolint:errcheck
 	}
 	return nil, false
 }
@@ -423,7 +423,7 @@ func (c *lruStmtCache) Store(key, val any) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if el, ok := c.items[k]; ok {
-		el.Value.(*lruEntry).value = val
+		el.Value.(*lruEntry).value = val //nolint:errcheck
 		c.ll.MoveToFront(el)
 		return
 	}
@@ -449,7 +449,7 @@ func (c *lruStmtCache) Range(f func(key, val any) bool) {
 			c.mu.Unlock()
 			continue
 		}
-		val := el.Value.(*lruEntry).value
+		val := el.Value.(*lruEntry).value //nolint:errcheck
 		c.mu.Unlock()
 		if !f(k, val) {
 			return
@@ -468,7 +468,7 @@ func (c *lruStmtCache) evictLocked() {
 	if back == nil {
 		return
 	}
-	entry := back.Value.(*lruEntry)
+	entry := back.Value.(*lruEntry) //nolint:errcheck
 	c.ll.Remove(back)
 	delete(c.items, entry.key)
 }
@@ -501,7 +501,7 @@ func (this *SQL) getReadStmtx(ctx context.Context, query string, useMaster bool)
 	}
 	actual, loaded := readStmtCache.LoadOrStore(query, stmt)
 	if loaded {
-		stmt.Close() //nolint:errcheck
+		stmt.Close() //nolint:errcheck,sqlclosecheck
 	}
 	return actual.(*sqlx.Stmt), nil //nolint:errcheck
 }
@@ -543,9 +543,10 @@ func (this *SQL) getWriteStmt(ctx context.Context, query string) (*sql.Stmt, err
 	}
 	actual, loaded := writeStmtCache.LoadOrStore(query, stmt)
 	if loaded {
-		stmt.Close() //nolint:errcheck
+		stmt.Close() //nolint:errcheck,sqlclosecheck
 	}
 	return actual.(*sql.Stmt), nil //nolint:errcheck
+
 }
 
 // EvictWriteStmt removes a cached prepared statement (called on execution failure).
