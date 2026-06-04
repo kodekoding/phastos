@@ -257,6 +257,23 @@ func putBuilder(b *strings.Builder) {
 	builderPool.Put(b)
 }
 
+// usesReturningId reports whether a CUD action is one whose SQL on PostgreSQL
+// is built with a trailing "RETURNING id" and whose result is therefore read
+// via QueryRowContext+Scan instead of ExecContext. The caller passes the
+// soft-delete flag because ActionDeleteById is an UPDATE (which captures the
+// id) only when the soft-delete variant is in effect; the hard-delete
+// variant is a plain DELETE and is not a returning-id case.
+func usesReturningId(action string, softDelete bool) bool {
+	switch action {
+	case ActionInsert, ActionUpdate, ActionUpdateById:
+		return true
+	case ActionDeleteById:
+		return softDelete
+	default:
+		return false
+	}
+}
+
 const (
 	defaultMaxStmtCacheSize   = 500
 	defaultMaxRebindCacheSize = 2000
@@ -627,6 +644,11 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	query := getBuilder()
 	defer putBuilder(query)
 	tableName := data.TableName
+	isPostgres := false
+	if active, valid := postgresEngineGroup[this.engine]; valid && active {
+		isPostgres = true
+	}
+	returningId := false
 	switch data.Action {
 	case ActionInsert:
 		query.WriteString("INSERT INTO ")
@@ -634,7 +656,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		query.WriteString(" (")
 		query.WriteString(cols)
 		query.WriteString(") VALUES (?" + strings.Repeat(",?", len(data.Cols)-1) + ")")
-		if active, valid := postgresEngineGroup[this.engine]; valid && active {
+		if isPostgres {
 			query.WriteString(" RETURNING id")
 		}
 	case ActionBulkInsert:
@@ -665,11 +687,17 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		query.WriteString(" SET ")
 		query.WriteString(cols)
 		query.WriteString(" WHERE id = ?")
+		if isPostgres {
+			query.WriteString(" RETURNING id")
+		}
 	case ActionDeleteById:
 		if softDelete {
 			query.WriteString("UPDATE ")
 			query.WriteString(tableName)
 			query.WriteString(" SET deleted_at = now() WHERE id = ?")
+			if isPostgres {
+				query.WriteString(" RETURNING id")
+			}
 		} else {
 			query.WriteString("DELETE FROM ")
 			query.WriteString(tableName)
@@ -680,6 +708,9 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		query.WriteString(tableName)
 		query.WriteString(" SET ")
 		query.WriteString(cols)
+		if isPostgres {
+			returningId = true
+		}
 	case ActionDelete:
 		if softDelete {
 			query.WriteString("UPDATE ")
@@ -705,6 +736,10 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		data.Values = append(data.Values, addOnParams...)
 	}
 
+	if returningId {
+		query.WriteString(" RETURNING id")
+	}
+
 	finalQuery := this.CachedRebind(query.String())
 	// reset and replace the final query with rebind-ed query
 	query.Reset()
@@ -727,8 +762,6 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		isPostgres := false
 		if active, valid := postgresEngineGroup[this.engine]; valid && active {
 			isPostgres = true
-			// RETURNING id is already appended in the ActionInsert case above.
-			// No need to append it again here.
 		}
 		stmt, err := trx.PreparexContext(ctx, query.String()) //nolint:govet // shadow
 		if err != nil {
@@ -737,7 +770,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		}
 		defer stmt.Close() //nolint:errcheck
 
-		if isPostgres && data.Action == ActionInsert {
+		if isPostgres && usesReturningId(data.Action, softDelete) {
 			if err = stmt.QueryRowContext(ctx, data.Values...).Scan(&lastInsertID); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
 				if err == nil {
@@ -755,10 +788,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		}
 	} else {
 		if active, valid := postgresEngineGroup[this.engine]; valid && active {
-			// For Insert: RETURNING id already appended in switch case above.
-			// For Insert on PG: use QueryRowContext+Scan (needs RETURNING).
-			// For Update/UpdateById/Delete: use cached prepared statement.
-			if data.Action == ActionInsert {
+			if usesReturningId(data.Action, softDelete) {
 				if err = this.Master.QueryRowContext(ctx, query.String(), data.Values...).Scan(&lastInsertID); err != nil {
 					_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
 					if err == nil {

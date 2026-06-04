@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
+	"io"
 	"os"
 	"testing"
 	"time"
@@ -93,7 +94,7 @@ type sqlTestFakeStmt struct{}
 func (s *sqlTestFakeStmt) Close() error                                    { return nil }
 func (s *sqlTestFakeStmt) NumInput() int                                   { return -1 }
 func (s *sqlTestFakeStmt) Exec(args []driver.Value) (driver.Result, error)  { return &sqlTestFakeResult{rowsAffected: 1, lastInsertID: 42}, nil }
-func (s *sqlTestFakeStmt) Query(args []driver.Value) (driver.Rows, error)   { return nil, driver.ErrSkip }
+func (s *sqlTestFakeStmt) Query(args []driver.Value) (driver.Rows, error)   { return &sqlTestFakeRows{}, nil }
 
 type sqlTestFakeTx struct{}
 
@@ -107,6 +108,19 @@ type sqlTestFakeResult struct {
 
 func (r *sqlTestFakeResult) LastInsertId() (int64, error)  { return r.lastInsertID, nil }
 func (r *sqlTestFakeResult) RowsAffected() (int64, error)  { return r.rowsAffected, nil }
+
+type sqlTestFakeRows struct{ done bool }
+
+func (r *sqlTestFakeRows) Columns() []string { return []string{"id"} }
+func (r *sqlTestFakeRows) Close() error      { return nil }
+func (r *sqlTestFakeRows) Next(dest []driver.Value) error {
+	if r.done {
+		return io.EOF
+	}
+	r.done = true
+	dest[0] = int64(99)
+	return nil
+}
 
 func init() {
 	sql.Register("sql_test_fixture", &sqlTestFakeDriver{})
@@ -392,6 +406,110 @@ func TestSQL_Write_InsertAction_Postgres(t *testing.T) {
 		assert.Contains(t, result.query, "RETURNING id")
 	}
 	_ = err
+}
+
+// --- Postgres RETURNING id tests for UPDATE-like actions ---
+// CUD responses must always carry a non-zero LastInsertID so callers (FE,
+// downstream validators) can confirm the row they intended to write was the
+// one actually affected. These tests pin the behavior for every action that
+// is built with RETURNING id on PG.
+
+func TestSQL_Write_UpdateByIdAction_Postgres_LastInsertIDPopulated(t *testing.T) {
+	s := newSQLWithFakeDB()
+	s.SetEngine("postgres")
+
+	result, err := s.Write(context.Background(), &QueryOpts{
+		CUDRequest: &CUDConstructData{
+			Cols:      []string{"name"},
+			Values:    []interface{}{"John", 1},
+			Action:    ActionUpdateById,
+			TableName: "users",
+		},
+	})
+	require.NoError(t, err)
+	assert.True(t, result.Status)
+	assert.Contains(t, result.query, "UPDATE users SET name WHERE id = ? RETURNING id")
+	assert.NotZero(t, result.LastInsertID,
+		"UpdateById on PG must return a non-zero LastInsertID so FE can map the response")
+	assert.Equal(t, int64(1), result.RowsAffected)
+}
+
+func TestSQL_Write_UpdateAction_Postgres_LastInsertIDPopulated(t *testing.T) {
+	s := newSQLWithFakeDB()
+	s.SetEngine("postgres")
+	writeStmtCache.Range(func(key, _ interface{}) bool { writeStmtCache.Delete(key); return true })
+
+	tableReq := &TableRequest{
+		InitiateWhere:       []string{"id = ?"},
+		InitiateWhereValues: []interface{}{7},
+		engine:              "postgres",
+	}
+	result, err := s.Write(context.Background(), &QueryOpts{
+		CUDRequest:    &CUDConstructData{Cols: []string{"name"}, Values: []interface{}{"Jane"}, Action: ActionUpdate, TableName: "users"},
+		SelectRequest: tableReq,
+	})
+	require.NoError(t, err)
+	assert.True(t, result.Status)
+	assert.Contains(t, result.query, "UPDATE users SET name WHERE id = ?")
+	assert.Contains(t, result.query, "RETURNING id")
+	assert.NotZero(t, result.LastInsertID,
+		"Update on PG must return a non-zero LastInsertID so FE can map the response")
+}
+
+func TestSQL_Write_DeleteByIdSoftDelete_Postgres_LastInsertIDPopulated(t *testing.T) {
+	s := newSQLWithFakeDB()
+	s.SetEngine("postgres")
+
+	result, err := s.Write(context.Background(), &QueryOpts{
+		CUDRequest: &CUDConstructData{
+			Values:    []interface{}{1},
+			Action:    ActionDeleteById,
+			TableName: "users",
+		},
+	}, true)
+	require.NoError(t, err)
+	assert.True(t, result.Status)
+	assert.Contains(t, result.query, "UPDATE users SET deleted_at = now() WHERE id = ? RETURNING id")
+	assert.NotZero(t, result.LastInsertID,
+		"DeleteById (soft-delete) on PG must return a non-zero LastInsertID so FE can map the response")
+}
+
+func TestSQL_Write_DeleteByIdHardDelete_Postgres_NoReturningId(t *testing.T) {
+	s := newSQLWithFakeDB()
+	s.SetEngine("postgres")
+
+	result, err := s.Write(context.Background(), &QueryOpts{
+		CUDRequest: &CUDConstructData{
+			Values:    []interface{}{1},
+			Action:    ActionDeleteById,
+			TableName: "users",
+		},
+	}, false)
+	require.NoError(t, err)
+	assert.True(t, result.Status)
+	assert.Contains(t, result.query, "DELETE FROM users WHERE id = ?")
+	assert.NotContains(t, result.query, "RETURNING id",
+		"hard-delete has no row to return; RETURNING id would be a SQL error")
+}
+
+// --- MySQL regression: existing behavior is preserved ---
+
+func TestSQL_Write_UpdateByIdAction_MySQL_NoReturningId(t *testing.T) {
+	s := newSQLWithFakeDB()
+	s.SetEngine("mysql")
+
+	result, err := s.Write(context.Background(), &QueryOpts{
+		CUDRequest: &CUDConstructData{
+			Cols:      []string{"name"},
+			Values:    []interface{}{"John", 1},
+			Action:    ActionUpdateById,
+			TableName: "users",
+		},
+	})
+	require.NoError(t, err)
+	assert.True(t, result.Status)
+	assert.NotContains(t, result.query, "RETURNING id",
+		"MySQL does not support RETURNING; we must not emit it on non-PG engines")
 }
 
 // --- CheckSQLWarning tests ---

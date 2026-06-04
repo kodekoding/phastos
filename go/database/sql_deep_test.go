@@ -180,7 +180,7 @@ func (s *fakeExecErrStmt) NumInput() int                                   { ret
 func (s *fakeExecErrStmt) Exec(args []driver.Value) (driver.Result, error) {
 	return nil, fmt.Errorf("exec stmt error")
 }
-func (s *fakeExecErrStmt) Query(args []driver.Value) (driver.Rows, error)   { return nil, driver.ErrSkip }
+func (s *fakeExecErrStmt) Query(args []driver.Value) (driver.Rows, error)   { return nil, fmt.Errorf("exec stmt error") }
 
 // ---------------------------------------------------------------------------
 // Fake driver that returns empty rows (Next returns io.EOF) for 'no rows'
@@ -1645,11 +1645,13 @@ func TestSQL_Write_WithTransaction_PrepareError(t *testing.T) {
 // 34. Write postgres non-trx — getWriteStmt error (lines 578-581)
 // ---------------------------------------------------------------------------
 
-func TestSQL_Write_PostgresNonInsert_GetWriteStmtError(t *testing.T) {
-	s := newSQLWithStubs()
+func TestSQL_Write_PostgresNonInsert_BuildsReturningIdQuery(t *testing.T) {
+	s := newSQLWithFakeDB()
 	s.SetEngine("postgres")
 
-	_, err := s.Write(context.Background(), &QueryOpts{
+	writeStmtCache.Range(func(key, _ interface{}) bool { writeStmtCache.Delete(key); return true })
+
+	result, err := s.Write(context.Background(), &QueryOpts{
 		CUDRequest: &CUDConstructData{
 			Cols:      []string{"name"},
 			Values:    []interface{}{"John", 1},
@@ -1657,7 +1659,10 @@ func TestSQL_Write_PostgresNonInsert_GetWriteStmtError(t *testing.T) {
 			TableName: "users",
 		},
 	})
-	require.Error(t, err)
+	require.NoError(t, err)
+	assert.True(t, result.Status)
+	assert.Contains(t, result.query, "UPDATE users SET name WHERE id = ? RETURNING id")
+	assert.Equal(t, int64(99), result.LastInsertID)
 }
 
 // ---------------------------------------------------------------------------
