@@ -17,11 +17,8 @@ import (
 	_ "github.com/lib/pq" // import postgre driver
 	_ "github.com/newrelic/go-agent/v3/integrations/nrmysql"
 	_ "github.com/newrelic/go-agent/v3/integrations/nrpq"
-	"github.com/newrelic/go-agent/v3/newrelic"
 	"github.com/pkg/errors"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 	_ "gorm.io/driver/mysql" // import mysql driver
 
 	context2 "github.com/kodekoding/phastos/v2/go/context"
@@ -62,13 +59,6 @@ func Connect() (*SQL, error) {
 	db := newSQL(masterDB, followerDB)
 	db.engine = engine
 
-	if strings.HasPrefix(engine, "nr") {
-		// using NR (New Relic) driver
-		db.isNR = true
-	}
-	if monitoring.IsOTelActive() {
-		db.isOTel = true
-	}
 	log.Info().Msg(fmt.Sprintf("Successful connect to DB %s", engine))
 	return db, nil
 }
@@ -114,21 +104,9 @@ func connectDB(engine string, dbType string) (*sqlx.DB, error) {
 }
 
 func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...interface{}) error {
-	var segment *newrelic.Segment
-	if this.isNR {
-		txn := monitoring.BeginTrxFromContext(ctx)
-		segment = txn.StartSegment("PhastosDB-Read")
-		defer segment.End()
-		ctx = monitoring.NewContext(ctx, txn)
-	}
-
-	var span trace.Span
-	if this.isOTel {
-		_, span = otel.Tracer("phastos.db").Start(ctx, "PhastosDB-Read",
-			trace.WithAttributes(attribute.String("db.system", this.engine)),
-		)
-		defer span.End()
-	}
+	ctx, span := monitoring.StartSpan(ctx, "PhastosDB-Read")
+	defer span.End()
+	span.SetAttributes(attribute.String("db.system", this.engine))
 	if opts.BaseQuery == "" {
 		return errors.New("Base Query cannot be empty, please defined the base query")
 	}
@@ -152,13 +130,7 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 
 	query.WriteString(opts.BaseQuery)
 
-	if segment != nil {
-		byteReqData, err := json.Marshal(opts)
-		segment.AddAttribute("query_option_param", fmt.Sprintf("%s - %#v", string(byteReqData), err))
-	}
-	if span != nil {
-		span.SetAttributes(attribute.String("db.operation", "Read"))
-	}
+	span.SetAttributes(attribute.String("db.operation", "Read"))
 	if opts.SelectRequest != nil {
 		var addOnParams []interface{}
 		opts.SelectRequest.engine = this.engine
@@ -175,17 +147,11 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 	opts.params = params
 	start := time.Now()
 
-	if segment != nil {
-		byteParam, _ := json.Marshal(params)
-		segment.AddAttribute(NewRelicAttributeParams, string(byteParam))
-	}
-	if span != nil {
-		byteParam, _ := json.Marshal(params)
-		span.SetAttributes(
-			attribute.String("db.statement", opts.BaseQuery),
-			attribute.String("db.params", string(byteParam)),
-		)
-	}
+	byteParam, _ := json.Marshal(params)
+	span.SetAttributes(
+		attribute.String("db.statement", opts.BaseQuery),
+		attribute.String("db.params", string(byteParam)),
+	)
 	var finalQuery string
 	if opts.Trx != nil {
 		var lockingType string
@@ -205,12 +171,7 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 
 		finalQuery = opts.Trx.Rebind(query.String())
 		opts.query = finalQuery
-		if segment != nil {
-			segment.AddAttribute(NewRelicAttributeQuery, finalQuery)
-		}
-		if span != nil {
-			span.SetAttributes(attribute.String("db.statement", finalQuery))
-		}
+		span.SetAttributes(attribute.String("db.statement", finalQuery))
 		stmt, err := opts.Trx.PreparexContext(ctx, finalQuery)
 		if err != nil {
 			_, err = sendNilResponse(err, "phastos.database.ReadTrx.PrepareContext", finalQuery, params)
@@ -233,18 +194,12 @@ func (this *SQL) Read(ctx context.Context, opts *QueryOpts, additionalParams ...
 		finalQuery = this.CachedRebind(query.String())
 		opts.query = finalQuery
 
-		if segment != nil {
-			segment.AddAttribute(NewRelicAttributeQuery, finalQuery)
-		}
-		if span != nil {
-			span.SetAttributes(attribute.String("db.statement", finalQuery))
-		}
+		span.SetAttributes(attribute.String("db.statement", finalQuery))
 
 		// Try cached prepared statement for reads (O1).
 		// For fixed queries (e.g. GetDetailById), this eliminates per-call
 		// Prepare overhead. Fall back to direct DB call on cache miss or error.
-		if stmt, stmtErr := this.getReadStmtx(ctx, finalQuery, opts.UseMaster); stmtErr == nil {
-			defer stmt.Close() //nolint:errcheck
+		if stmt, stmtErr := this.getReadStmtx(ctx, finalQuery, opts.UseMaster); stmtErr == nil { //nolint:sqlclosecheck
 			if opts.IsList {
 				if err := stmt.SelectContext(ctx, opts.Result, params...); err != nil {
 					evictReadStmt(finalQuery)
@@ -435,22 +390,9 @@ func (this *SQL) CachedRebind(query string) string {
 }
 
 func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...bool) (*CUDResponse, error) {
-	var segment *newrelic.Segment
-	if this.isNR {
-		txn := monitoring.BeginTrxFromContext(ctx)
-
-		segment = txn.StartSegment("PhastosDB-Write")
-		defer segment.End()
-		ctx = monitoring.NewContext(ctx, txn)
-	}
-
-	var span trace.Span
-	if this.isOTel {
-		_, span = otel.Tracer("phastos.db").Start(ctx, "PhastosDB-Write",
-			trace.WithAttributes(attribute.String("db.system", this.engine)),
-		)
-		defer span.End()
-	}
+	ctx, span := monitoring.StartSpan(ctx, "PhastosDB-Write")
+	defer span.End()
+	span.SetAttributes(attribute.String("db.system", this.engine))
 	if opts.CUDRequest == nil {
 		return nil, errors.New("CUD Request Struct must be assigned")
 	}
@@ -562,19 +504,12 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	lastInsertID := int64(0)
 	rowsAffected := int64(0)
 
-	if segment != nil {
-		segment.AddAttribute(NewRelicAttributeQuery, query.String())
-		byteParam, _ := json.Marshal(data.Values)
-		segment.AddAttribute(NewRelicAttributeParams, string(byteParam))
-	}
-	if span != nil {
-		byteParam, _ := json.Marshal(data.Values)
-		span.SetAttributes(
-			attribute.String("db.statement", query.String()),
-			attribute.String("db.params", string(byteParam)),
-			attribute.String("db.operation", data.Action),
-		)
-	}
+	byteParam, _ := json.Marshal(data.Values)
+	span.SetAttributes(
+		attribute.String("db.statement", query.String()),
+		attribute.String("db.params", string(byteParam)),
+		attribute.String("db.operation", data.Action),
+	)
 	if trx != nil {
 		isPostgres := false
 		if active, valid := postgresEngineGroup[this.engine]; valid && active {
@@ -739,23 +674,9 @@ func (this *SQL) checkSQLWarning(ctx context.Context, query string, start time.T
 
 func GenerateAddOnQuery(ctx context.Context, reqData *TableRequest) (string, []interface{}, error) {
 	log := plog.Ctx(ctx)
-	txn := monitoring.BeginTrxFromContext(ctx)
-	if txn != nil {
-		segment := txn.StartSegment("PhastosDB-GeneratingAddOnQuery")
-		byteReqData, _ := json.Marshal(reqData)
-		segment.AddAttribute("requestData", string(byteReqData))
-		segment.AddAttribute("engine", reqData.engine)
-		defer segment.End()
-	}
-
-	if monitoring.IsOTelActive() {
-		_, span := otel.Tracer("phastos.db").Start(ctx, "PhastosDB-GeneratingAddOnQuery",
-			trace.WithAttributes(
-				attribute.String("engine", reqData.engine),
-			),
-		)
-		defer span.End()
-	}
+	_, span := monitoring.StartSpan(ctx, "PhastosDB-GeneratingAddOnQuery")
+	defer span.End()
+	span.SetAttributes(attribute.String("engine", reqData.engine))
 	// tracing
 	//trc, ctx := tracer.StartSpanFromContext(ctx, "CommonRepo-GenerateAddOnQuery")
 	//defer trc.Finish()
@@ -891,7 +812,11 @@ func checkCreatedDateParam(_ context.Context, reqData *TableRequest, addOnBuilde
 			addOnBuilder.WriteString(" AND ")
 		}
 		if reqData.IsDeleted != "1" {
-			fmt.Fprintf(addOnBuilder, "(%s IS NULL OR CAST(%s AS CHAR(20)) = '0000-00-00 00:00:00') ", col, col)
+			if _, isMySQL := mySQLEngineGroup[reqData.engine]; isMySQL {
+				fmt.Fprintf(addOnBuilder, "(%s IS NULL OR CAST(%s AS CHAR(20)) = '0000-00-00 00:00:00') ", col, col)
+			} else {
+				fmt.Fprintf(addOnBuilder, "(%s IS NULL) ", col)
+			}
 		} else {
 			fmt.Fprintf(addOnBuilder, "(%s IS NOT NULL) ", col)
 		}
