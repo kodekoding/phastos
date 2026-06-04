@@ -3,7 +3,6 @@ package action
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -31,57 +30,6 @@ func NewBaseWrite(db database.ISQL, tableName string, isSoftDelete ...bool) *Bas
 		sofDelete = isSoftDelete[0]
 	}
 	return &BaseWrite{&baseAction{db, tableName, sofDelete}}
-}
-
-// updateByIdCacheKey identifies a unique UpdateById query template.
-// For a given struct type + table name, the query is always the same.
-type updateByIdCacheKey struct {
-	Type      reflect.Type
-	TableName string
-}
-
-// updateByIdCacheEntry holds the pre-computed, Rebind-ed query string
-// and the update template for fast value extraction.
-// R8: Template is now just a reference to the shared updateTemplateCache
-// from struct_cache.go — no duplicate caching per reflect.Type.
-type updateByIdCacheEntry struct {
-	Query      string                     // full Rebind-ed query
-	SetCols    string                     // comma-joined SET cols
-	Template   *helper.UpdateTemplateInfo // reference to shared cache entry
-	StructType reflect.Type
-}
-
-var updateByIdCache sync.Map
-
-func getUpdateByIdCache(db database.ISQL, t reflect.Type, tableName string) *updateByIdCacheEntry {
-	key := updateByIdCacheKey{Type: t, TableName: tableName}
-	if cached, ok := updateByIdCache.Load(key); ok {
-		return cached.(*updateByIdCacheEntry) //nolint:errcheck
-	}
-
-	// R8: GetUpdateTemplate returns the shared cache entry from struct_cache.go
-	tmpl := helper.GetUpdateTemplate(t)
-	setCols := strings.Join(tmpl.Cols, ",")
-
-	// Build the query template
-	var queryBuilder strings.Builder
-	queryBuilder.WriteString("UPDATE ")
-	queryBuilder.WriteString(tableName)
-	queryBuilder.WriteString(" SET ")
-	queryBuilder.WriteString(setCols)
-	queryBuilder.WriteString(" WHERE id = ?")
-
-	// Rebind once — cached across all calls
-	reboundQuery := db.CachedRebind(queryBuilder.String())
-
-	entry := &updateByIdCacheEntry{
-		Query:      reboundQuery,
-		SetCols:    setCols,
-		Template:   tmpl,
-		StructType: t,
-	}
-	actual, _ := updateByIdCache.LoadOrStore(key, entry)
-	return actual.(*updateByIdCacheEntry) //nolint:errcheck
 }
 
 func (b *BaseWrite) Insert(ctx context.Context, data interface{}, optTrx ...*sqlx.Tx) (*database.CUDResponse, error) {

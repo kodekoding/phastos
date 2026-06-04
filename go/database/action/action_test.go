@@ -752,7 +752,6 @@ func TestBaseWrite_Update(t *testing.T) {
 
 func TestBaseWrite_UpdateById(t *testing.T) {
 	t.Run("struct data without transaction (goes through fast path + trx path via Write())", func(t *testing.T) {
-		updateByIdCache = sync.Map{}
 		db := newStubSQL(t)
 		db.cachedRebindFn = func(query string) string {
 			return query
@@ -772,7 +771,6 @@ func TestBaseWrite_UpdateById(t *testing.T) {
 	})
 
 	t.Run("struct data with transaction", func(t *testing.T) {
-		updateByIdCache = sync.Map{}
 		db := newStubSQL(t)
 		db.cachedRebindFn = func(query string) string {
 			return query
@@ -789,7 +787,6 @@ func TestBaseWrite_UpdateById(t *testing.T) {
 	})
 
 	t.Run("fast path with real *database.SQL (type assertion succeeds)", func(t *testing.T) {
-		updateByIdCache = sync.Map{}
 		db := newSQLForAction()
 		db.SetSlowQueryThreshold(9999)
 		bw := NewBaseWrite(db, "test_table_fast")
@@ -801,7 +798,6 @@ func TestBaseWrite_UpdateById(t *testing.T) {
 	})
 
 	t.Run("error from getWriteStmt", func(t *testing.T) {
-		updateByIdCache = sync.Map{}
 		db := newSQLForAction()
 		db.SetSlowQueryThreshold(9999)
 		// First call succeeds, populate cache
@@ -847,7 +843,6 @@ func TestBaseWrite_UpdateById(t *testing.T) {
 	})
 
 	t.Run("fast path exec error", func(t *testing.T) {
-		updateByIdCache = sync.Map{}
 		db := newSQLForErrorAction()
 		db.SetSlowQueryThreshold(9999)
 		bw := NewBaseWrite(db, "error_update_test_table")
@@ -1199,38 +1194,6 @@ func TestGetSelectByIdQueryCached(t *testing.T) {
 	})
 }
 
-func TestGetUpdateByIdCache(t *testing.T) {
-	updateByIdCache = sync.Map{}
 
-	t.Run("cached and uncached", func(t *testing.T) {
-		db := newStubSQL(t)
-		db.cachedRebindFn = func(query string) string {
-			return "REBIND:" + query
-		}
-		entry1 := getUpdateByIdCache(db, reflect.TypeOf(testStruct{}), "test_table")
-		require.NotNil(t, entry1)
-		assert.Contains(t, entry1.Query, "UPDATE")
-		assert.Contains(t, entry1.Query, "SET")
 
-		entry2 := getUpdateByIdCache(db, reflect.TypeOf(testStruct{}), "test_table")
-		assert.Equal(t, entry1, entry2)
-	})
-}
 
-func TestGetUpdateByIdCache_DifferentTypes(t *testing.T) {
-	updateByIdCache = sync.Map{}
-
-	type otherStruct struct {
-		ID   int64  `db:"id"`
-		Name string `db:"name"`
-	}
-
-	db := newStubSQL(t)
-	db.cachedRebindFn = func(query string) string {
-		return query
-	}
-
-	e1 := getUpdateByIdCache(db, reflect.TypeOf(testStruct{}), "test_table")
-	e2 := getUpdateByIdCache(db, reflect.TypeOf(otherStruct{}), "test_table")
-	assert.NotEqual(t, e1, e2)
-}
