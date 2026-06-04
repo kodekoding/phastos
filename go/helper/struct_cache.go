@@ -298,10 +298,40 @@ func ExtractUpdateValues(tmpl *UpdateTemplateInfo, structVal reflect.Value, anot
 		field := structVal.FieldByIndex(fp.IndexPath)
 		value := field.Interface()
 
-		// Handle null.String — skip if not Valid
+		// Handle null types — skip if not Valid
 		if fp.IsNullType {
 			if ns, ok := value.(null.String); ok {
 				if !ns.Valid {
+					continue
+				}
+			}
+			if nb, ok := value.(null.Bool); ok {
+				if !nb.Valid {
+					continue
+				}
+			}
+			if nf, ok := value.(null.Float32); ok {
+				if !nf.Valid {
+					continue
+				}
+			}
+			if ni, ok := value.(null.Int); ok {
+				if !ni.Valid {
+					continue
+				}
+			}
+			if ni8, ok := value.(null.Int8); ok {
+				if !ni8.Valid {
+					continue
+				}
+			}
+			if ni16, ok := value.(null.Int16); ok {
+				if !ni16.Valid {
+					continue
+				}
+			}
+			if ni64, ok := value.(null.Int64); ok {
+				if !ni64.Valid {
 					continue
 				}
 			}
