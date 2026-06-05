@@ -230,7 +230,7 @@ func readField(ctx context.Context, reflectVal reflect.Value, isNullStruct ...bo
 				values = append(values, value)
 				continue
 			}
-			if nullStruct && embeddedVals != nil {
+			if nullStruct && len(embeddedVals) > 0 {
 				cols = append(cols, fi.ColName)
 			} else {
 				cols = append(cols, embeddedCols...)
