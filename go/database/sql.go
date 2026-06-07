@@ -705,6 +705,12 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		data.Values = append(data.Values, addOnParams...)
 	}
 
+	if active, valid := postgresEngineGroup[this.engine]; valid && active {
+		if data.Action == ActionUpdateById || data.Action == ActionUpdate {
+			query.WriteString(" RETURNING id")
+		}
+	}
+
 	finalQuery := this.CachedRebind(query.String())
 	// reset and replace the final query with rebind-ed query
 	query.Reset()
@@ -737,7 +743,7 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 		}
 		defer stmt.Close() //nolint:errcheck
 
-		if isPostgres && data.Action == ActionInsert {
+		if isPostgres && (data.Action == ActionInsert || data.Action == ActionUpdateById || data.Action == ActionUpdate) {
 			if err = stmt.QueryRowContext(ctx, data.Values...).Scan(&lastInsertID); err != nil {
 				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
 				if err == nil {
@@ -756,9 +762,9 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 	} else {
 		if active, valid := postgresEngineGroup[this.engine]; valid && active {
 			// For Insert: RETURNING id already appended in switch case above.
-			// For Insert on PG: use QueryRowContext+Scan (needs RETURNING).
-			// For Update/UpdateById/Delete: use cached prepared statement.
-			if data.Action == ActionInsert {
+			// For Insert/UpdateById/Update on PG: use QueryRowContext+Scan (needs RETURNING).
+			// For Delete on PG: use cached prepared statement.
+			if data.Action == ActionInsert || data.Action == ActionUpdateById || data.Action == ActionUpdate {
 				if err = this.Master.QueryRowContext(ctx, query.String(), data.Values...).Scan(&lastInsertID); err != nil {
 					_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
 					if err == nil {

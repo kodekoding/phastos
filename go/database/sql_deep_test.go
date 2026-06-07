@@ -1653,7 +1653,7 @@ func TestSQL_Write_PostgresNonInsert_GetWriteStmtError(t *testing.T) {
 		CUDRequest: &CUDConstructData{
 			Cols:      []string{"name"},
 			Values:    []interface{}{"John", 1},
-			Action:    ActionUpdateById,
+			Action:    ActionDelete,
 			TableName: "users",
 		},
 	})
@@ -2282,7 +2282,7 @@ func TestSQL_Write_PG_NoTrx_NonInsert_ExecError(t *testing.T) {
 		CUDRequest: &CUDConstructData{
 			Cols:      []string{"name"},
 			Values:    []interface{}{"John", 1},
-			Action:    ActionUpdateById,
+			Action:    ActionDelete,
 			TableName: "users",
 		},
 	})

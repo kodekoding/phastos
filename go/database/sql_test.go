@@ -93,7 +93,7 @@ type sqlTestFakeStmt struct{}
 func (s *sqlTestFakeStmt) Close() error                                    { return nil }
 func (s *sqlTestFakeStmt) NumInput() int                                   { return -1 }
 func (s *sqlTestFakeStmt) Exec(args []driver.Value) (driver.Result, error)  { return &sqlTestFakeResult{rowsAffected: 1, lastInsertID: 42}, nil }
-func (s *sqlTestFakeStmt) Query(args []driver.Value) (driver.Rows, error)   { return nil, driver.ErrSkip }
+func (s *sqlTestFakeStmt) Query(args []driver.Value) (driver.Rows, error)   { return &fakeQueryRowRows{}, nil }
 
 type sqlTestFakeTx struct{}
 
