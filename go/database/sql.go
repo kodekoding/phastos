@@ -745,10 +745,12 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 
 		if isPostgres && (data.Action == ActionInsert || data.Action == ActionUpdateById || data.Action == ActionUpdate) {
 			if err = stmt.QueryRowContext(ctx, data.Values...).Scan(&lastInsertID); err != nil {
-				_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
-				if err == nil {
-					result.RowsAffected = 1
-					result.Status = true
+				if data.Action == ActionInsert {
+					_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
+					if err == nil {
+						result.RowsAffected = 1
+						result.Status = true
+					}
 				}
 				return result, err
 			}
@@ -766,10 +768,12 @@ func (this *SQL) Write(ctx context.Context, opts *QueryOpts, isSoftDelete ...boo
 			// For Delete on PG: use cached prepared statement.
 			if data.Action == ActionInsert || data.Action == ActionUpdateById || data.Action == ActionUpdate {
 				if err = this.Master.QueryRowContext(ctx, query.String(), data.Values...).Scan(&lastInsertID); err != nil {
-					_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
-					if err == nil {
-						result.RowsAffected = 1
-						result.Status = true
+					if data.Action == ActionInsert {
+						_, err = sendNilResponse(err, "phastos.database.Write.QueryRowContext", query, data.Values)
+						if err == nil {
+							result.RowsAffected = 1
+							result.Status = true
+						}
 					}
 					return result, err
 				}
