@@ -14,6 +14,8 @@ type Span interface {
 
 type Provider interface {
 	StartSpan(ctx context.Context, name string) (context.Context, Span)
+	GetTraceId(ctx context.Context) string
+	GetLogLink(traceId string) string
 }
 
 var activeProvider Provider = &noopProvider{}
@@ -40,6 +42,14 @@ func StartSpan(ctx context.Context, name string) (context.Context, Span) {
 	return activeProvider.StartSpan(ctx, name)
 }
 
+func GetTraceId(ctx context.Context) string {
+	return activeProvider.GetTraceId(ctx)
+}
+
+func GetLogLink(traceId string) string {
+	return activeProvider.GetLogLink(traceId)
+}
+
 type noopSpan struct{}
 
 func (noopSpan) End() {}
@@ -50,4 +60,12 @@ type noopProvider struct{}
 
 func (noopProvider) StartSpan(ctx context.Context, name string) (context.Context, Span) {
 	return ctx, noopSpan{}
+}
+
+func (noopProvider) GetTraceId(ctx context.Context) string {
+	return ""
+}
+
+func (noopProvider) GetLogLink(traceId string) string {
+	return ""
 }

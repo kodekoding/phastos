@@ -223,6 +223,7 @@ func WithNewRelic() Options {
 	return func(app *App) {
 		newRelicPlatform := monitoring.InitNewRelic()
 		app.newRelic = newRelicPlatform.GetApp()
+		app.WrapToApp(&newRelicHandlerWrapper{app: app.newRelic})
 	}
 }
 
@@ -258,6 +259,18 @@ func (w *otelHandlerWrapper) WrapToHandler(handler http.Handler) http.Handler {
 }
 
 func (w *otelHandlerWrapper) WrapToContext(ctx context.Context) context.Context {
+	return ctx
+}
+
+type newRelicHandlerWrapper struct {
+	app *newrelic.Application
+}
+
+func (w *newRelicHandlerWrapper) WrapToHandler(handler http.Handler) http.Handler {
+	return monitoring.NewRelicHTTPMiddleware(w.app)(handler)
+}
+
+func (w *newRelicHandlerWrapper) WrapToContext(ctx context.Context) context.Context {
 	return ctx
 }
 

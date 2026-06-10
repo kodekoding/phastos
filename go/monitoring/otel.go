@@ -2,8 +2,10 @@ package monitoring
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -95,6 +97,21 @@ func (s *otelSpan) End() {
 
 func (s *otelSpan) SetAttributes(kv ...attribute.KeyValue) {
 	s.span.SetAttributes(kv...)
+}
+
+func (p *otelProvider) GetTraceId(ctx context.Context) string {
+	if sc := trace.SpanFromContext(ctx).SpanContext(); sc.HasTraceID() {
+		return sc.TraceID().String()
+	}
+	return ""
+}
+
+func (p *otelProvider) GetLogLink(traceId string) string {
+	uiURL := os.Getenv("OTEL_UI_URL")
+	if uiURL == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s/trace/%s", strings.TrimRight(uiURL, "/"), traceId)
 }
 
 func OTelHTTPMiddleware(serviceName string) func(http.Handler) http.Handler {

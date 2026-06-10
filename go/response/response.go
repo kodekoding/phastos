@@ -17,7 +17,6 @@ import (
 	plog "github.com/kodekoding/phastos/v2/go/log"
 	"github.com/kodekoding/phastos/v2/go/monitoring"
 	"github.com/pkg/errors"
-	"go.opentelemetry.io/otel/trace"
 )
 
 type JSON struct {
@@ -150,11 +149,9 @@ func (jr *JSON) ErrorChecking(r *http.Request) bool {
 			usingErr = customErr
 		}
 		ctx := r.Context()
-		traceId := helper.GenerateUUIDV4()
-		if monitoring.IsOTelActive() {
-			if sc := trace.SpanFromContext(ctx).SpanContext(); sc.HasTraceID() {
-				traceId = sc.TraceID().String()
-			}
+		traceId := monitoring.GetTraceId(ctx)
+		if traceId == "" {
+			traceId = helper.GenerateUUIDV4()
 		}
 		jr.TraceId = traceId
 

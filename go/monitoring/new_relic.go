@@ -2,6 +2,7 @@ package monitoring
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -122,5 +123,44 @@ func (s *nrSpan) SetAttributes(kv ...attribute.KeyValue) {
 	}
 	for _, attr := range kv {
 		s.segment.AddAttribute(string(attr.Key), attr.Value.AsInterface())
+	}
+}
+
+func (p *nrProvider) GetTraceId(ctx context.Context) string {
+	if txn := newrelic.FromContext(ctx); txn != nil {
+		metadata := txn.GetLinkingMetadata()
+		return metadata.TraceID
+	}
+	return ""
+}
+
+func (p *nrProvider) GetLogLink(traceId string) string {
+	if accountID := os.Getenv("NEW_RELIC_ACCOUNT_ID"); accountID != "" {
+		return fmt.Sprintf(
+			"https://one.newrelic.com/logger/query?accountId=%s&nrql=SELECT * FROM Log WHERE trace.id = '%s'",
+			accountID, traceId,
+		)
+	}
+	return ""
+}
+
+func NewRelicHTTPMiddleware(app *newrelic.Application) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if app == nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+			txn := app.StartTransaction(r.URL.Path)
+			defer txn.End()
+
+			metadata := txn.GetLinkingMetadata()
+			if metadata.TraceID != "" {
+				r.Header.Set("X-Request-Id", metadata.TraceID)
+			}
+
+			ctx := newrelic.NewContext(r.Context(), txn)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
 	}
 }

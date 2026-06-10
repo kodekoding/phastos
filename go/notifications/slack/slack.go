@@ -102,6 +102,15 @@ func (p *Service) Send(ctx context.Context, text string, attachment interface{})
 			Value: p.traceID,
 			Short: true,
 		})
+
+		if logLink := monitoring.GetLogLink(p.traceID); logLink != "" {
+			p.attachment.AddField(sgw.Field{
+				Title: "🔗 View Logs",
+				Value: logLink,
+				Short: false,
+			})
+		}
+
 		attachments := []sgw.Attachment{}
 
 		attachments = append(attachments, *p.attachment)
