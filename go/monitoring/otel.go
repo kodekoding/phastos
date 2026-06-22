@@ -30,9 +30,23 @@ type OTelConfig struct {
 }
 
 func InitOTelSDK(ctx context.Context, cfg OTelConfig) (*sdktrace.TracerProvider, error) {
-	exporter, err := otlptracehttp.New(ctx)
+	tp, prov, err := initOTel(ctx, cfg)
 	if err != nil {
 		return nil, err
+	}
+	SetProvider(prov)
+	return tp, nil
+}
+
+func InitOTelOnly(ctx context.Context, cfg OTelConfig) (*sdktrace.TracerProvider, Provider, error) {
+	tp, prov, err := initOTel(ctx, cfg)
+	return tp, prov, err
+}
+
+func initOTel(ctx context.Context, cfg OTelConfig) (*sdktrace.TracerProvider, Provider, error) {
+	exporter, err := otlptracehttp.New(ctx)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	res := resource.NewWithAttributes(
@@ -55,8 +69,7 @@ func InitOTelSDK(ctx context.Context, cfg OTelConfig) (*sdktrace.TracerProvider,
 
 	isOTelInit = true
 
-	SetProvider(&otelProvider{tp: tp})
-	return tp, nil
+	return tp, &otelProvider{tp: tp}, nil
 }
 
 func initOTelFromEnv() {

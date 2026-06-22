@@ -24,6 +24,17 @@ func SetProvider(p Provider) {
 	activeProvider = p
 }
 
+func SetProviders(providers ...Provider) {
+	switch len(providers) {
+	case 0:
+		SetProvider(&noopProvider{})
+	case 1:
+		SetProvider(providers[0])
+	default:
+		SetProvider(&compositeProvider{providers: providers})
+	}
+}
+
 func ActiveProvider() Provider {
 	return activeProvider
 }
