@@ -66,6 +66,8 @@ type (
 		skipLogPaths       map[string]struct{} // paths that skip requestLogger
 		otelTp             *sdktrace.TracerProvider
 		otelSvcName        string
+		nrProv             monitoring.Provider
+		otelProv           monitoring.Provider
 	}
 
 	Options func(api *App)
@@ -110,6 +112,15 @@ func NewApp(opts ...Options) *App {
 	for _, opt := range opts {
 		opt(&apiApp)
 	}
+
+	var monitoringProviders []monitoring.Provider
+	if apiApp.nrProv != nil {
+		monitoringProviders = append(monitoringProviders, apiApp.nrProv)
+	}
+	if apiApp.otelProv != nil {
+		monitoringProviders = append(monitoringProviders, apiApp.otelProv)
+	}
+	monitoring.SetProviders(monitoringProviders...)
 
 	log := plog.Get(
 		plog.WithNewRelicApp(apiApp.newRelic),
@@ -221,8 +232,12 @@ func (app *App) AddGlobalMiddleware(handlers ...func(http.Handler) http.Handler)
 
 func WithNewRelic() Options {
 	return func(app *App) {
-		newRelicPlatform := monitoring.InitNewRelic()
+		newRelicPlatform, nrProv := monitoring.InitNewRelicOnly()
+		if newRelicPlatform == nil {
+			return
+		}
 		app.newRelic = newRelicPlatform.GetApp()
+		app.nrProv = nrProv
 		app.WrapToApp(&newRelicHandlerWrapper{app: app.newRelic})
 	}
 }
@@ -238,13 +253,14 @@ func WithOTel() Options {
 			ServiceVersion: os.Getenv("APP_VERSION"),
 			Environment:    os.Getenv("APP_ENV"),
 		}
-		tp, err := monitoring.InitOTelSDK(context.Background(), cfg)
+		tp, otelProv, err := monitoring.InitOTelOnly(context.Background(), cfg)
 		if err != nil {
 			log := plog.Get()
 			log.Fatal().Err(err).Msg("Failed to initialize OpenTelemetry SDK")
 			return
 		}
 		app.otelTp = tp
+		app.otelProv = otelProv
 		app.otelSvcName = serviceName
 		app.WrapToApp(&otelHandlerWrapper{serviceName: serviceName})
 	}

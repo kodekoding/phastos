@@ -27,6 +27,18 @@ type (
 )
 
 func InitNewRelic(opts ...NewRelicOpts) *newRelic {
+	nr, prov := initNewRelic(opts...)
+	if prov != nil {
+		SetProvider(prov)
+	}
+	return nr
+}
+
+func InitNewRelicOnly(opts ...NewRelicOpts) (*newRelic, Provider) {
+	return initNewRelic(opts...)
+}
+
+func initNewRelic(opts ...NewRelicOpts) (*newRelic, Provider) {
 	var newRelicPlatform = newRelic{
 		appName:    os.Getenv("NEW_RELIC_APP_NAME"),
 		licenseKey: os.Getenv("NEW_RELIC_LICENSE_KEY"),
@@ -62,11 +74,10 @@ func InitNewRelic(opts ...NewRelicOpts) *newRelic {
 	if err != nil {
 		//nolint:gosec // G706: operational fatal log includes controlled error output for startup diagnostics
 		logFatalln("Failed to connect new relic: ", err.Error())
-		return nil
+		return nil, nil
 	}
 
-	SetProvider(&nrProvider{app: app})
-	return &newRelicPlatform
+	return &newRelicPlatform, &nrProvider{app: app}
 }
 
 func (n *newRelic) GetApp() *newrelic.Application {

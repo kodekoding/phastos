@@ -2,6 +2,7 @@ package monitoring
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -181,4 +182,142 @@ func TestProviderInterface_NoopSatisfiesNewMethods(t *testing.T) {
 
 func TestProviderInterface_MockSatisfies(t *testing.T) {
 	var _ Provider = (*mockProvider)(nil)
+}
+
+// --- composite provider tests ---
+
+type trackSpan struct {
+	ended    bool
+	attrs    []attribute.KeyValue
+}
+
+func (s *trackSpan) End()              { s.ended = true }
+func (s *trackSpan) SetAttributes(kv ...attribute.KeyValue) { s.attrs = append(s.attrs, kv...) }
+
+type trackProvider struct {
+	spans   []*trackSpan
+	traceId string
+	logLink string
+}
+
+func (p *trackProvider) StartSpan(ctx context.Context, name string) (context.Context, Span) {
+	s := &trackSpan{}
+	p.spans = append(p.spans, s)
+	return ctx, s
+}
+
+func (p *trackProvider) GetTraceId(ctx context.Context) string   { return p.traceId }
+func (p *trackProvider) GetLogLink(traceId string) string        { return p.logLink }
+
+func TestSetProviders_Single(t *testing.T) {
+	orig := activeProvider
+	defer func() { activeProvider = orig }()
+
+	mock := &mockProvider{}
+	SetProviders(mock)
+	assert.IsType(t, &mockProvider{}, activeProvider)
+}
+
+func TestSetProviders_Composite(t *testing.T) {
+	orig := activeProvider
+	defer func() { activeProvider = orig }()
+
+	p1 := &trackProvider{}
+	p2 := &trackProvider{}
+	SetProviders(p1, p2)
+	_, ok := activeProvider.(*compositeProvider)
+	assert.True(t, ok, "expected compositeProvider when multiple providers given")
+}
+
+func TestSetProviders_None(t *testing.T) {
+	orig := activeProvider
+	defer func() { activeProvider = orig }()
+
+	SetProviders()
+	assert.IsType(t, &noopProvider{}, activeProvider)
+}
+
+func TestCompositeProvider_StartSpan_FanOut(t *testing.T) {
+	orig := activeProvider
+	defer func() { activeProvider = orig }()
+
+	p1 := &trackProvider{}
+	p2 := &trackProvider{}
+	SetProviders(p1, p2)
+
+	ctx := context.Background()
+	_, span := StartSpan(ctx, "test-span")
+
+	assert.Len(t, p1.spans, 1, "p1 should receive StartSpan call")
+	assert.Len(t, p2.spans, 1, "p2 should receive StartSpan call")
+	assert.NotNil(t, span)
+}
+
+func TestCompositeSpan_End_FanOut(t *testing.T) {
+	p1 := &trackProvider{}
+	p2 := &trackProvider{}
+	cp := &compositeProvider{providers: []Provider{p1, p2}}
+
+	_, span := cp.StartSpan(context.Background(), "test")
+	span.End()
+
+	assert.True(t, p1.spans[0].ended, "p1 span should be ended")
+	assert.True(t, p2.spans[0].ended, "p2 span should be ended")
+}
+
+func TestCompositeSpan_SetAttributes_FanOut(t *testing.T) {
+	p1 := &trackProvider{}
+	p2 := &trackProvider{}
+	cp := &compositeProvider{providers: []Provider{p1, p2}}
+
+	_, span := cp.StartSpan(context.Background(), "test")
+	span.SetAttributes(attribute.String("key", "val"))
+
+	assert.Len(t, p1.spans[0].attrs, 1, "p1 span should have attributes")
+	assert.Len(t, p2.spans[0].attrs, 1, "p2 span should have attributes")
+}
+
+func TestCompositeProvider_GetTraceId_FirstNonEmpty(t *testing.T) {
+	p1 := &trackProvider{traceId: ""}
+	p2 := &trackProvider{traceId: "otel-trace-123"}
+	cp := &compositeProvider{providers: []Provider{p1, p2}}
+
+	ctx := context.Background()
+	id := cp.GetTraceId(ctx)
+	assert.Equal(t, "otel-trace-123", id)
+}
+
+func TestCompositeProvider_GetTraceId_AllEmpty(t *testing.T) {
+	p1 := &trackProvider{traceId: ""}
+	p2 := &trackProvider{traceId: ""}
+	cp := &compositeProvider{providers: []Provider{p1, p2}}
+
+	ctx := context.Background()
+	id := cp.GetTraceId(ctx)
+	assert.Equal(t, "", id)
+}
+
+func TestCompositeProvider_GetLogLink_FirstNonEmpty(t *testing.T) {
+	p1 := &trackProvider{logLink: ""}
+	p2 := &trackProvider{logLink: "https://gitlab.com/trace/abc"}
+	cp := &compositeProvider{providers: []Provider{p1, p2}}
+
+	link := cp.GetLogLink("abc")
+	assert.Equal(t, "https://gitlab.com/trace/abc", link)
+}
+
+func TestInitNewRelicOnly_ReturnsProvider(t *testing.T) {
+	orig := activeProvider
+	defer func() { SetProvider(orig) }()
+
+	os.Setenv("NEW_RELIC_APP_NAME", "test")
+	os.Setenv("NEW_RELIC_LICENSE_KEY", "0123456789012345678901234567890123456789")
+	defer os.Unsetenv("NEW_RELIC_APP_NAME")
+	defer os.Unsetenv("NEW_RELIC_LICENSE_KEY")
+
+	SetProvider(&noopProvider{})
+
+	_, prov := InitNewRelicOnly()
+	assert.NotNil(t, prov, "InitNewRelicOnly should return a non-nil provider")
+	assert.IsType(t, &noopProvider{}, activeProvider, "InitNewRelicOnly should NOT call SetProvider")
 }
