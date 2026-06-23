@@ -1,6 +1,7 @@
 package log
 
 import (
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -23,33 +24,33 @@ func (w *otelTCPWriter) WriteLevel(level zerolog.Level, p []byte) (int, error) {
 }
 
 func (w *otelTCPWriter) Write(p []byte) (int, error) {
-	conn, err := w.getConn()
-	if err != nil {
-		return 0, err
+	conn := w.getConn()
+	if conn == nil {
+		return 0, fmt.Errorf("otel TCP writer: no connection to %s", w.endpoint)
 	}
-	msg := append(p, '\n')
-	return conn.Write(msg)
-}
 
-func (w *otelTCPWriter) getConn() (net.Conn, error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	if w.conn != nil {
-		_ = w.conn.SetReadDeadline(time.Now())
-		if _, err := w.conn.Read([]byte{}); err != nil {
+	n, err := conn.Write(p)
+	if err != nil {
+		w.mu.Lock()
+		if w.conn != nil {
 			_ = w.conn.Close()
 			w.conn = nil
 		}
+		w.mu.Unlock()
 	}
+	return n, err
+}
+
+func (w *otelTCPWriter) getConn() net.Conn {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 
 	if w.conn == nil {
 		conn, err := net.DialTimeout("tcp", w.endpoint, 5*time.Second)
 		if err != nil {
-			return nil, err
+			return nil
 		}
 		w.conn = conn
 	}
-
-	return w.conn, nil
+	return w.conn
 }
