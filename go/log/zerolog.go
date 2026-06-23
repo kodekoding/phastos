@@ -85,6 +85,7 @@ func Get(loggerOption ...LoggerOption) zerolog.Logger {
 
 		var writers []io.Writer
 		if logger.newRelicApp != nil {
+			writers = append(writers, os.Stdout)
 			writers = append(writers, logWriter.New(os.Stdout, logger.newRelicApp))
 		} else if logger.otelLogWriter != nil {
 			writers = append(writers, os.Stdout)
