@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,9 +21,11 @@ var once sync.Once
 
 type (
 	Logger struct {
-		newRelicApp *newrelic.Application
-		appPort     int
-		appVersion  string
+		newRelicApp      *newrelic.Application
+		appPort          int
+		appVersion       string
+		otelTCPEndpoint  string
+		otelLogWriter    io.Writer
 	}
 
 	LoggerOption func(*Logger)
@@ -46,6 +49,23 @@ func WithAppPort(appPort int) LoggerOption {
 	}
 }
 
+func WithOTelLogEndpoint() LoggerOption {
+	return func(l *Logger) {
+		endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+		if endpoint == "" {
+			return
+		}
+		host := strings.TrimPrefix(endpoint, "http://")
+		host = strings.TrimPrefix(host, "https://")
+		host = strings.Replace(host, ":4318", ":54526", 1)
+		if host == endpoint {
+			return
+		}
+		l.otelTCPEndpoint = host
+		l.otelLogWriter = newOTelTCPWriter(host)
+	}
+}
+
 func Get(loggerOption ...LoggerOption) zerolog.Logger {
 	once.Do(func() {
 		zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
@@ -63,13 +83,27 @@ func Get(loggerOption ...LoggerOption) zerolog.Logger {
 			logLevel = zerolog.DebugLevel
 		}
 
-		var writer io.Writer = zerolog.ConsoleWriter{
-			Out:        os.Stdout,
-			TimeFormat: time.RFC3339,
+		var writers []io.Writer
+		if logger.newRelicApp != nil {
+			writers = append(writers, logWriter.New(os.Stdout, logger.newRelicApp))
+		} else if logger.otelLogWriter != nil {
+			writers = append(writers, os.Stdout)
+		} else {
+			writers = append(writers, zerolog.ConsoleWriter{
+				Out:        os.Stdout,
+				TimeFormat: time.RFC3339,
+			})
 		}
 
-		if logger.newRelicApp != nil {
-			writer = logWriter.New(os.Stdout, logger.newRelicApp)
+		if logger.otelLogWriter != nil {
+			writers = append(writers, logger.otelLogWriter)
+		}
+
+		var writer io.Writer
+		if len(writers) == 1 {
+			writer = writers[0]
+		} else {
+			writer = io.MultiWriter(writers...)
 		}
 
 		logInit := zerolog.New(writer).
