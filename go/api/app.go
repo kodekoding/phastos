@@ -122,11 +122,13 @@ func NewApp(opts ...Options) *App {
 	}
 	monitoring.SetProviders(monitoringProviders...)
 
-	log := plog.Get(
+	logOpts := []plog.LoggerOption{
 		plog.WithNewRelicApp(apiApp.newRelic),
 		plog.WithAppPort(apiApp.Port),
 		plog.WithAppVersion(appVersion),
-	)
+		plog.WithOTelLogEndpoint(),
+	}
+	log := plog.Get(logOpts...)
 	var err error
 	TimezoneLocation, err = time.LoadLocation(apiApp.timezoneRegion)
 	if err != nil {
