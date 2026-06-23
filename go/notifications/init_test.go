@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/kodekoding/phastos/v2/go/entity"
 	tbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"github.com/kodekoding/phastos/v2/go/entity"
 	slackPkg "github.com/kodekoding/phastos/v2/go/notifications/slack"
 	telegramPkg "github.com/kodekoding/phastos/v2/go/notifications/telegram"
 	"github.com/stretchr/testify/assert"
@@ -38,7 +38,7 @@ func TestPlatformWrapToContext(t *testing.T) {
 	ctx = platform.WrapToContext(ctx)
 	val := ctx.Value(entity.NotifPlatformContext{})
 	assert.NotNil(t, val)
-	
+
 	platformVal, ok := val.(*Platform)
 	assert.True(t, ok)
 	assert.Equal(t, platform, platformVal)
@@ -46,19 +46,19 @@ func TestPlatformWrapToContext(t *testing.T) {
 
 func TestPlatformWrapToHandler(t *testing.T) {
 	platform := New()
-	
+
 	called := false
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		called = true
 		val := r.Context().Value(entity.NotifPlatformContext{})
 		assert.NotNil(t, val)
 	})
-	
+
 	handler := platform.WrapToHandler(next)
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
-	
+
 	assert.True(t, called)
 }
 
@@ -87,17 +87,19 @@ func TestActivateSlack_NewSlackServiceError(t *testing.T) {
 
 // stubAction implements Action for testing
 type stubAction struct {
-	active     bool
-	typeVal    string
-	traceId    string
+	active      bool
+	typeVal     string
+	traceId     string
 	destination interface{}
-	sendErr    error
+	sendErr     error
 }
 
-func (s *stubAction) Send(ctx context.Context, text string, attachment interface{}) error { return s.sendErr }
-func (s *stubAction) IsActive() bool       { return s.active }
-func (s *stubAction) Type() string         { return s.typeVal }
-func (s *stubAction) SetTraceId(traceId string)  { s.traceId = traceId }
+func (s *stubAction) Send(ctx context.Context, text string, attachment interface{}) error {
+	return s.sendErr
+}
+func (s *stubAction) IsActive() bool                  { return s.active }
+func (s *stubAction) Type() string                    { return s.typeVal }
+func (s *stubAction) SetTraceId(traceId string)       { s.traceId = traceId }
 func (s *stubAction) SetDestination(dest interface{}) { s.destination = dest }
 
 func TestActionInterface(t *testing.T) {
@@ -125,7 +127,7 @@ func TestStubActionSend(t *testing.T) {
 	stub := &stubAction{sendErr: nil}
 	err := stub.Send(context.Background(), "hello", nil)
 	assert.NoError(t, err)
-	
+
 	stub2 := &stubAction{sendErr: assert.AnError}
 	err2 := stub2.Send(context.Background(), "hello", nil)
 	assert.Error(t, err2)
@@ -200,17 +202,17 @@ func TestPlatformGetAllPlatformWithItems(t *testing.T) {
 
 func TestPlatformWrapToHandlerPreservesOriginalRequest(t *testing.T) {
 	platform := New()
-	
+
 	var receivedReq *http.Request
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedReq = r
 	})
-	
+
 	handler := platform.WrapToHandler(next)
 	req := httptest.NewRequest(http.MethodPost, "/test-path", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
-	
+
 	require.NotNil(t, receivedReq)
 	assert.Equal(t, "/test-path", receivedReq.URL.Path)
 }

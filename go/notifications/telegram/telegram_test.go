@@ -30,9 +30,9 @@ func newMockBot(t *testing.T, server *httptest.Server) *tbot.BotAPI {
 
 func TestTelegramConfigStruct(t *testing.T) {
 	cfg := TelegramConfig{
-		IsActive:  true,
+		IsActive: true,
 		BotToken: "123456:ABC",
-		ChatId:    12345,
+		ChatId:   12345,
 	}
 	assert.True(t, cfg.IsActive)
 	assert.Equal(t, "123456:ABC", cfg.BotToken)

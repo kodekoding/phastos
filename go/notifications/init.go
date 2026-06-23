@@ -6,6 +6,7 @@ import (
 
 	"github.com/kodekoding/phastos/v2/go/entity"
 	plog "github.com/kodekoding/phastos/v2/go/log"
+	fcmpkg "github.com/kodekoding/phastos/v2/go/notifications/fcm"
 	slackpkg "github.com/kodekoding/phastos/v2/go/notifications/slack"
 	"github.com/kodekoding/phastos/v2/go/notifications/telegram"
 )
@@ -22,6 +23,7 @@ type (
 	Platforms interface {
 		Telegram() Action
 		Slack() Action
+		FCM() Action
 		GetAllPlatform() []Action
 		WrapToHandler(next http.Handler) http.Handler
 		WrapToContext(ctx context.Context) context.Context
@@ -32,12 +34,14 @@ type (
 	Platform struct {
 		telegram Action
 		slack    Action
+		fcm      Action
 		list     []Action
 	}
 
 	Config struct {
 		Telegram *telegram.TelegramConfig `yaml:"telegram"`
 		Slack    *slackpkg.SlackConfig    `yaml:"slack"`
+		FCM      *fcmpkg.FCMConfig        `yaml:"fcm"`
 	}
 )
 
@@ -91,12 +95,30 @@ func ActivateTelegram(botToken string) Options {
 	}
 }
 
+func ActivateFirebase(serviceAccountPath string) Options {
+	return func(platform *Platform) {
+		log := plog.Get()
+		var err error
+		platform.fcm, err = fcmpkg.New(&fcmpkg.FCMConfig{ServiceAccountPath: serviceAccountPath, IsActive: true})
+		if err != nil {
+			log.Error().Msgf("fcm cannot initialized: %s", err)
+			return
+		}
+		platform.list = append(platform.list, platform.fcm)
+		log.Info().Msg("fcm notification initialized")
+	}
+}
+
 func (this *Platform) Telegram() Action {
 	return this.telegram
 }
 
 func (this *Platform) Slack() Action {
 	return this.slack
+}
+
+func (this *Platform) FCM() Action {
+	return this.fcm
 }
 
 func (this *Platform) GetAllPlatform() []Action {

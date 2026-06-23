@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/kodekoding/phastos/v2/go/monitoring"
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
+	"github.com/kodekoding/phastos/v2/go/monitoring"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
@@ -72,7 +72,7 @@ func TestSlackServiceResetURL(t *testing.T) {
 func TestSlackServiceSendWithInvalidAttachment(t *testing.T) {
 	cfg := &SlackConfig{URL: "https://hooks.slack.com/test", IsActive: true}
 	svc, _ := New(cfg)
-	
+
 	// Send with an attachment that is not sgw.Attachment
 	err := svc.Send(context.Background(), "test", "not-an-attachment")
 	assert.Error(t, err)
@@ -86,10 +86,10 @@ func TestSlackServiceSendWithValidAttachment(t *testing.T) {
 		return nil // success
 	}
 	defer func() { sendSlack = originalSend }()
-	
+
 	cfg := &SlackConfig{URL: "https://hooks.slack.com/test", IsActive: true}
 	svc, _ := New(cfg)
-	
+
 	attachment := &sgw.Attachment{}
 	err := svc.Send(context.Background(), "test message", attachment)
 	assert.NoError(t, err)
@@ -101,10 +101,10 @@ func TestSlackServiceSendNoAttachment(t *testing.T) {
 		return nil
 	}
 	defer func() { sendSlack = originalSend }()
-	
+
 	cfg := &SlackConfig{URL: "https://hooks.slack.com/test", IsActive: true}
 	svc, _ := New(cfg)
-	
+
 	err := svc.Send(context.Background(), "test message", nil)
 	assert.NoError(t, err)
 }
@@ -268,10 +268,10 @@ func TestSlackServiceSendWithSlackError(t *testing.T) {
 		return []error{assert.AnError}
 	}
 	defer func() { sendSlack = originalSend }()
-	
+
 	cfg := &SlackConfig{URL: "https://hooks.slack.com/test", IsActive: true}
 	svc, _ := New(cfg)
-	
+
 	err := svc.Send(context.Background(), "test message", nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "error when send slack")
