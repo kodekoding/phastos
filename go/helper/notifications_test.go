@@ -172,6 +172,7 @@ type stubPlatform struct {
 
 func (p *stubPlatform) Telegram() notifications.Action { return nil }
 func (p *stubPlatform) Slack() notifications.Action    { return p.slack }
+func (p *stubPlatform) FCM() notifications.Action      { return nil }
 func (p *stubPlatform) GetAllPlatform() []notifications.Action { return nil }
 func (p *stubPlatform) WrapToHandler(next http.Handler) http.Handler { return next }
 func (p *stubPlatform) WrapToContext(ctx context.Context) context.Context { return ctx }

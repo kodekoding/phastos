@@ -310,6 +310,7 @@ func (mp *mockPlatformsForSendNotif) GetAllPlatform() []notifications.Action {
 
 func (mp *mockPlatformsForSendNotif) Telegram() notifications.Action { return nil }
 func (mp *mockPlatformsForSendNotif) Slack() notifications.Action    { return nil }
+func (mp *mockPlatformsForSendNotif) FCM() notifications.Action      { return nil }
 func (mp *mockPlatformsForSendNotif) WrapToHandler(next http.Handler) http.Handler { return next }
 func (mp *mockPlatformsForSendNotif) WrapToContext(ctx context.Context) context.Context { return ctx }
 

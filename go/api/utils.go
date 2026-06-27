@@ -43,7 +43,7 @@ func WriteJson(w http.ResponseWriter, data interface{}) {
 }
 
 type ValidationError struct {
-	Field string `json:"field"`
+	Field string `json:"field" validate:"required"`
 	Tag   string `json:"tag"`
 	Value string `json:"value"`
 }

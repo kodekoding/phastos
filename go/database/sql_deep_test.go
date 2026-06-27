@@ -52,6 +52,7 @@ type stubPlatforms struct {
 
 func (sp *stubPlatforms) Telegram() notifications.Action { return nil }
 func (sp *stubPlatforms) Slack() notifications.Action    { return nil }
+func (sp *stubPlatforms) FCM() notifications.Action      { return nil }
 func (sp *stubPlatforms) GetAllPlatform() []notifications.Action { return sp.platforms }
 func (sp *stubPlatforms) WrapToHandler(_ http.Handler) http.Handler { return nil }
 func (sp *stubPlatforms) WrapToContext(ctx context.Context) context.Context { return ctx }

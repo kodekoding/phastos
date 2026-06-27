@@ -181,6 +181,9 @@ func WithUsername(username string) Options {
 
 func (r *Store) wrapWithRetries(ctx context.Context, actualFn actualRedisActionFn) (any, error) {
 	log := plog.Ctx(ctx)
+	// input validation
+
+	// data validation
 	for i := 0; i < r.maxRetry; i++ {
 		result, err := actualFn(ctx)
 		if err != nil {
@@ -192,6 +195,8 @@ func (r *Store) wrapWithRetries(ctx context.Context, actualFn actualRedisActionF
 			return nil, err
 		}
 
+		// save data
+		// telemetryu
 		return result, nil
 	}
 

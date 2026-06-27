@@ -116,9 +116,7 @@ func requestLogger(next http.Handler) http.Handler {
 		}
 
 		start := time.Now()
-		log := plog.Get()
 
-		// Read request ID from header (set by InitHandler).
 		requestId := r.Header.Get(common.RequestIDHeader)
 		if requestId == "" {
 			requestId = r.Header.Get("X-Request-ID")
@@ -126,10 +124,10 @@ func requestLogger(next http.Handler) http.Handler {
 		// register `X-Request-Id` to header response
 		w.Header().Add("X-Request-Id", requestId)
 
-		// update log context with embed request_id
-		log.UpdateContext(func(c zerolog.Context) zerolog.Context {
-			return c.Str("request_id", requestId)
-		})
+		// build per-request logger (child, does NOT mutate global singleton)
+		log := plog.Get().With().Str("request_id", requestId).Logger()
+		// store in context so downstream middleware gets this copy, not the global
+		r = r.WithContext(log.WithContext(r.Context()))
 
 		respRecorder := NewResponseRecorder(w)
 

@@ -22,6 +22,7 @@ type stubNotifPlatforms struct{}
 
 func (s *stubNotifPlatforms) Slack() notifications.Action                          { return nil }
 func (s *stubNotifPlatforms) Telegram() notifications.Action                        { return nil }
+func (s *stubNotifPlatforms) FCM() notifications.Action                            { return nil }
 func (s *stubNotifPlatforms) GetAllPlatform() []notifications.Action                { return nil }
 func (s *stubNotifPlatforms) WrapToHandler(next http.Handler) http.Handler          { return next }
 func (s *stubNotifPlatforms) WrapToContext(ctx context.Context) context.Context     { return ctx }

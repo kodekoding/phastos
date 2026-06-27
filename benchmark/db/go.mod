@@ -1,6 +1,6 @@
 module benchmarkdb
 
-go 1.25.8
+go 1.26
 
 require (
 	github.com/beego/beego/v2 v2.3.10
