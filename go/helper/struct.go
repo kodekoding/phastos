@@ -428,6 +428,11 @@ func GenerateSelectCols(ctx context.Context, source interface{}, opts ...GenSele
 
 	for i := 0; i < typeInfo.NumField; i++ {
 		fi := &typeInfo.Fields[i]
+
+		if fi.ColName == "-" {
+			continue
+		}
+
 		field := elem.Field(fi.Index)
 		value := field.Interface()
 
