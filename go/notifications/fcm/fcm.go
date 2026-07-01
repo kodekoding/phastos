@@ -26,7 +26,8 @@ type (
 	}
 
 	FCMAttachment struct {
-		Data map[string]string
+		Title string
+		Data  map[string]string
 	}
 )
 
@@ -91,6 +92,9 @@ func (s *Service) Send(ctx context.Context, text string, attachment interface{})
 	if attachment != nil {
 		fcmAtt, valid := attachment.(*FCMAttachment)
 		if valid {
+			if fcmAtt.Title != "" {
+				msg.Notification.Title = fcmAtt.Title
+			}
 			msg.Data = fcmAtt.Data
 		}
 	}
