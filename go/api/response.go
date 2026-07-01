@@ -247,6 +247,12 @@ func (resp *Response) SetError(err error) *Response {
 	if reqErr, ok := causeErr.(*custerr.RequestError); ok {
 		switch reqErr.GetCode() {
 		case http.StatusConflict:
+			constraint, _ := reqErr.GetData()["constraint"].(string)
+			if entry, found := constraintRegistry[constraint]; found {
+				resp.InternalError = ConflictError(entry.Message, entry.Code)
+				resp.Err = resp.InternalError
+				return resp
+			}
 			resp.InternalError = ConflictError("Data already exists", "DATA_CONFLICT")
 			resp.Err = resp.InternalError
 			return resp
