@@ -137,3 +137,11 @@ func TooManyRequest(message, code string) *HttpError {
 		Status:  429,
 	}
 }
+
+func ConflictError(message, code string) *HttpError {
+	return &HttpError{
+		Code:    code,
+		Message: message,
+		Status:  409,
+	}
+}

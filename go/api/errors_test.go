@@ -93,3 +93,10 @@ func TestTooManyRequest(t *testing.T) {
 	assert.Equal(t, "RATE_LIMIT", err.Code)
 	assert.Equal(t, "rate limit exceeded", err.Message)
 }
+
+func TestConflictError(t *testing.T) {
+	err := ConflictError("conflict", "CONFLICT")
+	assert.Equal(t, "conflict", err.Message)
+	assert.Equal(t, "CONFLICT", err.Code)
+	assert.Equal(t, 409, err.Status)
+}
