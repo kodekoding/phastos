@@ -11,6 +11,7 @@ import (
 
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
 	"github.com/kodekoding/phastos/v2/go/common"
+	custerr "github.com/kodekoding/phastos/v2/go/error"
 	"github.com/pkg/errors"
 
 	"github.com/kodekoding/phastos/v2/go/context"
@@ -231,18 +232,33 @@ func (resp *Response) Send(w http.ResponseWriter) {
 }
 
 func (resp *Response) SetError(err error) *Response {
-	if causeErr, isHttpErr := errors.Cause(err).(*HttpError); !isHttpErr {
-		// if not httpError then create new httpError for internal error and sent alert to notification platform
-		resp.InternalError = NewErr(WithErrorCode("INTERNAL_SERVER_ERROR"), WithErrorMessage(err.Error()))
-		resp.Err = errors.New("Internal Server Error")
-	} else {
-		resp.InternalError = causeErr
-		resp.Err = causeErr
-		if causeErr.Status == http.StatusInternalServerError {
+	causeErr := errors.Cause(err)
+
+	if httpErr, ok := causeErr.(*HttpError); ok {
+		resp.InternalError = httpErr
+		resp.Err = httpErr
+		if httpErr.Status == http.StatusInternalServerError {
 			resp.Err = errors.New("Internal Server Error")
+		}
+		return resp
+	}
+
+	// Handle constraint violations from database layer
+	if reqErr, ok := causeErr.(*custerr.RequestError); ok {
+		switch reqErr.GetCode() {
+		case http.StatusConflict:
+			resp.InternalError = ConflictError("Data already exists", "DATA_CONFLICT")
+			resp.Err = resp.InternalError
+			return resp
+		case http.StatusUnprocessableEntity:
+			resp.InternalError = UnprocessableEntity("Data validation failed", "CONSTRAINT_VIOLATION")
+			resp.Err = resp.InternalError
+			return resp
 		}
 	}
 
+	resp.InternalError = NewErr(WithErrorCode("INTERNAL_SERVER_ERROR"), WithErrorMessage(err.Error()))
+	resp.Err = errors.New("Internal Server Error")
 	return resp
 }
 

@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	custerr "github.com/kodekoding/phastos/v2/go/error"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -223,4 +225,43 @@ func TestHttpError_Write(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
 	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+}
+
+func TestResponse_SetError_ConflictConstraintError(t *testing.T) {
+	resp := NewResponse()
+	defer ReleaseResponse(resp)
+
+	reqErr := custerr.New(assert.AnError).SetCode(http.StatusConflict)
+	err := errors.Wrap(reqErr, "repository.Insert")
+	result := resp.SetError(err)
+
+	assert.Equal(t, resp, result)
+	assert.Equal(t, "DATA_CONFLICT", resp.InternalError.Code)
+	assert.Equal(t, http.StatusConflict, resp.InternalError.Status)
+}
+
+func TestResponse_SetError_UnprocessableConstraintError(t *testing.T) {
+	resp := NewResponse()
+	defer ReleaseResponse(resp)
+
+	reqErr := custerr.New(assert.AnError).SetCode(http.StatusUnprocessableEntity)
+	err := errors.Wrap(reqErr, "repository.Insert")
+	result := resp.SetError(err)
+
+	assert.Equal(t, resp, result)
+	assert.Equal(t, "CONSTRAINT_VIOLATION", resp.InternalError.Code)
+	assert.Equal(t, http.StatusUnprocessableEntity, resp.InternalError.Status)
+}
+
+func TestResponse_SetError_NonConstraintRequestError(t *testing.T) {
+	resp := NewResponse()
+	defer ReleaseResponse(resp)
+
+	// RequestError with code=500 should still be treated as generic internal error
+	reqErr := custerr.New(assert.AnError).SetCode(http.StatusInternalServerError)
+	err := errors.Wrap(reqErr, "repository.Insert")
+	result := resp.SetError(err)
+
+	assert.Equal(t, resp, result)
+	assert.Equal(t, "INTERNAL_SERVER_ERROR", resp.InternalError.Code)
 }
