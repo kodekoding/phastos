@@ -1080,6 +1080,10 @@ func sendNilResponse(err error, ctxMsg string, params ...interface{}) (interface
 	}
 
 	customErr := custerr.New(err).SetCode(statusCode)
+	if pqErr != nil {
+		customErr.AppendData("constraint", pqErr.Constraint) //nolint:errcheck
+		customErr.AppendData("sql_state", string(pqErr.Code)) //nolint:errcheck
+	}
 	for i, paramValue := range params {
 		keyParam := fmt.Sprintf("param %d", i+1)
 		customErr.AppendData(keyParam, paramValue) //nolint:errcheck

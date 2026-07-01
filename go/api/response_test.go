@@ -253,6 +253,38 @@ func TestResponse_SetError_UnprocessableConstraintError(t *testing.T) {
 	assert.Equal(t, http.StatusUnprocessableEntity, resp.InternalError.Status)
 }
 
+func TestResponse_SetError_ConflictConstraintError_WithRegistryMatch(t *testing.T) {
+	resp := NewResponse()
+	defer ReleaseResponse(resp)
+
+	reqErr := custerr.New(assert.AnError).SetCode(http.StatusConflict)
+	reqErr.AppendData("constraint", "users_email_key")
+	reqErr.AppendData("sql_state", "23505")
+	err := errors.Wrap(reqErr, "repository.Insert")
+	result := resp.SetError(err)
+
+	assert.Equal(t, resp, result)
+	assert.Equal(t, "EMAIL_ALREADY_EXISTS", resp.InternalError.Code)
+	assert.Equal(t, "Email already registered", resp.InternalError.Message)
+	assert.Equal(t, http.StatusConflict, resp.InternalError.Status)
+}
+
+func TestResponse_SetError_ConflictConstraintError_WithRegistryMatch_NIK(t *testing.T) {
+	resp := NewResponse()
+	defer ReleaseResponse(resp)
+
+	reqErr := custerr.New(assert.AnError).SetCode(http.StatusConflict)
+	reqErr.AppendData("constraint", "users_ktp_no_key")
+	reqErr.AppendData("sql_state", "23505")
+	err := errors.Wrap(reqErr, "repository.Insert")
+	result := resp.SetError(err)
+
+	assert.Equal(t, resp, result)
+	assert.Equal(t, "NIK_ALREADY_EXISTS", resp.InternalError.Code)
+	assert.Equal(t, "NIK already exists", resp.InternalError.Message)
+	assert.Equal(t, http.StatusConflict, resp.InternalError.Status)
+}
+
 func TestResponse_SetError_NonConstraintRequestError(t *testing.T) {
 	resp := NewResponse()
 	defer ReleaseResponse(resp)

@@ -330,6 +330,10 @@ func TestSendNilResponse_UniqueViolation(t *testing.T) {
 	var reqErr *custerr.RequestError
 	require.True(t, errors.As(err, &reqErr))
 	assert.Equal(t, 409, reqErr.GetCode())
+
+	data := reqErr.GetData()
+	assert.Equal(t, "users_email_key", data["constraint"])
+	assert.Equal(t, "23505", data["sql_state"])
 }
 
 func TestSendNilResponse_CheckViolation(t *testing.T) {
@@ -344,6 +348,10 @@ func TestSendNilResponse_CheckViolation(t *testing.T) {
 	var reqErr *custerr.RequestError
 	require.True(t, errors.As(err, &reqErr))
 	assert.Equal(t, 422, reqErr.GetCode())
+
+	data := reqErr.GetData()
+	assert.Equal(t, "some_check", data["constraint"])
+	assert.Equal(t, "23514", data["sql_state"])
 }
 
 func TestSendNilResponse_OtherPostgresError(t *testing.T) {
