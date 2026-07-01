@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	custerr "github.com/kodekoding/phastos/v2/go/error"
+	"github.com/lib/pq"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -313,6 +315,63 @@ func TestSendNilResponse_WithParams(t *testing.T) {
 	assert.Nil(t, result)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "test.context")
+}
+
+func TestSendNilResponse_UniqueViolation(t *testing.T) {
+	pqErr := &pq.Error{
+		Code:       "23505",
+		Constraint: "users_email_key",
+		Table:      "users",
+	}
+	result, err := sendNilResponse(pqErr, "test.context")
+	assert.Nil(t, result)
+	require.Error(t, err)
+
+	var reqErr *custerr.RequestError
+	require.True(t, errors.As(err, &reqErr))
+	assert.Equal(t, 409, reqErr.GetCode())
+}
+
+func TestSendNilResponse_CheckViolation(t *testing.T) {
+	pqErr := &pq.Error{
+		Code:       "23514",
+		Constraint: "some_check",
+	}
+	result, err := sendNilResponse(pqErr, "test.context")
+	assert.Nil(t, result)
+	require.Error(t, err)
+
+	var reqErr *custerr.RequestError
+	require.True(t, errors.As(err, &reqErr))
+	assert.Equal(t, 422, reqErr.GetCode())
+}
+
+func TestSendNilResponse_OtherPostgresError(t *testing.T) {
+	pqErr := &pq.Error{
+		Code: "23503", // foreign_key_violation — not our target
+	}
+	result, err := sendNilResponse(pqErr, "test.context")
+	assert.Nil(t, result)
+	require.Error(t, err)
+
+	var reqErr *custerr.RequestError
+	require.True(t, errors.As(err, &reqErr))
+	assert.Equal(t, 500, reqErr.GetCode())
+}
+
+func TestSendNilResponse_WrappedPQError(t *testing.T) {
+	pqErr := &pq.Error{
+		Code:       "23505",
+		Constraint: "users_email_key",
+	}
+	wrappedErr := errors.Wrap(pqErr, "outer wrap")
+	result, err := sendNilResponse(wrappedErr, "test.context")
+	assert.Nil(t, result)
+	require.Error(t, err)
+
+	var reqErr *custerr.RequestError
+	require.True(t, errors.As(err, &reqErr))
+	assert.Equal(t, 409, reqErr.GetCode())
 }
 
 // --- GenerateAddOnQuery tests ---

@@ -16,7 +16,7 @@ import (
 
 	sgw "github.com/ashwanthkumar/slack-go-webhook"
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq" // import postgre driver
+	"github.com/lib/pq"
 	_ "github.com/newrelic/go-agent/v3/integrations/nrmysql"
 	_ "github.com/newrelic/go-agent/v3/integrations/nrpq"
 	"github.com/pkg/errors"
@@ -1067,7 +1067,19 @@ func sendNilResponse(err error, ctxMsg string, params ...interface{}) (interface
 		return nil, nil
 	}
 
-	customErr := custerr.New(err).SetCode(500)
+	statusCode := 500
+
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		switch pqErr.Code {
+		case "23505": // unique_violation
+			statusCode = 409
+		case "23514": // check_violation
+			statusCode = 422
+		}
+	}
+
+	customErr := custerr.New(err).SetCode(statusCode)
 	for i, paramValue := range params {
 		keyParam := fmt.Sprintf("param %d", i+1)
 		customErr.AppendData(keyParam, paramValue) //nolint:errcheck
