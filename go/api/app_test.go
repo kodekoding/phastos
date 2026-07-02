@@ -532,6 +532,179 @@ func TestApp_handleResponseError_NoError(t *testing.T) {
 // initialized in cron.New(), causing a nil map write panic. This is a bug
 // in the cron package, not in the api package.
 
+// --- Route Group Tests ---
+
+func TestApp_AddController_WithRouteGroup(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
+	app.Init()
+
+	handler := func(req Request, ctx context.Context) *Response {
+		return NewResponse().SetMessage("hello")
+	}
+	mw := func(next http.Handler) http.Handler { return next }
+
+	ctrl := &mockController{
+		config: ControllerConfig{
+			Path: "/employee",
+			Routes: []Route{
+				{
+					Path: "/absence",
+					SubRoutes: []Route{
+						NewRoute(http.MethodGet, handler, WithPath("/list")),
+						NewRoute(http.MethodGet, handler, WithPath("/today")),
+						NewRoute(http.MethodGet, handler, WithPath("/{id}")),
+					},
+					Middlewares: &[]func(http.Handler) http.Handler{mw},
+				},
+			},
+		},
+	}
+
+	app.AddController(ctrl)
+	assert.Equal(t, 4, app.TotalEndpoints) // 3 group routes + /ping
+}
+
+func TestApp_AddController_WithNestedRouteGroup(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
+	app.Init()
+
+	handler := func(req Request, ctx context.Context) *Response {
+		return NewResponse().SetMessage("hello")
+	}
+
+	ctrl := &mockController{
+		config: ControllerConfig{
+			Path: "/employee",
+			Routes: []Route{
+				{
+					Path: "/absence",
+					SubRoutes: []Route{
+						NewRoute(http.MethodGet, handler),
+						{
+							Path: "/attendance",
+							SubRoutes: []Route{
+								NewRoute(http.MethodGet, handler, WithPath("/summary")),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	app.AddController(ctrl)
+	assert.Equal(t, 3, app.TotalEndpoints) // 2 leaf routes + /ping
+}
+
+func TestApp_AddController_GroupMiddlewareInheritance(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
+	app.Init()
+
+	handler := func(req Request, ctx context.Context) *Response {
+		return NewResponse().SetMessage("hello")
+	}
+	groupMW := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Group-MW", "applied")
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	ctrl := &mockController{
+		config: ControllerConfig{
+			Path: "/test",
+			Routes: []Route{
+				{
+					Path: "/group",
+					SubRoutes: []Route{
+						NewRoute(http.MethodGet, handler, WithPath("/leaf")),
+					},
+					Middlewares: &[]func(http.Handler) http.Handler{groupMW},
+				},
+			},
+		},
+	}
+
+	app.AddController(ctrl)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/test/group/leaf", nil)
+	w := httptest.NewRecorder()
+	app.Http.ServeHTTP(w, req)
+
+	assert.Equal(t, "applied", w.Header().Get("X-Group-MW"))
+	assert.Equal(t, 2, app.TotalEndpoints) // 1 route + /ping
+}
+
+func TestApp_AddController_EmptyRouteGroup(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
+	app.Init()
+
+	ctrl := &mockController{
+		config: ControllerConfig{
+			Path: "/test",
+			Routes: []Route{
+				{
+					Path:      "/empty",
+					SubRoutes: []Route{},
+				},
+			},
+		},
+	}
+
+	app.AddController(ctrl)
+	assert.Equal(t, 1, app.TotalEndpoints) // only /ping
+}
+
+func TestApp_AddController_MixedFlatAndGroup(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
+	app.Init()
+
+	handler := func(req Request, ctx context.Context) *Response {
+		return NewResponse().SetMessage("hello")
+	}
+
+	ctrl := &mockController{
+		config: ControllerConfig{
+			Path: "/api",
+			Routes: []Route{
+				NewRoute(http.MethodGet, handler, WithPath("/health")),
+				{
+					Path: "/users",
+					SubRoutes: []Route{
+						NewRoute(http.MethodGet, handler, WithPath("/list")),
+					},
+				},
+			},
+		},
+	}
+
+	app.AddController(ctrl)
+	assert.Equal(t, 3, app.TotalEndpoints) // 2 routes + /ping
+}
+
+func TestApp_AddController_WithNewGroupHelper(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
+	app.Init()
+
+	handler := func(req Request, ctx context.Context) *Response {
+		return NewResponse().SetMessage("hello")
+	}
+
+	ctrl := &mockController{
+		config: ControllerConfig{
+			Path: "/api",
+			Routes: []Route{
+				NewGroup("/items", []Route{
+					NewRoute(http.MethodGet, handler, WithPath("/list")),
+				}),
+			},
+		},
+	}
+
+	app.AddController(ctrl)
+	assert.Equal(t, 2, app.TotalEndpoints) // 1 route + /ping
+}
+
 // --- initDefaultHandlers ---
 
 func TestApp_initDefaultHandlers_PingEndpoint(t *testing.T) {

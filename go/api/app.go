@@ -657,6 +657,8 @@ func (app *App) AddController(ctrl Controller) {
 	}
 	config := ctrl.GetConfig()
 	app.registerRoutes(config.Path, config.Middlewares, config.Routes)
+	// Ensure default routes (/ping) are registered even if no leaf routes were processed.
+	app.flushPendingMiddlewares()
 }
 
 func (app *App) AddControllers(ctrls Controllers) {
