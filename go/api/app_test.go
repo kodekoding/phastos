@@ -705,6 +705,30 @@ func TestApp_AddController_WithNewGroupHelper(t *testing.T) {
 	assert.Equal(t, 2, app.TotalEndpoints) // 1 route + /ping
 }
 
+func TestApp_AddController_WithNewGroupHelperWithOpts(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
+	app.Init()
+
+	handler := func(req Request, ctx context.Context) *Response {
+		return NewResponse().SetMessage("hello")
+	}
+	mw := func(next http.Handler) http.Handler { return next }
+
+	ctrl := &mockController{
+		config: ControllerConfig{
+			Path: "/api",
+			Routes: []Route{
+				NewGroup("/items", []Route{
+					NewRoute(http.MethodGet, handler, WithPath("/list")),
+				}, WithMiddleware(mw)),
+			},
+		},
+	}
+
+	app.AddController(ctrl)
+	assert.Equal(t, 2, app.TotalEndpoints) // 1 route + /ping
+}
+
 // --- initDefaultHandlers ---
 
 func TestApp_initDefaultHandlers_PingEndpoint(t *testing.T) {
