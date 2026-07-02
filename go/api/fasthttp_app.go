@@ -430,13 +430,24 @@ func (app *FastHttpApp) AddGlobalMiddleware(handlers ...FastMiddleware) {
 	app.pendingMiddlewares = true
 }
 
-// AddController registers all routes from a FastController.
-func (app *FastHttpApp) AddController(ctrl FastController) {
-	app.flushPendingMiddlewares()
+// registerFastRoutes recursively registers routes, supporting nested sub-route groups.
+func (app *FastHttpApp) registerFastRoutes(prefix string, parentMiddlewares []FastMiddleware, routes []FastRoute) {
+	for _, route := range routes {
+		fullPath := prefix + route.Path
 
-	config := ctrl.GetConfig()
-	for _, route := range config.Routes {
-		routePath := route.GetVersionedPath(config.Path)
+		if len(route.SubRoutes) > 0 {
+			merged := append(parentMiddlewares, route.Middlewares...)
+			app.registerFastRoutes(fullPath, merged, route.SubRoutes)
+			continue
+		}
+
+		if route.SubRoutes != nil {
+			logger := plog.Get()
+			logger.Warn().Str("path", fullPath).Msg("route group has no sub-routes, skipping")
+			continue
+		}
+
+		routePath := route.GetVersionedPath(prefix)
 
 		var handler fasthttp.RequestHandler
 		if route.DirectHandler != nil {
@@ -445,19 +456,22 @@ func (app *FastHttpApp) AddController(ctrl FastController) {
 			handler = app.wrapFastHandler(route.Handler)
 		}
 
-		// Apply route-specific middlewares (in reverse for correct ordering)
-		for i := len(route.Middlewares) - 1; i >= 0; i-- {
-			handler = route.Middlewares[i](handler)
-		}
-
-		// Apply controller-level middlewares
-		for i := len(config.Middlewares) - 1; i >= 0; i-- {
-			handler = config.Middlewares[i](handler)
+		allMiddlewares := append(parentMiddlewares, route.Middlewares...)
+		for i := len(allMiddlewares) - 1; i >= 0; i-- {
+			handler = allMiddlewares[i](handler)
 		}
 
 		app.router.Handle(route.Method, routePath, handler)
 		app.TotalEndpoints++
 	}
+}
+
+// AddController registers all routes from a FastController.
+func (app *FastHttpApp) AddController(ctrl FastController) {
+	app.flushPendingMiddlewares()
+
+	config := ctrl.GetConfig()
+	app.registerFastRoutes(config.Path, config.Middlewares, config.Routes)
 }
 
 // flushPendingMiddlewares applies global middlewares and registers default routes.
