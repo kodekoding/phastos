@@ -607,25 +607,56 @@ func RegisterMiddleware[T any](app *App, key string, middlewareHandler T) {
 	app.middlewares[key] = middlewareHandler
 }
 
+// mergeMiddlewares merges two middleware slices, preserving order.
+// Parent (controller/outer) first, then child (group/inner).
+func mergeMiddlewares(a, b *[]func(http.Handler) http.Handler) *[]func(http.Handler) http.Handler {
+	var merged []func(http.Handler) http.Handler
+	if a != nil {
+		merged = append(merged, *a...)
+	}
+	if b != nil {
+		merged = append(merged, *b...)
+	}
+	return &merged
+}
+
+// registerRoutes recursively registers routes, handling nested groups.
+// prefix accumulates path from parent groups; parentMiddlewares accumulates middleware chain.
+func (app *App) registerRoutes(prefix string, parentMiddlewares *[]func(http.Handler) http.Handler, routes []Route) {
+	log := plog.Get()
+	for _, route := range routes {
+		fullPath := prefix + route.Path
+
+		if len(route.SubRoutes) > 0 {
+			merged := mergeMiddlewares(parentMiddlewares, route.Middlewares)
+			app.registerRoutes(fullPath, merged, route.SubRoutes)
+			continue
+		}
+
+		if route.SubRoutes != nil {
+			log.Warn().Str("path", fullPath).Msg("route group has no sub-routes, skipping")
+			continue
+		}
+
+		var middlewares []func(http.Handler) http.Handler
+		if parentMiddlewares != nil {
+			middlewares = append(middlewares, *parentMiddlewares...)
+		}
+		if route.Middlewares != nil {
+			middlewares = append(middlewares, *route.Middlewares...)
+		}
+		routePath := route.GetVersionedPath(prefix)
+		app.registerHandler(route.Method, routePath, route.Handler, middlewares...)
+	}
+}
+
 func (app *App) AddController(ctrl Controller) {
 	// inject registered middlewares if controller embeds ControllerImpl
 	if impl, ok := ctrl.(interface{ SetRegisteredMiddlewares(map[string]any) }); ok {
 		impl.SetRegisteredMiddlewares(app.middlewares)
 	}
 	config := ctrl.GetConfig()
-	for _, route := range config.Routes {
-		var middlewares []func(http.Handler) http.Handler
-
-		if config.Middlewares != nil {
-			middlewares = append(middlewares, *config.Middlewares...)
-		}
-
-		if route.Middlewares != nil {
-			middlewares = append(middlewares, *route.Middlewares...)
-		}
-		routePath := route.GetVersionedPath(config.Path)
-		app.registerHandler(route.Method, routePath, route.Handler, middlewares...)
-	}
+	app.registerRoutes(config.Path, config.Middlewares, config.Routes)
 }
 
 func (app *App) AddControllers(ctrls Controllers) {
