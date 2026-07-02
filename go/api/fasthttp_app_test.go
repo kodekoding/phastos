@@ -649,6 +649,85 @@ func TestFastHttpApp_requestValidator(t *testing.T) {
 	})
 }
 
+func TestFastHttpApp_AddController_WithRouteGroup(t *testing.T) {
+	app := NewFastHttpApp()
+	app.Init()
+
+	handler := func(req FastRequest, ctx context.Context) *Response {
+		return NewResponse().SetMessage("hello")
+	}
+
+	ctrl := &testFastController{
+		config: FastControllerConfig{
+			Path: "/employee",
+			Routes: []FastRoute{
+				{
+					Path: "/absence",
+					SubRoutes: []FastRoute{
+						{Method: "GET", Path: "/list", Handler: handler, Version: 1},
+						{Method: "GET", Path: "/today", Handler: handler, Version: 1},
+					},
+				},
+			},
+		},
+	}
+
+	app.AddController(ctrl)
+	assert.Equal(t, 3, app.TotalEndpoints) // 2 routes + /ping
+}
+
+func TestFastHttpApp_AddController_WithNestedRouteGroup(t *testing.T) {
+	app := NewFastHttpApp()
+	app.Init()
+
+	handler := func(req FastRequest, ctx context.Context) *Response {
+		return NewResponse().SetMessage("hello")
+	}
+
+	ctrl := &testFastController{
+		config: FastControllerConfig{
+			Path: "/employee",
+			Routes: []FastRoute{
+				{
+					Path: "/absence",
+					SubRoutes: []FastRoute{
+						{Method: "GET", Path: "", Handler: handler, Version: 1},
+						{
+							Path: "/attendance",
+							SubRoutes: []FastRoute{
+								{Method: "GET", Path: "/summary", Handler: handler, Version: 1},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	app.AddController(ctrl)
+	assert.Equal(t, 3, app.TotalEndpoints) // 2 leaf routes + /ping
+}
+
+func TestFastHttpApp_AddController_EmptyRouteGroup(t *testing.T) {
+	app := NewFastHttpApp()
+	app.Init()
+
+	ctrl := &testFastController{
+		config: FastControllerConfig{
+			Path: "/test",
+			Routes: []FastRoute{
+				{
+					Path:      "/empty",
+					SubRoutes: []FastRoute{},
+				},
+			},
+		},
+	}
+
+	app.AddController(ctrl)
+	assert.Equal(t, 1, app.TotalEndpoints) // only /ping
+}
+
 // testFastController is a test implementation of FastController.
 type testFastController struct {
 	config FastControllerConfig
