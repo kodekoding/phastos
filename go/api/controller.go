@@ -39,6 +39,7 @@ type Route struct {
 	Handler     Handler
 	Version     int
 	Middlewares *[]func(http.Handler) http.Handler
+	SubRoutes   []Route
 }
 
 type RouteOption func(*Route)
@@ -54,6 +55,17 @@ func NewRoute(method string, handler Handler, opts ...RouteOption) Route {
 		opt(&route)
 	}
 	return route
+}
+
+func NewGroup(path string, subRoutes []Route, opts ...RouteOption) Route {
+	r := Route{
+		Path:      path,
+		SubRoutes: subRoutes,
+	}
+	for _, opt := range opts {
+		opt(&r)
+	}
+	return r
 }
 
 func WithPath(path string) RouteOption {
