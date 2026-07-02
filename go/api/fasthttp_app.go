@@ -232,6 +232,7 @@ type FastRoute struct {
 	DirectHandler FastDirectHandler // optimized path (returns *FastResponse, writes directly)
 	Version       int
 	Middlewares   []FastMiddleware
+	SubRoutes     []FastRoute
 }
 
 func (r *FastRoute) GetVersionedPath(controllerPath string) string {
