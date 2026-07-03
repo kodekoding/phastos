@@ -33,6 +33,12 @@ import (
 )
 
 var decoder = schema.NewDecoder()
+
+type routeRegistryEntry struct {
+	Method string
+	Path   string
+	Doc    *RouteDoc
+}
 var TimezoneLocation *time.Location
 var appVersion string
 var commitHash string
@@ -69,6 +75,7 @@ type (
 		nrProv             monitoring.Provider
 		otelProv           monitoring.Provider
 		middlewareDocs     map[string]MiddlewareInfo
+		routeRegistry     []routeRegistryEntry
 	}
 
 	Options func(api *App)
@@ -338,6 +345,13 @@ func (app *App) SSE() sse.Events {
 func (app *App) SetVersion(version string) {
 	app.Version = version
 	appVersion = version
+}
+
+func (app *App) getAppName() string {
+	if name := os.Getenv("APP_NAME"); name != "" {
+		return name
+	}
+	return "Phastos"
 }
 
 func (app *App) Trx() database.Transactions {
@@ -671,6 +685,14 @@ func (app *App) registerRoutes(prefix string, parentMiddlewares *[]func(http.Han
 		}
 		routePath := route.GetVersionedPath(prefix)
 		app.registerHandler(route.Method, routePath, route.Handler, middlewares...)
+
+		if route.Doc != nil {
+			app.routeRegistry = append(app.routeRegistry, routeRegistryEntry{
+				Method: route.Method,
+				Path:   routePath,
+				Doc:    route.Doc,
+			})
+		}
 	}
 }
 
