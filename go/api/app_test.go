@@ -205,6 +205,93 @@ func TestRegisterMiddleware_Generic(t *testing.T) {
 	assert.NotNil(t, app.middlewares["auth"])
 }
 
+// --- RouteDoc option tests ---
+
+func TestRouteDoc_WithSummary(t *testing.T) {
+	route := NewRoute("GET", nil, WithSummary("List items"))
+	require.NotNil(t, route.Doc)
+	assert.Equal(t, "List items", route.Doc.Summary)
+}
+
+func TestRouteDoc_WithTags(t *testing.T) {
+	route := NewRoute("GET", nil, WithTags("Users", "Admin"))
+	require.NotNil(t, route.Doc)
+	assert.Equal(t, []string{"Users", "Admin"}, route.Doc.Tags)
+}
+
+func TestRouteDoc_WithRequest(t *testing.T) {
+	type Req struct {
+		Name string `json:"name"`
+	}
+	route := NewRoute("POST", nil, WithRequest(Req{}))
+	require.NotNil(t, route.Doc)
+	assert.Equal(t, Req{}, route.Doc.RequestType)
+}
+
+func TestRouteDoc_WithErrorResponse(t *testing.T) {
+	route := NewRoute("GET", nil,
+		WithErrorResponse(422, "VALIDATION_ERROR", "Validation failed"),
+	)
+	require.NotNil(t, route.Doc)
+	assert.Len(t, route.Doc.ErrorResponses, 1)
+	assert.Equal(t, 422, route.Doc.ErrorResponses[0].StatusCode)
+}
+
+func TestRouteDoc_MultipleOptions(t *testing.T) {
+	route := NewRoute("GET", nil,
+		WithSummary("Get item"),
+		WithTags("Items"),
+		WithDescription("Returns a single item by ID"),
+	)
+	require.NotNil(t, route.Doc)
+	assert.Equal(t, "Get item", route.Doc.Summary)
+	assert.Equal(t, "Returns a single item by ID", route.Doc.Description)
+	assert.Equal(t, []string{"Items"}, route.Doc.Tags)
+}
+
+func TestRouteDoc_NilDocByDefault(t *testing.T) {
+	route := NewRoute("GET", nil) // no doc options
+	assert.Nil(t, route.Doc)
+}
+
+// --- RegisterMiddlewareFunc with MiddlewareOption tests ---
+
+func TestRegisterMiddlewareFunc_WithSecurity(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"))
+	mw := func(next http.Handler) http.Handler { return next }
+
+	app.RegisterMiddlewareFunc("auth", mw,
+		WithSecurity("bearer", "Authorization", "header"),
+	)
+
+	assert.Contains(t, app.middlewareDocs, "auth")
+	assert.Equal(t, "bearer", app.middlewareDocs["auth"].SecurityScheme.Type)
+	assert.Equal(t, "Authorization", app.middlewareDocs["auth"].SecurityScheme.Name)
+}
+
+func TestRegisterMiddlewareFunc_WithoutOpts(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"))
+	mw := func(next http.Handler) http.Handler { return next }
+
+	app.RegisterMiddlewareFunc("audit", mw) // no opts — backward compatible
+
+	assert.Empty(t, app.middlewareDocs) // no entry created
+}
+
+func TestRegisterMiddlewareFunc_WithHeaders(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"))
+	mw := func(next http.Handler) http.Handler { return next }
+
+	app.RegisterMiddlewareFunc("tenant", mw,
+		WithRequiredHeader("X-Tenant-ID", "Tenant ID", true),
+	)
+
+	require.Contains(t, app.middlewareDocs, "tenant")
+	require.Len(t, app.middlewareDocs["tenant"].Headers, 1)
+	assert.Equal(t, "X-Tenant-ID", app.middlewareDocs["tenant"].Headers[0].Name)
+	assert.True(t, app.middlewareDocs["tenant"].Headers[0].Required)
+}
+
 // --- AddController ---
 
 type mockController struct {

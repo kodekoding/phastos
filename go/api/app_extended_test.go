@@ -598,6 +598,24 @@ func TestControllerImpl_SetRegisteredMiddlewares(t *testing.T) {
 	assert.Equal(t, mw, ctrl.registeredMiddlewares)
 }
 
+func TestControllerImpl_UseMiddleware_TracksKeys(t *testing.T) {
+	impl := NewControllerImpl()
+
+	impl.UseMiddleware("auth")
+	impl.UseMiddleware("tenant")
+	impl.UseMiddleware("auth") // duplicate
+
+	keys := impl.GetUsedMiddlewareKeys()
+	assert.Equal(t, []string{"auth", "tenant", "auth"}, keys)
+}
+
+func TestControllerImpl_UseMiddleware_WithoutRegistration(t *testing.T) {
+	impl := NewControllerImpl()
+
+	handler := impl.UseMiddleware("nonexistent")
+	assert.Nil(t, handler)
+}
+
 // --- AddController with SetRegisteredMiddlewares ---
 
 func TestApp_AddController_InjectsMiddlewares(t *testing.T) {
