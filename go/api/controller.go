@@ -295,6 +295,7 @@ func ReleaseRequest(req *Request) {
 
 type ControllerImpl struct {
 	registeredMiddlewares map[string]any
+	usedMiddlewareKeys    []string
 }
 
 func NewControllerImpl() *ControllerImpl {
@@ -311,6 +312,7 @@ func (ctrl *ControllerImpl) SetRegisteredMiddlewares(m map[string]any) {
 // UseMiddleware retrieves a registered middleware by key.
 // Returns nil if the key is not found — caller should handle nil check or skip.
 func (ctrl *ControllerImpl) UseMiddleware(key string) func(http.Handler) http.Handler {
+	ctrl.usedMiddlewareKeys = append(ctrl.usedMiddlewareKeys, key)
 	if ctrl.registeredMiddlewares == nil {
 		return nil
 	}
@@ -320,6 +322,10 @@ func (ctrl *ControllerImpl) UseMiddleware(key string) func(http.Handler) http.Ha
 		}
 	}
 	return nil
+}
+
+func (ctrl *ControllerImpl) GetUsedMiddlewareKeys() []string {
+	return ctrl.usedMiddlewareKeys
 }
 
 func (ctrl *ControllerImpl) JoinMiddleware(handlers ...func(http.Handler) http.Handler) *[]func(http.Handler) http.Handler {

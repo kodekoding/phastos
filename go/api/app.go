@@ -631,20 +631,35 @@ func mergeMiddlewares(a, b *[]func(http.Handler) http.Handler) *[]func(http.Hand
 
 // registerRoutes recursively registers routes, handling nested groups.
 // prefix accumulates path from parent groups; parentMiddlewares accumulates middleware chain.
-func (app *App) registerRoutes(prefix string, parentMiddlewares *[]func(http.Handler) http.Handler, routes []Route) {
+func (app *App) registerRoutes(prefix string, parentMiddlewares *[]func(http.Handler) http.Handler, routes []Route, middlewareKeys []string) {
 	log := plog.Get()
 	for _, route := range routes {
 		fullPath := prefix + route.Path
 
 		if len(route.SubRoutes) > 0 {
 			merged := mergeMiddlewares(parentMiddlewares, route.Middlewares)
-			app.registerRoutes(fullPath, merged, route.SubRoutes)
+			app.registerRoutes(fullPath, merged, route.SubRoutes, middlewareKeys)
 			continue
 		}
 
 		if route.SubRoutes != nil {
 			log.Warn().Str("path", fullPath).Msg("route group has no sub-routes, skipping")
 			continue
+		}
+
+		// Auto-inject middleware metadata into RouteDoc
+		if len(middlewareKeys) > 0 {
+			if route.Doc == nil {
+				route.Doc = &RouteDoc{}
+			}
+			for _, key := range middlewareKeys {
+				if info, ok := app.middlewareDocs[key]; ok {
+					if info.SecurityScheme != nil && route.Doc.Security == nil {
+						route.Doc.Security = info.SecurityScheme
+					}
+					route.Doc.Headers = append(route.Doc.Headers, info.Headers...)
+				}
+			}
 		}
 
 		var middlewares []func(http.Handler) http.Handler
@@ -660,12 +675,17 @@ func (app *App) registerRoutes(prefix string, parentMiddlewares *[]func(http.Han
 }
 
 func (app *App) AddController(ctrl Controller) {
-	// inject registered middlewares if controller embeds ControllerImpl
 	if impl, ok := ctrl.(interface{ SetRegisteredMiddlewares(map[string]any) }); ok {
 		impl.SetRegisteredMiddlewares(app.middlewares)
 	}
 	config := ctrl.GetConfig()
-	app.registerRoutes(config.Path, config.Middlewares, config.Routes)
+
+	var middlewareKeys []string
+	if impl, ok := ctrl.(interface{ GetUsedMiddlewareKeys() []string }); ok {
+		middlewareKeys = impl.GetUsedMiddlewareKeys()
+	}
+
+	app.registerRoutes(config.Path, config.Middlewares, config.Routes, middlewareKeys)
 	// Ensure default routes (/ping) are registered even if no leaf routes were processed.
 	app.flushPendingMiddlewares()
 }
