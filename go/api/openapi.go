@@ -8,6 +8,33 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 )
 
+var (
+	// schemaTypeObject and schemaTypeString are reused across schema generation.
+	schemaTypeObject = &openapi3.Types{"object"}
+	schemaTypeString = &openapi3.Types{"string"}
+)
+
+// openapiHTML is the Swagger UI HTML page served at /docs.
+// It loads Swagger UI from CDN and fetches the spec from /docs/openapi.json.
+var openapiHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>API Docs</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: '/docs/openapi.json',
+      dom_id: '#swagger-ui',
+    })
+  </script>
+</body>
+</html>`
+
 // buildOpenAPISpec generates an OpenAPI 3.0.3 spec from all registered routes.
 func (app *App) buildOpenAPISpec() *openapi3.T {
 	spec := &openapi3.T{
@@ -119,11 +146,11 @@ func (app *App) generateSchema(model any) *openapi3.Schema {
 		t = t.Elem()
 	}
 	if t.Kind() != reflect.Struct {
-		return &openapi3.Schema{Type: &openapi3.Types{"object"}}
+		return &openapi3.Schema{Type: schemaTypeObject}
 	}
 
 	schema := &openapi3.Schema{
-		Type:       &openapi3.Types{"object"},
+		Type:       schemaTypeObject,
 		Properties: openapi3.Schemas{},
 	}
 
@@ -173,14 +200,14 @@ func (app *App) fieldToSchema(field reflect.StructField) *openapi3.Schema {
 	// Special types
 	if t == reflect.TypeOf(time.Time{}) {
 		return &openapi3.Schema{
-			Type:   &openapi3.Types{"string"},
+			Type:   schemaTypeString,
 			Format: "date-time",
 		}
 	}
 
 	switch t.Kind() {
 	case reflect.String:
-		return &openapi3.Schema{Type: &openapi3.Types{"string"}}
+		return &openapi3.Schema{Type: schemaTypeString}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return &openapi3.Schema{Type: &openapi3.Types{"integer"}}
 	case reflect.Float32, reflect.Float64:
@@ -199,8 +226,8 @@ func (app *App) fieldToSchema(field reflect.StructField) *openapi3.Schema {
 		nested.Nullable = nullable
 		return nested
 	case reflect.Map:
-		return &openapi3.Schema{Type: &openapi3.Types{"object"}}
+		return &openapi3.Schema{Type: schemaTypeObject}
 	default:
-		return &openapi3.Schema{Type: &openapi3.Types{"string"}}
+		return &openapi3.Schema{Type: schemaTypeString}
 	}
 }

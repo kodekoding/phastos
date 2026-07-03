@@ -40,6 +40,7 @@ type routeRegistryEntry struct {
 	Path   string
 	Doc    *RouteDoc
 }
+
 var TimezoneLocation *time.Location
 var appVersion string
 var commitHash string
@@ -76,8 +77,8 @@ type (
 		nrProv             monitoring.Provider
 		otelProv           monitoring.Provider
 		middlewareDocs     map[string]MiddlewareInfo
-		routeRegistry     []routeRegistryEntry
-		enableOpenAPI     bool
+		routeRegistry      []routeRegistryEntry
+		enableOpenAPI      bool
 	}
 
 	Options func(api *App)
@@ -778,33 +779,20 @@ func (app *App) Start() error {
 
 	if app.enableOpenAPI {
 		spec := app.buildOpenAPISpec()
+		olog := plog.Get()
 
 		app.Http.Get("/docs/openapi.json", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(spec)
+			if err := json.NewEncoder(w).Encode(spec); err != nil {
+				olog.Err(err).Msg("failed to encode openapi spec")
+			}
 		})
 
 		app.Http.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			html := `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>API Docs</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
-</head>
-<body>
-  <div id="swagger-ui"></div>
-  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
-  <script>
-    SwaggerUIBundle({
-      url: '/docs/openapi.json',
-      dom_id: '#swagger-ui',
-    })
-  </script>
-</body>
-</html>`
-			w.Write([]byte(html))
+			if _, err := w.Write([]byte(openapiHTML)); err != nil {
+				olog.Err(err).Msg("failed to write swagger ui")
+			}
 		})
 	}
 

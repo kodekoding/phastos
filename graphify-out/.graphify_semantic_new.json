@@ -1,0 +1,801 @@
+{
+  "nodes": [
+    {
+      "id": "phastos",
+      "label": "Phastos",
+      "file_type": "concept",
+      "source_file": "README.md",
+      "source_location": 1,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "phastos_go_library",
+      "label": "Phastos Go Library",
+      "file_type": "concept",
+      "source_file": "go/README.md",
+      "source_location": 1,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "phastos_api_framework",
+      "label": "Phastos API Framework",
+      "file_type": "concept",
+      "source_file": "go/README.md",
+      "source_location": 16,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "phastos_orm",
+      "label": "Phastos ORM",
+      "file_type": "concept",
+      "source_file": "go/README.md",
+      "source_location": 45,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "phastos_sse",
+      "label": "Phastos SSE",
+      "file_type": "concept",
+      "source_file": "go/sse/README.md",
+      "source_location": 1,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "opentelemetry_integration",
+      "label": "OpenTelemetry Integration",
+      "file_type": "rationale",
+      "source_file": "CHANGELOG.md",
+      "source_location": 3,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "newrelic_integration",
+      "label": "New Relic Integration",
+      "file_type": "rationale",
+      "source_file": "CHANGELOG.md",
+      "source_location": 47,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "auto_tag_workflow",
+      "label": "Auto Tag CI Workflow",
+      "file_type": "concept",
+      "source_file": ".github/workflows/auto-tag.yml",
+      "source_location": 1,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "golangci_config",
+      "label": "Golangci-lint Configuration",
+      "file_type": "concept",
+      "source_file": ".golangci.yml",
+      "source_location": 1,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "benchmark_api",
+      "label": "API Benchmarks",
+      "file_type": "document",
+      "source_file": "benchmark/api/README.md",
+      "source_location": 1,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "benchmark_db",
+      "label": "DB/ORM Benchmarks",
+      "file_type": "document",
+      "source_file": "benchmark/db/README.md",
+      "source_location": 1,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "phastosfasthttpnative",
+      "label": "PhastosFastHttpNative",
+      "file_type": "concept",
+      "source_file": "benchmark/api/README.md",
+      "source_location": 38,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "phastoschi",
+      "label": "PhastosChi",
+      "file_type": "concept",
+      "source_file": "benchmark/api/README.md",
+      "source_location": 39,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "sync_handler_path",
+      "label": "Sync Handler Path Optimization",
+      "file_type": "rationale",
+      "source_file": "benchmark/api/README.md",
+      "source_location": 84,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "header_based_request_id",
+      "label": "Header-Based Request ID",
+      "file_type": "rationale",
+      "source_file": "benchmark/api/README.md",
+      "source_location": 114,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "profile_guided_optimizations",
+      "label": "Profile-Guided Optimizations",
+      "file_type": "rationale",
+      "source_file": "benchmark/api/README.md",
+      "source_location": 112,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "generatefastid",
+      "label": "GenerateFastID",
+      "file_type": "concept",
+      "source_file": "benchmark/api/README.md",
+      "source_location": 122,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "db_optimization_report",
+      "label": "DB Optimization Report",
+      "file_type": "document",
+      "source_file": "benchmark/db/OPTIMIZATION_REPORT.md",
+      "source_location": 1,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "reflection_caching",
+      "label": "Reflection Caching (B1)",
+      "file_type": "rationale",
+      "source_file": "benchmark/db/OPTIMIZATION_REPORT.md",
+      "source_location": 95,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "template_caching",
+      "label": "Template Caching (B8)",
+      "file_type": "rationale",
+      "source_file": "benchmark/db/OPTIMIZATION_REPORT.md",
+      "source_location": 155,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "multilayer_statement_caching",
+      "label": "Multi-layer Statement Caching",
+      "file_type": "rationale",
+      "source_file": "benchmark/db/OPTIMIZATION_REPORT.md",
+      "source_location": 198,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "fastpath_architecture",
+      "label": "Fast-Path Architecture",
+      "file_type": "rationale",
+      "source_file": "benchmark/db/OPTIMIZATION_REPORT.md",
+      "source_location": 209,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "sse_token_auth",
+      "label": "SSE Token Authentication",
+      "file_type": "concept",
+      "source_file": "go/sse/README.md",
+      "source_location": 1,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "sse_encrypted_token",
+      "label": "SSE Encrypted Token Authentication",
+      "file_type": "concept",
+      "source_file": "go/sse/SSE_ENCRYPTED_TOKEN_GUIDE.md",
+      "source_location": 1,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "sse_controller_structure",
+      "label": "SSE Controller Structure",
+      "file_type": "concept",
+      "source_file": "go/sse/SSE_FLOW_DOCUMENTATION.md",
+      "source_location": 1,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "sse_http3_compatibility",
+      "label": "SSE HTTP/3 Compatibility",
+      "file_type": "concept",
+      "source_file": "go/sse/SSE_HTTP3_GUIDE.md",
+      "source_location": 1,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "sse_test_client",
+      "label": "SSE Test Client (HTML)",
+      "file_type": "code",
+      "source_file": "go/sse/test_sse.html",
+      "source_location": 1,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "ssehub",
+      "label": "SSEHub",
+      "file_type": "concept",
+      "source_file": "go/sse/SSE_FLOW_DOCUMENTATION.md",
+      "source_location": 10,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "importer_streaming",
+      "label": "Importer Streaming (CSV/Excel)",
+      "file_type": "rationale",
+      "source_file": "go/importer/CHANGELOG.md",
+      "source_location": 14,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "database_action_readme",
+      "label": "Database Action Usage Example",
+      "file_type": "code",
+      "source_file": "go/database/action/README.md",
+      "source_location": 1,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "changelog",
+      "label": "Project Changelog",
+      "file_type": "document",
+      "source_file": "CHANGELOG.md",
+      "source_location": 1,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "benchmark_readme",
+      "label": "Benchmark Overview",
+      "file_type": "document",
+      "source_file": "benchmark/README.md",
+      "source_location": 1,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "phastos",
+      "target": "phastos_go_library",
+      "relation": "has_component",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "go/README.md",
+      "source_location": 1,
+      "weight": 1.0
+    },
+    {
+      "source": "phastos",
+      "target": "phastos_api_framework",
+      "relation": "has_component",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "go/README.md",
+      "source_location": 16,
+      "weight": 1.0
+    },
+    {
+      "source": "phastos",
+      "target": "phastos_orm",
+      "relation": "has_component",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "go/README.md",
+      "source_location": 45,
+      "weight": 1.0
+    },
+    {
+      "source": "phastos",
+      "target": "phastos_sse",
+      "relation": "has_component",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "go/README.md",
+      "source_location": 16,
+      "weight": 1.0
+    },
+    {
+      "source": "phastos",
+      "target": "auto_tag_workflow",
+      "relation": "uses_ci",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": ".github/workflows/auto-tag.yml",
+      "source_location": 1,
+      "weight": 1.0
+    },
+    {
+      "source": "phastos",
+      "target": "golangci_config",
+      "relation": "uses_linter",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": ".golangci.yml",
+      "source_location": 1,
+      "weight": 1.0
+    },
+    {
+      "source": "phastos_api_framework",
+      "target": "phastosfasthttpnative",
+      "relation": "has_implementation",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "benchmark/api/README.md",
+      "source_location": 38,
+      "weight": 1.0
+    },
+    {
+      "source": "phastos_api_framework",
+      "target": "phastoschi",
+      "relation": "has_implementation",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "benchmark/api/README.md",
+      "source_location": 39,
+      "weight": 1.0
+    },
+    {
+      "source": "phastos_api_framework",
+      "target": "opentelemetry_integration",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "CHANGELOG.md",
+      "source_location": 7,
+      "weight": 1.0
+    },
+    {
+      "source": "phastos_api_framework",
+      "target": "newrelic_integration",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "CHANGELOG.md",
+      "source_location": 47,
+      "weight": 1.0
+    },
+    {
+      "source": "opentelemetry_integration",
+      "target": "newrelic_integration",
+      "relation": "coexists_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "CHANGELOG.md",
+      "source_location": 47,
+      "weight": 1.0
+    },
+    {
+      "source": "phastos_api_framework",
+      "target": "benchmark_api",
+      "relation": "benchmarked_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "benchmark/api/README.md",
+      "source_location": 3,
+      "weight": 1.0
+    },
+    {
+      "source": "phastos_orm",
+      "target": "benchmark_db",
+      "relation": "benchmarked_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "benchmark/db/README.md",
+      "source_location": 3,
+      "weight": 1.0
+    },
+    {
+      "source": "benchmark_readme",
+      "target": "benchmark_api",
+      "relation": "links_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "benchmark/README.md",
+      "source_location": 5,
+      "weight": 1.0
+    },
+    {
+      "source": "benchmark_readme",
+      "target": "benchmark_db",
+      "relation": "links_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "benchmark/README.md",
+      "source_location": 6,
+      "weight": 1.0
+    },
+    {
+      "source": "sync_handler_path",
+      "target": "phastosfasthttpnative",
+      "relation": "optimizes",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "benchmark/api/README.md",
+      "source_location": 84,
+      "weight": 1.0
+    },
+    {
+      "source": "header_based_request_id",
+      "target": "phastosfasthttpnative",
+      "relation": "optimizes",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "benchmark/api/README.md",
+      "source_location": 114,
+      "weight": 1.0
+    },
+    {
+      "source": "profile_guided_optimizations",
+      "target": "sync_handler_path",
+      "relation": "includes",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "benchmark/api/README.md",
+      "source_location": 84,
+      "weight": 1.0
+    },
+    {
+      "source": "profile_guided_optimizations",
+      "target": "header_based_request_id",
+      "relation": "includes",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "benchmark/api/README.md",
+      "source_location": 114,
+      "weight": 1.0
+    },
+    {
+      "source": "phastosfasthttpnative",
+      "target": "generatefastid",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "benchmark/api/README.md",
+      "source_location": 122,
+      "weight": 1.0
+    },
+    {
+      "source": "reflection_caching",
+      "target": "phastos_orm",
+      "relation": "optimizes",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "benchmark/db/OPTIMIZATION_REPORT.md",
+      "source_location": 95,
+      "weight": 1.0
+    },
+    {
+      "source": "template_caching",
+      "target": "phastos_orm",
+      "relation": "optimizes",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "benchmark/db/OPTIMIZATION_REPORT.md",
+      "source_location": 155,
+      "weight": 1.0
+    },
+    {
+      "source": "multilayer_statement_caching",
+      "target": "phastos_orm",
+      "relation": "enables",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "benchmark/db/OPTIMIZATION_REPORT.md",
+      "source_location": 198,
+      "weight": 1.0
+    },
+    {
+      "source": "fastpath_architecture",
+      "target": "phastos_orm",
+      "relation": "enables",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "benchmark/db/OPTIMIZATION_REPORT.md",
+      "source_location": 209,
+      "weight": 1.0
+    },
+    {
+      "source": "reflection_caching",
+      "target": "template_caching",
+      "relation": "related_optimization",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "benchmark/db/OPTIMIZATION_REPORT.md",
+      "source_location": 95,
+      "weight": 1.0
+    },
+    {
+      "source": "multilayer_statement_caching",
+      "target": "fastpath_architecture",
+      "relation": "related_architecture",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "benchmark/db/OPTIMIZATION_REPORT.md",
+      "source_location": 198,
+      "weight": 1.0
+    },
+    {
+      "source": "db_optimization_report",
+      "target": "phastos_orm",
+      "relation": "documents",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "benchmark/db/OPTIMIZATION_REPORT.md",
+      "source_location": 1,
+      "weight": 1.0
+    },
+    {
+      "source": "phastos_sse",
+      "target": "sse_token_auth",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "go/sse/README.md",
+      "source_location": 1,
+      "weight": 1.0
+    },
+    {
+      "source": "phastos_sse",
+      "target": "sse_encrypted_token",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "go/sse/SSE_ENCRYPTED_TOKEN_GUIDE.md",
+      "source_location": 1,
+      "weight": 1.0
+    },
+    {
+      "source": "phastos_sse",
+      "target": "sse_controller_structure",
+      "relation": "has",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "go/sse/SSE_FLOW_DOCUMENTATION.md",
+      "source_location": 1,
+      "weight": 1.0
+    },
+    {
+      "source": "phastos_sse",
+      "target": "ssehub",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "go/sse/SSE_FLOW_DOCUMENTATION.md",
+      "source_location": 10,
+      "weight": 1.0
+    },
+    {
+      "source": "phastos_sse",
+      "target": "sse_http3_compatibility",
+      "relation": "affected_by",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "go/sse/SSE_HTTP3_GUIDE.md",
+      "source_location": 1,
+      "weight": 1.0
+    },
+    {
+      "source": "sse_test_client",
+      "target": "phastos_sse",
+      "relation": "tests",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "go/sse/test_sse.html",
+      "source_location": 1,
+      "weight": 1.0
+    },
+    {
+      "source": "sse_token_auth",
+      "target": "sse_encrypted_token",
+      "relation": "related_auth_mechanism",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "go/sse/README.md",
+      "source_location": 1,
+      "weight": 1.0
+    },
+    {
+      "source": "importer_streaming",
+      "target": "phastos_go_library",
+      "relation": "part_of",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "go/importer/CHANGELOG.md",
+      "source_location": 1,
+      "weight": 1.0
+    },
+    {
+      "source": "database_action_readme",
+      "target": "phastos_orm",
+      "relation": "documents_usage",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "go/database/action/README.md",
+      "source_location": 1,
+      "weight": 1.0
+    },
+    {
+      "source": "changelog",
+      "target": "opentelemetry_integration",
+      "relation": "documents",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "CHANGELOG.md",
+      "source_location": 3,
+      "weight": 1.0
+    },
+    {
+      "source": "changelog",
+      "target": "phastos",
+      "relation": "documents",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "CHANGELOG.md",
+      "source_location": 1,
+      "weight": 1.0
+    },
+    {
+      "source": "phastosfasthttpnative",
+      "target": "phastoschi",
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "benchmark/api/README.md",
+      "source_location": 38,
+      "weight": 1.0
+    },
+    {
+      "source": "benchmark_api",
+      "target": "benchmark_db",
+      "relation": "related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "benchmark/README.md",
+      "source_location": 1,
+      "weight": 1.0
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "phastos_performance_optimizations",
+      "label": "Phastos Performance Optimization Journey",
+      "nodes": [
+        "sync_handler_path",
+        "header_based_request_id",
+        "profile_guided_optimizations",
+        "generatefastid",
+        "reflection_caching",
+        "template_caching",
+        "multilayer_statement_caching",
+        "fastpath_architecture"
+      ],
+      "description": "All optimization techniques applied across Phastos API framework and ORM, spanning sync handler path optimization, header-based request ID, profile-guided optimizations, GenerateFastID, reflection caching, template caching, multi-layer statement caching, and fast-path architecture."
+    },
+    {
+      "id": "phastos_sse_subsystem",
+      "label": "Phastos SSE Subsystem",
+      "nodes": [
+        "phastos_sse",
+        "sse_token_auth",
+        "sse_encrypted_token",
+        "sse_controller_structure",
+        "sse_http3_compatibility",
+        "sse_test_client",
+        "ssehub"
+      ],
+      "description": "Complete SSE subsystem including token authentication, encrypted token authentication, controller structure, HTTP/3 compatibility handling, SSEHub for connection management, and browser test client."
+    },
+    {
+      "id": "phastos_monitoring",
+      "label": "Phastos Monitoring Stack",
+      "nodes": [
+        "phastos_api_framework",
+        "opentelemetry_integration",
+        "newrelic_integration"
+      ],
+      "description": "Monitoring providers integrated into Phastos API framework: OpenTelemetry and New Relic, designed to coexist in the same request."
+    }
+  ],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

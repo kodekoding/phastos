@@ -200,7 +200,7 @@ func WithRequiredHeader(name, description string, required bool) MiddlewareOptio
 			Name:        name,
 			Description: description,
 			Required:    required,
-			Type:        "string",
+			Type:        "string", //nolint:goconst
 		})
 	}
 }
