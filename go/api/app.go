@@ -68,6 +68,7 @@ type (
 		otelSvcName        string
 		nrProv             monitoring.Provider
 		otelProv           monitoring.Provider
+		middlewareDocs     map[string]MiddlewareInfo
 	}
 
 	Options func(api *App)
@@ -82,6 +83,7 @@ func NewApp(opts ...Options) *App {
 	apiApp := App{
 		TotalEndpoints: 0,
 		middlewares:    make(map[string]any),
+		middlewareDocs: make(map[string]MiddlewareInfo),
 	}
 
 	apiApp.Config = new(server.Config)
@@ -599,8 +601,15 @@ func generateUniqueRequestKey(req *http.Request) string {
 	return fmt.Sprintf("%s|%s|%s|%s", clientIP, method, path, strings.Join(queryParams, "&"))
 }
 
-func (app *App) RegisterMiddlewareFunc(key string, middlewareHandler func(http.Handler) http.Handler) {
+func (app *App) RegisterMiddlewareFunc(key string, middlewareHandler func(http.Handler) http.Handler, opts ...MiddlewareOption) {
 	app.middlewares[key] = middlewareHandler
+	if len(opts) > 0 {
+		info := MiddlewareInfo{}
+		for _, opt := range opts {
+			opt(&info)
+		}
+		app.middlewareDocs[key] = info
+	}
 }
 
 func RegisterMiddleware[T any](app *App, key string, middlewareHandler T) {

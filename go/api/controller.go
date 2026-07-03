@@ -40,6 +40,46 @@ type Route struct {
 	Version     int
 	Middlewares *[]func(http.Handler) http.Handler
 	SubRoutes   []Route
+	Doc         *RouteDoc
+}
+
+type RouteDoc struct {
+	Summary        string
+	Description    string
+	Tags           []string
+	Deprecated     bool
+	RequestType    any
+	ResponseType   any
+	ErrorResponses []ErrorResponseDoc
+	Headers        []HeaderDoc
+	Security       *SecuritySchemeDoc
+}
+
+type ErrorResponseDoc struct {
+	StatusCode  int
+	Code        string
+	Description string
+}
+
+type SecuritySchemeDoc struct {
+	Type string
+	Name string
+	In   string
+}
+
+type HeaderDoc struct {
+	Name        string
+	Description string
+	Required    bool
+	Type        string
+}
+
+type MiddlewareOption func(*MiddlewareInfo)
+
+type MiddlewareInfo struct {
+	Description    string
+	SecurityScheme *SecuritySchemeDoc
+	Headers        []HeaderDoc
 }
 
 type RouteOption func(*Route)
@@ -83,6 +123,91 @@ func WithVersion(version int) RouteOption {
 func WithMiddleware(handlers ...func(http.Handler) http.Handler) RouteOption {
 	return func(r *Route) {
 		r.Middlewares = &handlers
+	}
+}
+
+func WithSummary(s string) RouteOption {
+	return func(r *Route) {
+		if r.Doc == nil {
+			r.Doc = &RouteDoc{}
+		}
+		r.Doc.Summary = s
+	}
+}
+
+func WithDescription(s string) RouteOption {
+	return func(r *Route) {
+		if r.Doc == nil {
+			r.Doc = &RouteDoc{}
+		}
+		r.Doc.Description = s
+	}
+}
+
+func WithTags(tags ...string) RouteOption {
+	return func(r *Route) {
+		if r.Doc == nil {
+			r.Doc = &RouteDoc{}
+		}
+		r.Doc.Tags = append(r.Doc.Tags, tags...)
+	}
+}
+
+func WithRequest(req any) RouteOption {
+	return func(r *Route) {
+		if r.Doc == nil {
+			r.Doc = &RouteDoc{}
+		}
+		r.Doc.RequestType = req
+	}
+}
+
+func WithResponse(resp any) RouteOption {
+	return func(r *Route) {
+		if r.Doc == nil {
+			r.Doc = &RouteDoc{}
+		}
+		r.Doc.ResponseType = resp
+	}
+}
+
+func WithErrorResponse(status int, code string, desc string) RouteOption {
+	return func(r *Route) {
+		if r.Doc == nil {
+			r.Doc = &RouteDoc{}
+		}
+		r.Doc.ErrorResponses = append(r.Doc.ErrorResponses, ErrorResponseDoc{
+			StatusCode:  status,
+			Code:        code,
+			Description: desc,
+		})
+	}
+}
+
+func WithSecurity(schemeType, name, in string) MiddlewareOption {
+	return func(m *MiddlewareInfo) {
+		m.SecurityScheme = &SecuritySchemeDoc{
+			Type: schemeType,
+			Name: name,
+			In:   in,
+		}
+	}
+}
+
+func WithRequiredHeader(name, description string, required bool) MiddlewareOption {
+	return func(m *MiddlewareInfo) {
+		m.Headers = append(m.Headers, HeaderDoc{
+			Name:        name,
+			Description: description,
+			Required:    required,
+			Type:        "string",
+		})
+	}
+}
+
+func WithMiddlewareDescription(desc string) MiddlewareOption {
+	return func(m *MiddlewareInfo) {
+		m.Description = desc
 	}
 }
 
