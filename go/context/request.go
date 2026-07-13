@@ -9,7 +9,7 @@ type requestBodyKey struct{}
 type queryParamsKey struct{}
 type pathParamsKey struct{}
 
-func SetRequestBody[T any](ctx context.Context, val *T) context.Context {
+func SetRequestBody(ctx context.Context, val any) context.Context {
 	return context.WithValue(ctx, requestBodyKey{}, val)
 }
 

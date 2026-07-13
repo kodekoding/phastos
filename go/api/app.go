@@ -27,6 +27,7 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"github.com/kodekoding/phastos/v2/go/common"
+	phastosctx "github.com/kodekoding/phastos/v2/go/context"
 	"github.com/kodekoding/phastos/v2/go/cron"
 	"github.com/kodekoding/phastos/v2/go/database"
 	plog "github.com/kodekoding/phastos/v2/go/log"
@@ -476,7 +477,16 @@ func (app *App) requestValidator(i interface{}) error {
 	return nil
 }
 
+type handler2WithMeta struct {
+	h              Handler2
+	requestType    any
+	pathParamTypes []PathParamType
+}
+
 func (app *App) wrapHandler(handler any) http.HandlerFunc {
+	if h2m, ok := handler.(handler2WithMeta); ok {
+		return app.wrapHandler2WithMeta(h2m)
+	}
 	if h2, ok := handler.(Handler2); ok {
 		return app.wrapHandler2(h2)
 	}
@@ -596,6 +606,143 @@ func (app *App) wrapHandler2(h Handler2) http.HandlerFunc {
 		response.Send(w)
 		ReleaseResponse(response)
 	}
+}
+
+// wrapHandler2WithMeta wraps a Handler2 with full auto-binding (path → query → body → validate).
+func (app *App) wrapHandler2WithMeta(m handler2WithMeta) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		requestId := r.Header.Get(common.RequestIDHeader)
+		if requestId == "" {
+			requestId = r.Header.Get("X-Request-ID")
+		}
+		w.Header().Set("X-Trace-ID", requestId)
+		ctx := r.Context()
+
+		// 1. Extract and validate path params
+		if len(m.pathParamTypes) > 0 {
+			rctx := chi.RouteContext(ctx)
+			params := map[string]string{}
+			if rctx != nil {
+				for i, key := range rctx.URLParams.Keys {
+					val := rctx.URLParams.Values[i]
+					params[key] = val
+					if i < len(m.pathParamTypes) {
+						if err := validatePathParam(val, m.pathParamTypes[i]); err != nil {
+							resp := NewResponse().SetError(err)
+							app.handleResponseError(resp, r, requestId, ctx)
+							resp.Send(w)
+							ReleaseResponse(resp)
+							return
+						}
+					}
+				}
+			}
+			ctx = phastosctx.SetPathParams(ctx, params)
+		}
+
+		// 2. Bind query params (for GET)
+		if m.requestType != nil && r.Method == http.MethodGet {
+			reqType := reflect.TypeOf(m.requestType)
+			if reqType.Kind() == reflect.Ptr {
+				reqType = reqType.Elem()
+			}
+			queryVal := reflect.New(reqType).Interface()
+			if err := decoder.Decode(queryVal, r.URL.Query()); err != nil {
+				resp := NewResponse().SetError(BadRequest(err.Error(), "ERROR_PARSING_QUERY_PARAMS"))
+				app.handleResponseError(resp, r, requestId, ctx)
+				resp.Send(w)
+				ReleaseResponse(resp)
+				return
+			}
+			if err := app.requestValidator(queryVal); err != nil {
+				resp := NewResponse().SetError(err)
+				app.handleResponseError(resp, r, requestId, ctx)
+				resp.Send(w)
+				ReleaseResponse(resp)
+				return
+			}
+			ctx = phastosctx.SetQueryParams(ctx, queryVal)
+		}
+
+		// 3. Bind body (for POST/PUT/PATCH)
+		if m.requestType != nil && (r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch) {
+			bodyType := reflect.TypeOf(m.requestType)
+			if bodyType.Kind() == reflect.Ptr {
+				bodyType = bodyType.Elem()
+			}
+			bodyVal := reflect.New(bodyType).Interface()
+			if err := json.NewDecoder(r.Body).Decode(bodyVal); err != nil {
+				resp := NewResponse().SetError(BadRequest(err.Error(), "ERROR_PARSING_BODY"))
+				app.handleResponseError(resp, r, requestId, ctx)
+				resp.Send(w)
+				ReleaseResponse(resp)
+				return
+			}
+			if err := app.requestValidator(bodyVal); err != nil {
+				resp := NewResponse().SetError(err)
+				app.handleResponseError(resp, r, requestId, ctx)
+				resp.Send(w)
+				ReleaseResponse(resp)
+				return
+			}
+			ctx = phastosctx.SetRequestBody(ctx, bodyVal)
+		}
+
+		// 4. Call handler with enriched context
+		result, err := m.h(ctx)
+
+		var response *Response
+		switch {
+		case err != nil:
+			response = NewResponse().SetError(err)
+		case result == nil:
+			response = NewResponse()
+		default:
+			if customResp, ok := result.(*Response); ok {
+				response = customResp
+			} else {
+				response = NewResponse().SetData(result)
+			}
+		}
+
+		app.handleResponseError(response, r, requestId, r.Context())
+		response.Send(w)
+		ReleaseResponse(response)
+	}
+}
+
+func validatePathParam(raw string, pt PathParamType) error {
+	switch pt {
+	case ParamInt, ParamInt8, ParamInt16, ParamInt32, ParamInt64:
+		if _, err := strconv.ParseInt(raw, 10, 64); err != nil {
+			return BadRequest(
+				fmt.Sprintf("path param expects %s, got '%s'", pt.String(), raw),
+				"ERR_INVALID_PATH_PARAM",
+			)
+		}
+	case ParamUint, ParamUint8, ParamUint16, ParamUint32, ParamUint64:
+		if _, err := strconv.ParseUint(raw, 10, 64); err != nil {
+			return BadRequest(
+				fmt.Sprintf("path param expects %s, got '%s'", pt.String(), raw),
+				"ERR_INVALID_PATH_PARAM",
+			)
+		}
+	case ParamFloat32, ParamFloat64:
+		if _, err := strconv.ParseFloat(raw, 64); err != nil {
+			return BadRequest(
+				fmt.Sprintf("path param expects %s, got '%s'", pt.String(), raw),
+				"ERR_INVALID_PATH_PARAM",
+			)
+		}
+	case ParamBool:
+		if _, err := strconv.ParseBool(raw); err != nil {
+			return BadRequest(
+				fmt.Sprintf("path param expects bool, got '%s'", raw),
+				"ERR_INVALID_PATH_PARAM",
+			)
+		}
+	}
+	return nil
 }
 
 // handleResponseError processes error responses: sets HTTPError, sends notifications,
@@ -764,7 +911,18 @@ func (app *App) registerRoutes(prefix string, parentMiddlewares *[]func(http.Han
 			middlewares = append(middlewares, *route.Middlewares...)
 		}
 		routePath := route.GetVersionedPath(prefix)
-		app.registerHandler(route.Method, routePath, route.Handler, middlewares...)
+
+		// Wrap Handler2 with auto-binding metadata from route annotations
+		handler := route.Handler
+		if h2, ok := handler.(Handler2); ok && route.Doc != nil {
+			handler = handler2WithMeta{
+				h:              h2,
+				requestType:    route.Doc.RequestType,
+				pathParamTypes: route.PathParamTypes,
+			}
+		}
+
+		app.registerHandler(route.Method, routePath, handler, middlewares...)
 
 		if route.Doc == nil {
 			route.Doc = &RouteDoc{}
