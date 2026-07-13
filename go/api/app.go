@@ -512,6 +512,7 @@ func (app *App) wrapHandler(handler any) http.HandlerFunc {
 			response := h(*request, ctx)
 			ReleaseRequest(request)
 			response.TraceId = requestId
+			response.SetCustomHeader("X-Trace-ID", requestId)
 			app.handleResponseError(response, r, requestId, ctx)
 			response.Send(w)
 			ReleaseResponse(response)
@@ -568,6 +569,7 @@ func (app *App) wrapHandler(handler any) http.HandlerFunc {
 			}
 		case response = <-respChan:
 			response.TraceId = requestId
+			response.SetCustomHeader("X-Trace-ID", requestId)
 			log = plog.Ctx(ctx)
 
 			app.handleResponseError(response, r, requestId, ctx)
