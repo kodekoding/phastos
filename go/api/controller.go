@@ -5,6 +5,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/go-chi/chi/v5"
@@ -34,13 +35,14 @@ type Request struct {
 type Handler func(Request, context.Context) *Response
 
 type Route struct {
-	Method      string
-	Path        string
-	Handler     Handler
-	Version     int
-	Middlewares *[]func(http.Handler) http.Handler
-	SubRoutes   []Route
-	Doc         *RouteDoc
+	Method         string
+	Path           string
+	Handler        Handler
+	Version        int
+	Middlewares    *[]func(http.Handler) http.Handler
+	SubRoutes      []Route
+	Doc            *RouteDoc
+	PathParamTypes []PathParamType
 }
 
 type RouteDoc struct {
@@ -108,9 +110,115 @@ func NewGroup(path string, subRoutes []Route, opts ...RouteOption) Route {
 	return r
 }
 
+type PathParamType int
+
+const (
+	ParamString PathParamType = iota
+	ParamInt
+	ParamInt8
+	ParamInt16
+	ParamInt32
+	ParamInt64
+	ParamUint
+	ParamUint8
+	ParamUint16
+	ParamUint32
+	ParamUint64
+	ParamFloat32
+	ParamFloat64
+	ParamBool
+)
+
+func (t PathParamType) String() string {
+	switch t {
+	case ParamInt:
+		return "int"
+	case ParamInt8:
+		return "int8"
+	case ParamInt16:
+		return "int16"
+	case ParamInt32:
+		return "int32"
+	case ParamInt64:
+		return "int64"
+	case ParamUint:
+		return "uint"
+	case ParamUint8:
+		return "uint8"
+	case ParamUint16:
+		return "uint16"
+	case ParamUint32:
+		return "uint32"
+	case ParamUint64:
+		return "uint64"
+	case ParamFloat32:
+		return "float32"
+	case ParamFloat64:
+		return "float64"
+	case ParamBool:
+		return "bool"
+	default:
+		return "string"
+	}
+}
+
+func parsePathParamType(s string) PathParamType {
+	switch s {
+	case "int":
+		return ParamInt
+	case "int8":
+		return ParamInt8
+	case "int16":
+		return ParamInt16
+	case "int32":
+		return ParamInt32
+	case "int64":
+		return ParamInt64
+	case "uint":
+		return ParamUint
+	case "uint8":
+		return ParamUint8
+	case "uint16":
+		return ParamUint16
+	case "uint32":
+		return ParamUint32
+	case "uint64":
+		return ParamUint64
+	case "float32":
+		return ParamFloat32
+	case "float64":
+		return ParamFloat64
+	case "bool":
+		return ParamBool
+	default:
+		return ParamString
+	}
+}
+
+func parsePathParamTypes(path string) []PathParamType {
+	var types []PathParamType
+	start := -1
+	for i := 0; i < len(path); i++ {
+		if path[i] == '{' {
+			start = i + 1
+		}
+		if path[i] == '}' && start != -1 {
+			param := path[start:i]
+			if idx := strings.IndexByte(param, ':'); idx != -1 {
+				types = append(types, parsePathParamType(param[idx+1:]))
+			} else {
+				types = append(types, ParamString)
+			}
+			start = -1
+		}
+	}
+	return types
+}
+
 func WithPath(path string) RouteOption {
 	return func(r *Route) {
 		r.Path = path
+		r.PathParamTypes = parsePathParamTypes(path)
 	}
 }
 
