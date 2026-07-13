@@ -934,3 +934,19 @@ func (m *mockControllerWithImpl) GetConfig() ControllerConfig {
 
 // --- entity import verification ---
 var _ = entity.NotifPlatformContext{} // verify entity import is used
+
+// --- Handler2 detection ---
+
+func TestIsHandler2_NewSignature(t *testing.T) {
+	h := Handler2(func(ctx context.Context) (any, error) {
+		return map[string]string{"ok": "yes"}, nil
+	})
+	assert.True(t, isHandler2(h))
+}
+
+func TestIsHandler2_OldSignature(t *testing.T) {
+	h := func(req Request, ctx context.Context) *Response {
+		return NewResponse().SetMessage("ok")
+	}
+	assert.False(t, isHandler2(h))
+}

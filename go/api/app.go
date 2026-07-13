@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,6 +40,12 @@ type routeRegistryEntry struct {
 	Method string
 	Path   string
 	Doc    *RouteDoc
+}
+
+type Handler2 func(ctx context.Context) (any, error)
+
+func isHandler2(h any) bool {
+	return reflect.TypeOf(h).NumIn() == 1
 }
 
 var TimezoneLocation *time.Location
