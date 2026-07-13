@@ -331,9 +331,38 @@ func WithMiddlewareDescription(desc string) MiddlewareOption {
 	}
 }
 
+// stripPathParamTypes removes type annotations from path param patterns.
+// E.g., "/{id:int64}/recap/{month}" → "/{id}/recap/{month}"
+func stripPathParamTypes(path string) string {
+	result := make([]byte, 0, len(path))
+	inParam := false
+	colon := -1
+	for i := 0; i < len(path); i++ {
+		if path[i] == '{' {
+			inParam = true
+			colon = -1
+		}
+		if inParam && path[i] == ':' {
+			colon = i
+		}
+		if path[i] == '}' && inParam {
+			if colon != -1 {
+				result = result[:len(result)-(i-colon)]
+			}
+			inParam = false
+		}
+		if inParam && colon != -1 && i >= colon {
+			continue
+		}
+		result = append(result, path[i])
+	}
+	return string(result)
+}
+
 func (r *Route) GetVersionedPath(controllerPath string) string {
 	versionPrefix := "/v" + strconv.Itoa(r.Version)
-	return versionPrefix + controllerPath + r.Path
+	rawPath := versionPrefix + controllerPath + r.Path
+	return stripPathParamTypes(rawPath)
 }
 
 type ControllerConfig struct {

@@ -973,19 +973,26 @@ func (app *App) flushPendingMiddlewares() {
 	app.initRoutes()
 }
 
+func (app *App) registerHandlerWithMeta(method, path string, m handler2WithMeta) {
+	app.registerHandler(method, path, m)
+}
+
 func (app *App) registerHandler(method, path string, handler any, middlewares ...func(http.Handler) http.Handler) {
 	app.flushPendingMiddlewares()
 
+	// Strip type annotations for chi routing (chi expects clean {name} patterns)
+	chiPath := stripPathParamTypes(path)
+
 	wrapppedHandler := app.wrapHandler(handler)
 	if app.newRelic != nil {
-		path, wrapppedHandler = newrelic.WrapHandleFunc(app.newRelic, path, wrapppedHandler)
+		chiPath, wrapppedHandler = newrelic.WrapHandleFunc(app.newRelic, chiPath, wrapppedHandler)
 	}
 	handlerFunc := chi.
 		Chain(middlewares...).
 		HandlerFunc(wrapppedHandler)
 
-	if strings.HasPrefix(path, "/v") {
-		parts := strings.SplitN(path[2:], "/", 2)
+	if strings.HasPrefix(chiPath, "/v") {
+		parts := strings.SplitN(chiPath[2:], "/", 2)
 		if len(parts) > 0 && parts[0] != "" {
 			versionPrefix := "/v" + parts[0]
 			if app.apiRouters == nil {
@@ -1000,14 +1007,14 @@ func (app *App) registerHandler(method, path string, handler any, middlewares ..
 				app.apiRouters[versionPrefix] = router
 				app.Http.Mount(versionPrefix, router)
 			}
-			strippedPath := strings.TrimPrefix(path, versionPrefix)
+			strippedPath := strings.TrimPrefix(chiPath, versionPrefix)
 			router.Method(method, strippedPath, handlerFunc)
 			app.TotalEndpoints++
 			return
 		}
 	}
 
-	app.Http.Method(method, path, handlerFunc)
+	app.Http.Method(method, chiPath, handlerFunc)
 	app.TotalEndpoints++
 }
 

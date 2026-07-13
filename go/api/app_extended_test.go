@@ -935,6 +935,11 @@ func (m *mockControllerWithImpl) GetConfig() ControllerConfig {
 // --- entity import verification ---
 var _ = entity.NotifPlatformContext{} // verify entity import is used
 
+type handler2TestPayload struct {
+	Name  string `json:"name" validate:"required"`
+	Value int    `json:"value"`
+}
+
 // --- Handler2 detection ---
 
 func TestIsHandler2_NewSignature(t *testing.T) {
@@ -949,4 +954,153 @@ func TestIsHandler2_OldSignature(t *testing.T) {
 		return NewResponse().SetMessage("ok")
 	}
 	assert.False(t, isHandler2(h))
+}
+
+func TestHandler2_FullFlow_PostWithPathParam(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
+	app.Init()
+
+	h2 := Handler2(func(ctx context.Context) (any, error) {
+		payload := context2.RequestBody[handler2TestPayload](ctx)
+		id := context2.PathParam[int64](ctx, "id")
+		return map[string]any{"id": id, "name": payload.Name, "value": payload.Value}, nil
+	})
+
+	m := handler2WithMeta{
+		h:              h2,
+		requestType:    new(handler2TestPayload),
+		pathParamTypes: []PathParamType{ParamInt64},
+	}
+	wrapped := app.wrapHandler(m)
+
+	app.Http.Put("/v1/item/{id}", wrapped)
+
+	body := `{"name":"item-1","value":10}`
+	req := httptest.NewRequest("PUT", "/v1/item/99", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	app.Http.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"id":99`)
+	assert.Contains(t, w.Body.String(), `"name":"item-1"`)
+	assert.Contains(t, w.Body.String(), `"value":10`)
+}
+
+func TestHandler2_PathParamValidation_Fails(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
+	app.Init()
+
+	h2 := Handler2(func(ctx context.Context) (any, error) {
+		return "should not be called", nil
+	})
+
+	m := handler2WithMeta{
+		h:              h2,
+		requestType:    new(handler2TestPayload),
+		pathParamTypes: []PathParamType{ParamInt64},
+	}
+	wrapped := app.wrapHandler(m)
+
+	app.Http.Put("/v1/item/{id}", wrapped)
+
+	body := `{"name":"item","value":1}`
+	req := httptest.NewRequest("PUT", "/v1/item/notanumber", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	app.Http.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "ERR_INVALID_PATH_PARAM")
+}
+
+func TestHandler2_BindingFailure_Returns400(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
+	app.Init()
+	app.flushPendingMiddlewares()
+
+	h2 := Handler2(func(ctx context.Context) (any, error) {
+		return "should not be called", nil
+	})
+
+	m := handler2WithMeta{
+		h:           h2,
+		requestType: new(handler2TestPayload),
+	}
+	app.registerHandlerWithMeta("POST", "/v1/test", m)
+
+	body := `not-json`
+	req := httptest.NewRequest("POST", "/v1/test", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	app.Http.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestHandler2_OldHandlerStillWorks(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
+	app.Init()
+	app.flushPendingMiddlewares()
+
+	oldH := func(req Request, ctx context.Context) *Response {
+		var payload handler2TestPayload
+		if err := req.GetBody(&payload); err != nil {
+			return NewResponse().SetError(err)
+		}
+		return NewResponse().SetData(payload)
+	}
+
+	app.registerHandlerWithMeta("POST", "/v1/old-test", handler2WithMeta{})
+	// Override the nil meta handler with the old one directly
+	// Actually, register old handler-style directly for backward compat test
+	app.registerHandler("POST", "/v2/old-test", oldH)
+
+	body := `{"name":"test","value":99}`
+	req := httptest.NewRequest("POST", "/v2/old-test", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	app.Http.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestHandler2_XTraceIDHeader(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
+	app.Init()
+	app.flushPendingMiddlewares()
+
+	h2 := Handler2(func(ctx context.Context) (any, error) {
+		return map[string]string{"ok": "yes"}, nil
+	})
+
+	m := handler2WithMeta{h: h2}
+	app.registerHandlerWithMeta("GET", "/v1/header-test", m)
+
+	req := httptest.NewRequest("GET", "/v1/header-test", nil)
+	req.Header.Set("X-Request-ID", "trace-abc-123")
+	w := httptest.NewRecorder()
+	app.Http.ServeHTTP(w, req)
+
+	assert.Equal(t, "trace-abc-123", w.Header().Get("X-Trace-ID"))
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestHandler2_WithoutMeta_SimplePassThrough(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
+	app.Init()
+	app.flushPendingMiddlewares()
+
+	h2 := Handler2(func(ctx context.Context) (any, error) {
+		return "hello", nil
+	})
+
+	app.registerHandler("GET", "/v1/simple-h2", h2)
+
+	req := httptest.NewRequest("GET", "/v1/simple-h2", nil)
+	w := httptest.NewRecorder()
+	app.Http.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "hello")
 }
