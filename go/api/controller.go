@@ -52,6 +52,7 @@ type RouteDoc struct {
 	Deprecated     bool
 	RequestType    any
 	ResponseType   any
+	QueryType      any
 	ErrorResponses []ErrorResponseDoc
 	Headers        []HeaderDoc
 	Security       *SecuritySchemeDoc
@@ -267,6 +268,17 @@ func WithRequest(req any) RouteOption {
 			r.Doc = &RouteDoc{}
 		}
 		r.Doc.RequestType = req
+	}
+}
+
+// WithQuery sets the query parameter type for auto-binding and OpenAPI docs.
+// For GET endpoints, phastos binds URL query params into this type.
+func WithQuery(query any) RouteOption {
+	return func(r *Route) {
+		if r.Doc == nil {
+			r.Doc = &RouteDoc{}
+		}
+		r.Doc.QueryType = query
 	}
 }
 

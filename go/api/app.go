@@ -38,9 +38,10 @@ import (
 var decoder = schema.NewDecoder()
 
 type routeRegistryEntry struct {
-	Method string
-	Path   string
-	Doc    *RouteDoc
+	Method         string
+	Path           string
+	Doc            *RouteDoc
+	PathParamTypes []PathParamType
 }
 
 type Handler2 func(ctx context.Context) (any, error)
@@ -499,6 +500,7 @@ func (app *App) wrapHandler(handler any) http.HandlerFunc {
 		if requestId == "" {
 			requestId = r.Header.Get("X-Request-ID")
 		}
+		w.Header().Set("X-Trace-ID", requestId)
 
 		// --- Sync path: no timeout, no singleflight ---
 		// Executes the handler directly on the current goroutine,
@@ -928,9 +930,10 @@ func (app *App) registerRoutes(prefix string, parentMiddlewares *[]func(http.Han
 			route.Doc = &RouteDoc{}
 		}
 		app.routeRegistry = append(app.routeRegistry, routeRegistryEntry{
-			Method: route.Method,
-			Path:   routePath,
-			Doc:    route.Doc,
+			Method:         route.Method,
+			Path:           routePath,
+			Doc:            route.Doc,
+			PathParamTypes: route.PathParamTypes,
 		})
 	}
 }

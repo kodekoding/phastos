@@ -117,7 +117,18 @@ func (app *App) buildOpenAPISpec() *openapi3.T {
 		},
 		Paths: openapi3.NewPaths(),
 		Components: &openapi3.Components{
-			Schemas: openapi3.Schemas{},
+			Schemas: openapi3.Schemas{
+				"ErrorResponse": &openapi3.SchemaRef{
+					Value: &openapi3.Schema{
+						Type: schemaTypeObject,
+						Properties: openapi3.Schemas{
+							"message": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: schemaTypeString}},
+							"code":    &openapi3.SchemaRef{Value: &openapi3.Schema{Type: schemaTypeString}},
+							"data":    &openapi3.SchemaRef{Value: &openapi3.Schema{Nullable: true}},
+						},
+					},
+				},
+			},
 		},
 	}
 
@@ -190,11 +201,30 @@ func (app *App) buildOperation(item *openapi3.PathItem, entry routeRegistryEntry
 		)
 	}
 
-	// Error responses
+	// Error responses (explicit)
 	for _, errResp := range entry.Doc.ErrorResponses {
 		operation.AddResponse(errResp.StatusCode, openapi3.NewResponse().
-			WithDescription(errResp.Description),
+			WithDescription(errResp.Description).
+			WithJSONSchemaRef(&openapi3.SchemaRef{
+				Ref: "#/components/schemas/ErrorResponse",
+			}),
 		)
+	}
+
+	// Auto-generated error responses based on route configuration
+	explicitCodes := make(map[int]bool)
+	for _, er := range entry.Doc.ErrorResponses {
+		explicitCodes[er.StatusCode] = true
+	}
+	for _, ar := range autoErrorResponses(entry) {
+		if !explicitCodes[ar.StatusCode] {
+			operation.AddResponse(ar.StatusCode, openapi3.NewResponse().
+				WithDescription(ar.Description).
+				WithJSONSchemaRef(&openapi3.SchemaRef{
+					Ref: "#/components/schemas/ErrorResponse",
+				}),
+			)
+		}
 	}
 
 	// Security
@@ -319,4 +349,46 @@ func (app *App) fieldToSchema(field reflect.StructField) *openapi3.Schema {
 	default:
 		return &openapi3.Schema{Type: schemaTypeString}
 	}
+}
+
+// autoErrorResponses generates standard error responses based on route configuration.
+func autoErrorResponses(entry routeRegistryEntry) []ErrorResponseDoc {
+	var resp []ErrorResponseDoc
+
+	hasBinding := entry.Doc.RequestType != nil || len(entry.PathParamTypes) > 0
+	if hasBinding {
+		resp = append(resp, ErrorResponseDoc{
+			StatusCode:  400,
+			Code:        "ERROR_VALIDATION",
+			Description: "Binding/validation failed",
+		})
+	}
+
+	if entry.Doc.Security != nil {
+		resp = append(resp, ErrorResponseDoc{
+			StatusCode:  401,
+			Code:        "UNAUTHORIZED",
+			Description: "Missing or invalid authorization",
+		})
+		resp = append(resp, ErrorResponseDoc{
+			StatusCode:  403,
+			Code:        "FORBIDDEN",
+			Description: "Forbidden access",
+		})
+	}
+
+	resp = append(resp,
+		ErrorResponseDoc{
+			StatusCode:  422,
+			Code:        "UNPROCESSABLE_ENTITY",
+			Description: "Business logic / processing error",
+		},
+		ErrorResponseDoc{
+			StatusCode:  500,
+			Code:        "INTERNAL_SERVER_ERROR",
+			Description: "Unhandled server error",
+		},
+	)
+
+	return resp
 }
