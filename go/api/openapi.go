@@ -35,6 +35,78 @@ var openapiHTML = `<!DOCTYPE html>
 </body>
 </html>`
 
+// segmentsAfterVersion strips the version prefix from a path and returns the remaining segments.
+// E.g., "/v1/employee/absence/today" → ["employee", "absence", "today"]
+func segmentsAfterVersion(path string) []string {
+	path = strings.TrimPrefix(path, "/")
+	parts := strings.SplitN(path, "/", 2)
+	if len(parts) < 2 {
+		return nil
+	}
+	if !strings.HasPrefix(parts[0], "v") {
+		return nil
+	}
+	segs := strings.Split(parts[1], "/")
+	result := make([]string, 0, len(segs))
+	for _, s := range segs {
+		if s != "" {
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+// pathSegmentToTitle converts a path segment to a display-friendly title.
+// E.g., "employee" → "Employee", "approval-line" → "Approval Line"
+func pathSegmentToTitle(s string) string {
+	s = strings.ReplaceAll(s, "-", " ")
+	words := strings.Fields(s)
+	for i, w := range words {
+		if len(w) > 0 {
+			words[i] = strings.ToUpper(w[:1]) + w[1:]
+		}
+	}
+	return strings.Join(words, " ")
+}
+
+// isPathParam reports whether a path segment is a chi-style path parameter (e.g., "{id}").
+func isPathParam(s string) bool {
+	return len(s) > 2 && s[0] == '{' && s[len(s)-1] == '}'
+}
+
+// autoTag derives a group tag from a path by finding the deepest prefix
+// (from 2 segments up to full length) that appears ≥ 2 times across all routes.
+// Path parameters are excluded — a prefix ending with a param is not considered.
+// E.g., for "/v1/employee/schedule/import/validate":
+//
+//	"employee"          → always base
+//	"employee/schedule" → count 9 ≥ 3  → bestIdx = 2 ("Employee Schedule")
+//	"employee/schedule/import" → count 3 ≥ 3 → bestIdx = 3 ("Employee Schedule Import")
+//	"employee/schedule/import/validate" → count 1 < 3 → stop
+//
+// Result: "Employee Schedule Import"
+func autoTag(path string, prefixCounts map[string]int) string {
+	seg := segmentsAfterVersion(path)
+	if len(seg) == 0 {
+		return ""
+	}
+	bestIdx := 1
+	for i := 2; i <= len(seg); i++ {
+		if isPathParam(seg[i-1]) {
+			break
+		}
+		prefix := strings.Join(seg[:i], "/")
+		if prefixCounts[prefix] >= 2 {
+			bestIdx = i
+		}
+	}
+	parts := make([]string, bestIdx)
+	for i := 0; i < bestIdx; i++ {
+		parts[i] = pathSegmentToTitle(seg[i])
+	}
+	return strings.Join(parts, " ")
+}
+
 // buildOpenAPISpec generates an OpenAPI 3.0.3 spec from all registered routes.
 func (app *App) buildOpenAPISpec() *openapi3.T {
 	spec := &openapi3.T{
@@ -49,16 +121,27 @@ func (app *App) buildOpenAPISpec() *openapi3.T {
 		},
 	}
 
+	prefixCounts := make(map[string]int)
+	for _, entry := range app.routeRegistry {
+		seg := segmentsAfterVersion(entry.Path)
+		for i := 2; i <= len(seg); i++ {
+			if isPathParam(seg[i-1]) {
+				break
+			}
+			prefix := strings.Join(seg[:i], "/")
+			prefixCounts[prefix]++
+		}
+	}
+
 	for _, entry := range app.routeRegistry {
 		pathItem := spec.Paths.Find(entry.Path)
 		if pathItem == nil {
 			pathItem = &openapi3.PathItem{}
 			spec.Paths.Set(entry.Path, pathItem)
 		}
-		app.buildOperation(pathItem, entry)
+		app.buildOperation(pathItem, entry, prefixCounts)
 	}
 
-	// Add security scheme components
 	for _, info := range app.middlewareDocs {
 		if info.SecurityScheme != nil {
 			scheme := &openapi3.SecurityScheme{
@@ -75,11 +158,17 @@ func (app *App) buildOpenAPISpec() *openapi3.T {
 	return spec
 }
 
-func (app *App) buildOperation(item *openapi3.PathItem, entry routeRegistryEntry) {
+func (app *App) buildOperation(item *openapi3.PathItem, entry routeRegistryEntry, prefixCounts map[string]int) {
 	operation := &openapi3.Operation{
 		Summary:     entry.Doc.Summary,
 		Description: entry.Doc.Description,
 		Tags:        entry.Doc.Tags,
+	}
+
+	if len(operation.Tags) == 0 {
+		if tag := autoTag(entry.Path, prefixCounts); tag != "" {
+			operation.Tags = []string{tag}
+		}
 	}
 
 	// Request body

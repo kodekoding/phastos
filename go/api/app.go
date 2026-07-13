@@ -76,9 +76,11 @@ type (
 		otelSvcName        string
 		nrProv             monitoring.Provider
 		otelProv           monitoring.Provider
-		middlewareDocs     map[string]MiddlewareInfo
-		routeRegistry      []routeRegistryEntry
+		middlewareDocs        map[string]MiddlewareInfo
+		globalMiddlewareMetas []MiddlewareInfo
+		routeRegistry         []routeRegistryEntry
 		enableOpenAPI      bool
+		apiRouters         map[string]*chi.Mux
 	}
 
 	Options func(api *App)
@@ -248,6 +250,20 @@ func WithGlobalMiddleware(handlers ...func(http.Handler) http.Handler) Options {
 func (app *App) AddGlobalMiddleware(handlers ...func(http.Handler) http.Handler) {
 	app.globalMiddlewares = append(app.globalMiddlewares, handlers...)
 	app.pendingMiddlewares = true
+}
+
+// AddGlobalMiddlewareMeta registers metadata (headers/security) for global
+// middlewares that are applied to ALL API routes. The metadata is injected
+// into every route's OpenAPI doc so required headers and security schemes
+// appear in Swagger UI.
+func (app *App) AddGlobalMiddlewareMeta(opts ...MiddlewareOption) {
+	info := MiddlewareInfo{}
+	for _, opt := range opts {
+		opt(&info)
+	}
+	if len(info.Headers) > 0 || info.SecurityScheme != nil || info.Description != "" {
+		app.globalMiddlewareMetas = append(app.globalMiddlewareMetas, info)
+	}
 }
 
 func WithNewRelic() Options {
@@ -670,20 +686,30 @@ func (app *App) registerRoutes(prefix string, parentMiddlewares *[]func(http.Han
 			continue
 		}
 
-		// Auto-inject middleware metadata into RouteDoc
-		if len(middlewareKeys) > 0 {
-			if route.Doc == nil {
-				route.Doc = &RouteDoc{}
-			}
-			for _, key := range middlewareKeys {
-				if info, ok := app.middlewareDocs[key]; ok {
-					if info.SecurityScheme != nil && route.Doc.Security == nil {
-						route.Doc.Security = info.SecurityScheme
-					}
-					route.Doc.Headers = append(route.Doc.Headers, info.Headers...)
+	// Auto-inject middleware metadata into RouteDoc.
+	// Controller-specific keys inject security + headers.
+	if len(middlewareKeys) > 0 {
+		if route.Doc == nil {
+			route.Doc = &RouteDoc{}
+		}
+		for _, key := range middlewareKeys {
+			if info, ok := app.middlewareDocs[key]; ok {
+				if info.SecurityScheme != nil && route.Doc.Security == nil {
+					route.Doc.Security = info.SecurityScheme
 				}
+				route.Doc.Headers = append(route.Doc.Headers, info.Headers...)
 			}
 		}
+	}
+
+	// Inject global middleware metadata (headers only) into every route.
+	// These are middlewares applied to ALL API routes (e.g., AllowPlatform).
+	for _, meta := range app.globalMiddlewareMetas {
+		if route.Doc == nil {
+			route.Doc = &RouteDoc{}
+		}
+		route.Doc.Headers = append(route.Doc.Headers, meta.Headers...)
+	}
 
 		var middlewares []func(http.Handler) http.Handler
 		if parentMiddlewares != nil {
@@ -695,13 +721,14 @@ func (app *App) registerRoutes(prefix string, parentMiddlewares *[]func(http.Han
 		routePath := route.GetVersionedPath(prefix)
 		app.registerHandler(route.Method, routePath, route.Handler, middlewares...)
 
-		if route.Doc != nil {
-			app.routeRegistry = append(app.routeRegistry, routeRegistryEntry{
-				Method: route.Method,
-				Path:   routePath,
-				Doc:    route.Doc,
-			})
+		if route.Doc == nil {
+			route.Doc = &RouteDoc{}
 		}
+		app.routeRegistry = append(app.routeRegistry, routeRegistryEntry{
+			Method: route.Method,
+			Path:   routePath,
+			Doc:    route.Doc,
+		})
 	}
 }
 
@@ -737,15 +764,10 @@ func (app *App) flushPendingMiddlewares() {
 		return
 	}
 	app.pendingMiddlewares = false
-	if len(app.globalMiddlewares) > 0 {
-		app.Http.Use(app.globalMiddlewares...)
-	}
-	// now that all middlewares are registered, it's safe to add default routes
 	app.initRoutes()
 }
 
 func (app *App) registerHandler(method, path string, handler Handler, middlewares ...func(http.Handler) http.Handler) {
-	// flush any pending global middlewares before registering the first route
 	app.flushPendingMiddlewares()
 
 	wrapppedHandler := app.wrapHandler(handler)
@@ -755,10 +777,32 @@ func (app *App) registerHandler(method, path string, handler Handler, middleware
 	handlerFunc := chi.
 		Chain(middlewares...).
 		HandlerFunc(wrapppedHandler)
+
+	if strings.HasPrefix(path, "/v") {
+		parts := strings.SplitN(path[2:], "/", 2)
+		if len(parts) > 0 && parts[0] != "" {
+			versionPrefix := "/v" + parts[0]
+			if app.apiRouters == nil {
+				app.apiRouters = make(map[string]*chi.Mux)
+			}
+			router, exists := app.apiRouters[versionPrefix]
+			if !exists {
+				router = chi.NewRouter()
+				if len(app.globalMiddlewares) > 0 {
+					router.Use(app.globalMiddlewares...)
+				}
+				app.apiRouters[versionPrefix] = router
+				app.Http.Mount(versionPrefix, router)
+			}
+			strippedPath := strings.TrimPrefix(path, versionPrefix)
+			router.Method(method, strippedPath, handlerFunc)
+			app.TotalEndpoints++
+			return
+		}
+	}
+
 	app.Http.Method(method, path, handlerFunc)
-
 	app.TotalEndpoints++
-
 }
 
 func (app *App) WrapToApp(wrapper Wrapper) {

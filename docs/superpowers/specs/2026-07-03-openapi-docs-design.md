@@ -284,7 +284,7 @@ func (a *AbsenceController) GetConfig() api.ControllerConfig {
 | Skenario | Perilaku |
 |----------|----------|
 | Controller tanpa middleware | Route generasi tanpa security/headers |
-| Route tanpa `Doc` (`nil`) | Skip dari OpenAPI spec |
+| Route tanpa `Doc` (`nil`) | Include dengan entry minimal (path + method saja, tanpa summary/schema) |
 | Middleware tanpa metadata di registry | Skip, gak ngaruh ke route |
 | Public controller tanpa `UseMiddleware` | Nggak ada auto-inject |
 | Nested struct di request/response | Direkursif sampe primitive types |

@@ -815,6 +815,10 @@ func TestResponse_ResetClearsCustomHeader(t *testing.T) {
 
 // --- flushPendingMiddlewares with global middlewares ---
 
+// This test verifies that AddGlobalMiddleware + flushPendingMiddlewares
+// applies middlewares to API routes (paths prefixed with /v) via version-group
+// chi sub-routers, while non-versioned routes registered directly on app.Http
+// do NOT receive global middleware.
 func TestApp_flushPendingMiddlewares_WithGlobalMiddlewares(t *testing.T) {
 	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
 	app.Init()
@@ -829,17 +833,46 @@ func TestApp_flushPendingMiddlewares_WithGlobalMiddlewares(t *testing.T) {
 	app.AddGlobalMiddleware(mw)
 	app.flushPendingMiddlewares()
 
-	// Now register a handler and test the middleware chain
 	handler := func(req Request, ctx context.Context) *Response {
 		return NewResponse().SetMessage("ok")
 	}
-	app.registerHandler(http.MethodGet, "/mw-test", handler)
 
-	req := httptest.NewRequest(http.MethodGet, "/mw-test", nil)
+	// Route with /v prefix should receive global middleware
+	app.registerHandler(http.MethodGet, "/v1/mw-test", handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/mw-test", nil)
 	w := httptest.NewRecorder()
 	app.Http.ServeHTTP(w, req)
 
-	assert.True(t, mwCalled, "global middleware should be called")
+	assert.True(t, mwCalled, "global middleware should be called for /v1 prefixed routes")
+}
+
+func TestApp_flushPendingMiddlewares_WithoutVersionPrefix(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
+	app.Init()
+
+	mwCalled := false
+	mw := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mwCalled = true
+			next.ServeHTTP(w, r)
+		})
+	}
+	app.AddGlobalMiddleware(mw)
+	app.flushPendingMiddlewares()
+
+	handler := func(req Request, ctx context.Context) *Response {
+		return NewResponse().SetMessage("ok")
+	}
+
+	// Route without /v prefix should NOT receive global middleware
+	app.registerHandler(http.MethodGet, "/no-version-test", handler)
+
+	req := httptest.NewRequest(http.MethodGet, "/no-version-test", nil)
+	w := httptest.NewRecorder()
+	app.Http.ServeHTTP(w, req)
+
+	assert.False(t, mwCalled, "non-versioned routes should not receive global middleware")
 }
 
 // --- requestLogger middleware tests ---
