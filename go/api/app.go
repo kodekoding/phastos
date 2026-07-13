@@ -476,7 +476,12 @@ func (app *App) requestValidator(i interface{}) error {
 	return nil
 }
 
-func (app *App) wrapHandler(h Handler) http.HandlerFunc {
+func (app *App) wrapHandler(handler any) http.HandlerFunc {
+	if h2, ok := handler.(Handler2); ok {
+		return app.wrapHandler2(h2)
+	}
+
+	h := handler.(func(Request, context.Context) *Response) //nolint:errcheck
 	return func(w http.ResponseWriter, r *http.Request) {
 		request := app.initRequest(r)
 		ctx := r.Context()
@@ -557,6 +562,39 @@ func (app *App) wrapHandler(h Handler) http.HandlerFunc {
 			response.Send(w)
 			ReleaseResponse(response)
 		}
+	}
+}
+
+// wrapHandler2 wraps a Handler2 for use as an http.HandlerFunc.
+// It performs auto-binding (path → query → body → validate) before
+// calling the handler, and wraps the (any, error) return into *Response.
+func (app *App) wrapHandler2(h Handler2) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		requestId := r.Header.Get(common.RequestIDHeader)
+		if requestId == "" {
+			requestId = r.Header.Get("X-Request-ID")
+		}
+		w.Header().Set("X-Trace-ID", requestId)
+
+		result, err := h(r.Context())
+
+		var response *Response
+		switch {
+		case err != nil:
+			response = NewResponse().SetError(err)
+		case result == nil:
+			response = NewResponse()
+		default:
+			if customResp, ok := result.(*Response); ok {
+				response = customResp
+			} else {
+				response = NewResponse().SetData(result)
+			}
+		}
+
+		app.handleResponseError(response, r, requestId, r.Context())
+		response.Send(w)
+		ReleaseResponse(response)
 	}
 }
 
@@ -774,7 +812,7 @@ func (app *App) flushPendingMiddlewares() {
 	app.initRoutes()
 }
 
-func (app *App) registerHandler(method, path string, handler Handler, middlewares ...func(http.Handler) http.Handler) {
+func (app *App) registerHandler(method, path string, handler any, middlewares ...func(http.Handler) http.Handler) {
 	app.flushPendingMiddlewares()
 
 	wrapppedHandler := app.wrapHandler(handler)

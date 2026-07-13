@@ -37,7 +37,7 @@ type Handler func(Request, context.Context) *Response
 type Route struct {
 	Method         string
 	Path           string
-	Handler        Handler
+	Handler        any
 	Version        int
 	Middlewares    *[]func(http.Handler) http.Handler
 	SubRoutes      []Route
@@ -86,7 +86,7 @@ type MiddlewareInfo struct {
 
 type RouteOption func(*Route)
 
-func NewRoute(method string, handler Handler, opts ...RouteOption) Route {
+func NewRoute(method string, handler any, opts ...RouteOption) Route {
 	route := Route{
 		Method:  method,
 		Path:    "",
