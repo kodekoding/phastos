@@ -132,6 +132,13 @@ func (app *App) buildOpenAPISpec() *openapi3.T {
 		},
 	}
 
+	// Pre-register all named schemas from request/response types
+	schemaNames := make(map[string]string)
+	for _, entry := range app.routeRegistry {
+		app.registerSchema(spec, entry.Doc.RequestType, schemaNames)
+		app.registerSchema(spec, entry.Doc.ResponseType, schemaNames)
+	}
+
 	prefixCounts := make(map[string]int)
 	for _, entry := range app.routeRegistry {
 		seg := segmentsAfterVersion(entry.Path)
@@ -150,7 +157,7 @@ func (app *App) buildOpenAPISpec() *openapi3.T {
 			pathItem = &openapi3.PathItem{}
 			spec.Paths.Set(entry.Path, pathItem)
 		}
-		app.buildOperation(pathItem, entry, prefixCounts)
+		app.buildOperation(pathItem, entry, prefixCounts, schemaNames)
 	}
 
 	for _, info := range app.middlewareDocs {
@@ -169,7 +176,7 @@ func (app *App) buildOpenAPISpec() *openapi3.T {
 	return spec
 }
 
-func (app *App) buildOperation(item *openapi3.PathItem, entry routeRegistryEntry, prefixCounts map[string]int) {
+func (app *App) buildOperation(item *openapi3.PathItem, entry routeRegistryEntry, prefixCounts map[string]int, schemaNames map[string]string) {
 	operation := &openapi3.Operation{
 		Summary:     entry.Doc.Summary,
 		Description: entry.Doc.Description,
@@ -182,22 +189,20 @@ func (app *App) buildOperation(item *openapi3.PathItem, entry routeRegistryEntry
 		}
 	}
 
-	// Request body
 	if entry.Doc.RequestType != nil {
-		schema := app.generateSchema(entry.Doc.RequestType)
+		schemaRef := app.schemaRefOrValue(entry.Doc.RequestType, schemaNames)
 		operation.RequestBody = &openapi3.RequestBodyRef{
 			Value: openapi3.NewRequestBody().
-				WithJSONSchema(schema).
+				WithJSONSchemaRef(schemaRef).
 				WithRequired(true),
 		}
 	}
 
-	// Response
 	if entry.Doc.ResponseType != nil {
-		schema := app.generateSchema(entry.Doc.ResponseType)
+		schemaRef := app.schemaRefOrValue(entry.Doc.ResponseType, schemaNames)
 		operation.AddResponse(200, openapi3.NewResponse().
 			WithDescription("Success").
-			WithJSONSchema(schema),
+			WithJSONSchemaRef(schemaRef),
 		)
 	}
 
@@ -391,4 +396,47 @@ func autoErrorResponses(entry routeRegistryEntry) []ErrorResponseDoc {
 	)
 
 	return resp
+}
+
+// registerSchema adds a named schema to the OpenAPI Components.Schemas
+// if not already present. Returns the schema name.
+func (app *App) registerSchema(spec *openapi3.T, model any, names map[string]string) string {
+	if model == nil {
+		return ""
+	}
+	t := reflect.TypeOf(model)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	if t.Kind() == reflect.Slice {
+		return app.registerSchema(spec, reflect.New(t.Elem()).Elem().Interface(), names)
+	}
+	if t.Kind() != reflect.Struct {
+		return ""
+	}
+	key := t.PkgPath() + "." + t.Name()
+	if name, ok := names[key]; ok {
+		return name
+	}
+	schemaName := t.Name()
+	names[key] = schemaName
+	schema := app.generateSchema(model)
+	spec.Components.Schemas[schemaName] = &openapi3.SchemaRef{Value: schema}
+	return schemaName
+}
+
+// schemaRefOrValue returns a $ref to a named schema if available,
+// otherwise returns the inline schema value.
+func (app *App) schemaRefOrValue(model any, names map[string]string) *openapi3.SchemaRef {
+	t := reflect.TypeOf(model)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	if t.Kind() == reflect.Struct {
+		key := t.PkgPath() + "." + t.Name()
+		if name, ok := names[key]; ok {
+			return &openapi3.SchemaRef{Ref: "#/components/schemas/" + name}
+		}
+	}
+	return &openapi3.SchemaRef{Value: app.generateSchema(model)}
 }
