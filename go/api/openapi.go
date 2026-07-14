@@ -175,10 +175,20 @@ func (app *App) buildOpenAPISpec() *openapi3.T {
 			if spec.Components.SecuritySchemes == nil {
 				spec.Components.SecuritySchemes = openapi3.SecuritySchemes{}
 			}
-			scheme := &openapi3.SecurityScheme{
-				Type: info.SecurityScheme.Type,
-				Name: info.SecurityScheme.Name,
-				In:   info.SecurityScheme.In,
+			scheme := &openapi3.SecurityScheme{}
+			switch info.SecurityScheme.Type {
+			case "bearer":
+				scheme.Type = "http"
+				scheme.Scheme = "bearer"
+				scheme.BearerFormat = "JWT"
+			case "apiKey":
+				scheme.Type = "apiKey"
+				scheme.Name = info.SecurityScheme.Name
+				scheme.In = info.SecurityScheme.In
+			default:
+				scheme.Type = info.SecurityScheme.Type
+				scheme.Name = info.SecurityScheme.Name
+				scheme.In = info.SecurityScheme.In
 			}
 			spec.Components.SecuritySchemes[info.SecurityScheme.Name] = &openapi3.SecuritySchemeRef{
 				Value: scheme,
