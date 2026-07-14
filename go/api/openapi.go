@@ -432,6 +432,23 @@ func (app *App) schemaRefOrValue(model any, names map[string]string) *openapi3.S
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
+	if t.Kind() == reflect.Slice {
+		elem := t.Elem()
+		if elem.Kind() == reflect.Ptr {
+			elem = elem.Elem()
+		}
+		if elem.Kind() == reflect.Struct {
+			key := elem.PkgPath() + "." + elem.Name()
+			if name, ok := names[key]; ok {
+				return &openapi3.SchemaRef{
+					Value: &openapi3.Schema{
+						Type:  &openapi3.Types{"array"},
+						Items: &openapi3.SchemaRef{Ref: "#/components/schemas/" + name},
+					},
+				}
+			}
+		}
+	}
 	if t.Kind() == reflect.Struct {
 		key := t.PkgPath() + "." + t.Name()
 		if name, ok := names[key]; ok {
