@@ -298,8 +298,23 @@ func (app *App) generateSchema(model any) *openapi3.Schema {
 	for i := range t.NumField() {
 		field := t.Field(i)
 
-		// Skip unexported
 		if !field.IsExported() {
+			continue
+		}
+
+		// Flatten embedded (anonymous) structs
+		if field.Anonymous {
+			ft := field.Type
+			if ft.Kind() == reflect.Ptr {
+				ft = ft.Elem()
+			}
+			if ft.Kind() == reflect.Struct {
+				embedded := app.generateSchema(reflect.New(ft).Interface())
+				for propName, propRef := range embedded.Properties {
+					schema.Properties[propName] = propRef
+				}
+				schema.Required = append(schema.Required, embedded.Required...)
+			}
 			continue
 		}
 
@@ -475,14 +490,28 @@ func (app *App) schemaRefOrValue(model any, names map[string]string) *openapi3.S
 	return &openapi3.SchemaRef{Value: app.generateSchema(model)}
 }
 
-// generateSelectResponseSchema creates a schema that wraps the item type
-// in a SelectResponse-like structure: { data, metadata }.
+// generateSelectResponseSchema creates a schema for list endpoints.
+// It flattens the embedded ResponseMetaData (total_data, total_filtered, request_param)
+// together with the typed data field.
 func generateSelectResponseSchema(itemRef *openapi3.SchemaRef) *openapi3.Schema {
-	return &openapi3.Schema{
-		Type: schemaTypeObject,
-		Properties: openapi3.Schemas{
-			"data":     itemRef,
-			"metadata": &openapi3.SchemaRef{Ref: "#/components/schemas/ResponseMetaData"},
-		},
+	schema := &openapi3.Schema{
+		Type:       schemaTypeObject,
+		Properties: openapi3.Schemas{},
 	}
+
+	// data field with the caller's item type
+	schema.Properties["data"] = itemRef
+
+	// Flatten ResponseMetaData fields (total_data, total_filtered, request_param)
+	schema.Properties["total_data"] = &openapi3.SchemaRef{
+		Value: &openapi3.Schema{Type: &openapi3.Types{"integer"}},
+	}
+	schema.Properties["total_filtered"] = &openapi3.SchemaRef{
+		Value: &openapi3.Schema{Type: &openapi3.Types{"integer"}},
+	}
+	schema.Properties["request_param"] = &openapi3.SchemaRef{
+		Value: &openapi3.Schema{Type: schemaTypeObject},
+	}
+
+	return schema
 }
