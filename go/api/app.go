@@ -626,18 +626,23 @@ func (app *App) wrapHandlerV2WithMeta(m handler2WithMeta) http.HandlerFunc {
 		if len(m.pathParamTypes) > 0 {
 			rctx := chi.RouteContext(ctx)
 			params := map[string]string{}
+			pi := 0
 			if rctx != nil {
 				for i, key := range rctx.URLParams.Keys {
+					if strings.HasPrefix(key, "*") {
+						continue
+					}
 					val := rctx.URLParams.Values[i]
 					params[key] = val
-					if i < len(m.pathParamTypes) {
-						if err := validatePathParam(val, m.pathParamTypes[i]); err != nil {
+					if pi < len(m.pathParamTypes) {
+						if err := validatePathParam(val, m.pathParamTypes[pi]); err != nil {
 							resp := NewResponse().SetError(err)
 							app.handleResponseError(resp, r, requestId, ctx)
 							resp.Send(w)
 							ReleaseResponse(resp)
 							return
 						}
+						pi++
 					}
 				}
 			}
