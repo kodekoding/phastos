@@ -492,6 +492,9 @@ func (app *App) wrapHandler(handler any) http.HandlerFunc {
 	if h2, ok := handler.(HandlerV2); ok {
 		return app.wrapHandlerV2(h2)
 	}
+	if isHandlerV2(handler) {
+		return app.wrapHandlerV2(handler.(func(context.Context) (any, error))) //nolint:errcheck
+	}
 
 	h := handler.(func(Request, context.Context) *Response) //nolint:errcheck
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -936,7 +939,8 @@ func (app *App) registerRoutes(prefix string, parentMiddlewares *[]func(http.Han
 
 		// Wrap HandlerV2 with auto-binding metadata from route annotations
 		handler := route.Handler
-		if h2, ok := handler.(HandlerV2); ok && route.Doc != nil {
+		if isHandlerV2(handler) && route.Doc != nil {
+			h2 := handler.(func(context.Context) (any, error)) //nolint:errcheck
 			handler = handler2WithMeta{
 				h:              h2,
 				requestType:    route.Doc.RequestType,
