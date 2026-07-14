@@ -44,9 +44,9 @@ type routeRegistryEntry struct {
 	PathParamTypes []PathParamType
 }
 
-type Handler2 func(ctx context.Context) (any, error)
+type HandlerV2 func(ctx context.Context) (any, error)
 
-func isHandler2(h any) bool {
+func isHandlerV2(h any) bool {
 	return reflect.TypeOf(h).NumIn() == 1
 }
 
@@ -479,17 +479,17 @@ func (app *App) requestValidator(i interface{}) error {
 }
 
 type handler2WithMeta struct {
-	h              Handler2
+	h              HandlerV2
 	requestType    any
 	pathParamTypes []PathParamType
 }
 
 func (app *App) wrapHandler(handler any) http.HandlerFunc {
 	if h2m, ok := handler.(handler2WithMeta); ok {
-		return app.wrapHandler2WithMeta(h2m)
+		return app.wrapHandlerV2WithMeta(h2m)
 	}
-	if h2, ok := handler.(Handler2); ok {
-		return app.wrapHandler2(h2)
+	if h2, ok := handler.(HandlerV2); ok {
+		return app.wrapHandlerV2(h2)
 	}
 
 	h := handler.(func(Request, context.Context) *Response) //nolint:errcheck
@@ -579,10 +579,10 @@ func (app *App) wrapHandler(handler any) http.HandlerFunc {
 	}
 }
 
-// wrapHandler2 wraps a Handler2 for use as an http.HandlerFunc.
+// wrapHandlerV2 wraps a HandlerV2 for use as an http.HandlerFunc.
 // It performs auto-binding (path → query → body → validate) before
 // calling the handler, and wraps the (any, error) return into *Response.
-func (app *App) wrapHandler2(h Handler2) http.HandlerFunc {
+func (app *App) wrapHandlerV2(h HandlerV2) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestId := r.Header.Get(common.RequestIDHeader)
 		if requestId == "" {
@@ -612,8 +612,8 @@ func (app *App) wrapHandler2(h Handler2) http.HandlerFunc {
 	}
 }
 
-// wrapHandler2WithMeta wraps a Handler2 with full auto-binding (path → query → body → validate).
-func (app *App) wrapHandler2WithMeta(m handler2WithMeta) http.HandlerFunc {
+// wrapHandlerV2WithMeta wraps a HandlerV2 with full auto-binding (path → query → body → validate).
+func (app *App) wrapHandlerV2WithMeta(m handler2WithMeta) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestId := r.Header.Get(common.RequestIDHeader)
 		if requestId == "" {
@@ -916,9 +916,9 @@ func (app *App) registerRoutes(prefix string, parentMiddlewares *[]func(http.Han
 		}
 		routePath := route.GetVersionedPath(prefix)
 
-		// Wrap Handler2 with auto-binding metadata from route annotations
+		// Wrap HandlerV2 with auto-binding metadata from route annotations
 		handler := route.Handler
-		if h2, ok := handler.(Handler2); ok && route.Doc != nil {
+		if h2, ok := handler.(HandlerV2); ok && route.Doc != nil {
 			handler = handler2WithMeta{
 				h:              h2,
 				requestType:    route.Doc.RequestType,

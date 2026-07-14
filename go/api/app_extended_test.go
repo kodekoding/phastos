@@ -940,27 +940,27 @@ type handler2TestPayload struct {
 	Value int    `json:"value"`
 }
 
-// --- Handler2 detection ---
+// --- HandlerV2 detection ---
 
-func TestIsHandler2_NewSignature(t *testing.T) {
-	h := Handler2(func(ctx context.Context) (any, error) {
+func TestIsHandlerV2_NewSignature(t *testing.T) {
+	h := HandlerV2(func(ctx context.Context) (any, error) {
 		return map[string]string{"ok": "yes"}, nil
 	})
-	assert.True(t, isHandler2(h))
+	assert.True(t, isHandlerV2(h))
 }
 
-func TestIsHandler2_OldSignature(t *testing.T) {
+func TestIsHandlerV2_OldSignature(t *testing.T) {
 	h := func(req Request, ctx context.Context) *Response {
 		return NewResponse().SetMessage("ok")
 	}
-	assert.False(t, isHandler2(h))
+	assert.False(t, isHandlerV2(h))
 }
 
-func TestHandler2_FullFlow_PostWithPathParam(t *testing.T) {
+func TestHandlerV2_FullFlow_PostWithPathParam(t *testing.T) {
 	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
 	app.Init()
 
-	h2 := Handler2(func(ctx context.Context) (any, error) {
+	h2 := HandlerV2(func(ctx context.Context) (any, error) {
 		payload := context2.RequestBody[handler2TestPayload](ctx)
 		id := context2.PathParam[int64](ctx, "id")
 		return map[string]any{"id": id, "name": payload.Name, "value": payload.Value}, nil
@@ -987,11 +987,11 @@ func TestHandler2_FullFlow_PostWithPathParam(t *testing.T) {
 	assert.Contains(t, w.Body.String(), `"value":10`)
 }
 
-func TestHandler2_PathParamValidation_Fails(t *testing.T) {
+func TestHandlerV2_PathParamValidation_Fails(t *testing.T) {
 	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
 	app.Init()
 
-	h2 := Handler2(func(ctx context.Context) (any, error) {
+	h2 := HandlerV2(func(ctx context.Context) (any, error) {
 		return "should not be called", nil
 	})
 
@@ -1014,12 +1014,12 @@ func TestHandler2_PathParamValidation_Fails(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "ERR_INVALID_PATH_PARAM")
 }
 
-func TestHandler2_BindingFailure_Returns400(t *testing.T) {
+func TestHandlerV2_BindingFailure_Returns400(t *testing.T) {
 	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
 	app.Init()
 	app.flushPendingMiddlewares()
 
-	h2 := Handler2(func(ctx context.Context) (any, error) {
+	h2 := HandlerV2(func(ctx context.Context) (any, error) {
 		return "should not be called", nil
 	})
 
@@ -1038,7 +1038,7 @@ func TestHandler2_BindingFailure_Returns400(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestHandler2_OldHandlerStillWorks(t *testing.T) {
+func TestHandlerV2_OldHandlerStillWorks(t *testing.T) {
 	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
 	app.Init()
 	app.flushPendingMiddlewares()
@@ -1065,12 +1065,12 @@ func TestHandler2_OldHandlerStillWorks(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestHandler2_XTraceIDHeader(t *testing.T) {
+func TestHandlerV2_XTraceIDHeader(t *testing.T) {
 	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
 	app.Init()
 	app.flushPendingMiddlewares()
 
-	h2 := Handler2(func(ctx context.Context) (any, error) {
+	h2 := HandlerV2(func(ctx context.Context) (any, error) {
 		return map[string]string{"ok": "yes"}, nil
 	})
 
@@ -1086,12 +1086,12 @@ func TestHandler2_XTraceIDHeader(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestHandler2_WithoutMeta_SimplePassThrough(t *testing.T) {
+func TestHandlerV2_WithoutMeta_SimplePassThrough(t *testing.T) {
 	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
 	app.Init()
 	app.flushPendingMiddlewares()
 
-	h2 := Handler2(func(ctx context.Context) (any, error) {
+	h2 := HandlerV2(func(ctx context.Context) (any, error) {
 		return "hello", nil
 	})
 
