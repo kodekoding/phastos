@@ -485,6 +485,24 @@ type handler2WithMeta struct {
 	pathParamTypes []PathParamType
 }
 
+// HandlerV2Meta is the public wrapper for HandlerV2 with auto-binding metadata.
+type HandlerV2Meta struct {
+	H              HandlerV2
+	RequestType    any
+	QueryType      any
+	PathParamTypes []PathParamType
+}
+
+// WrapHandlerV2Meta wraps a HandlerV2 with auto-binding metadata for testing.
+func (app *App) WrapHandlerV2Meta(m HandlerV2Meta) http.HandlerFunc {
+	return app.wrapHandlerV2WithMeta(handler2WithMeta{
+		h:              m.H,
+		requestType:    m.RequestType,
+		queryType:      m.QueryType,
+		pathParamTypes: m.PathParamTypes,
+	})
+}
+
 func (app *App) wrapHandler(handler any) http.HandlerFunc {
 	if h2m, ok := handler.(handler2WithMeta); ok {
 		return app.wrapHandlerV2WithMeta(h2m)
