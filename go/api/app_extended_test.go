@@ -1027,7 +1027,7 @@ func TestHandlerV2_BindingFailure_Returns400(t *testing.T) {
 		h:           h2,
 		requestType: new(handler2TestPayload),
 	}
-	app.registerHandlerWithMeta("POST", "/v1/test", m)
+	app.registerHandler("POST", "/v1/test", m)
 
 	body := `not-json`
 	req := httptest.NewRequest("POST", "/v1/test", strings.NewReader(body))
@@ -1051,7 +1051,7 @@ func TestHandlerV2_OldHandlerStillWorks(t *testing.T) {
 		return NewResponse().SetData(payload)
 	}
 
-	app.registerHandlerWithMeta("POST", "/v1/old-test", handler2WithMeta{})
+	app.registerHandler("POST", "/v1/old-test", handler2WithMeta{})
 	// Override the nil meta handler with the old one directly
 	// Actually, register old handler-style directly for backward compat test
 	app.registerHandler("POST", "/v2/old-test", oldH)
@@ -1075,7 +1075,7 @@ func TestHandlerV2_XTraceIDHeader(t *testing.T) {
 	})
 
 	m := handler2WithMeta{h: h2}
-	app.registerHandlerWithMeta("GET", "/v1/header-test", m)
+	app.registerHandler("GET", "/v1/header-test", m)
 
 	req := httptest.NewRequest("GET", "/v1/header-test", nil)
 	req.Header.Set("X-Request-ID", "trace-abc-123")

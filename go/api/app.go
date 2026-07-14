@@ -975,10 +975,6 @@ func (app *App) flushPendingMiddlewares() {
 	app.initRoutes()
 }
 
-func (app *App) registerHandlerWithMeta(method, path string, m handler2WithMeta) {
-	app.registerHandler(method, path, m)
-}
-
 func (app *App) registerHandler(method, path string, handler any, middlewares ...func(http.Handler) http.Handler) {
 	app.flushPendingMiddlewares()
 
