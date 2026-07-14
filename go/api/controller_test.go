@@ -262,3 +262,18 @@ func TestParsePathParamType_AllCases(t *testing.T) {
 	assert.Equal(t, ParamString, parsePathParamType("string"))
 	assert.Equal(t, ParamString, parsePathParamType("unknown_type"))
 }
+
+func TestStripPathParamTypes_WithInt64(t *testing.T) {
+	result := stripPathParamTypes("/v1/event/{id:int64}")
+	assert.Equal(t, "/v1/event/{id}", result)
+}
+
+func TestStripPathParamTypes_MultipleParams(t *testing.T) {
+	result := stripPathParamTypes("/v1/employee/{id:int64}/absence/{month:int}")
+	assert.Equal(t, "/v1/employee/{id}/absence/{month}", result)
+}
+
+func TestStripPathParamTypes_NoType(t *testing.T) {
+	result := stripPathParamTypes("/v1/event/{id}")
+	assert.Equal(t, "/v1/event/{id}", result)
+}
