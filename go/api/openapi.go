@@ -378,6 +378,13 @@ func (app *App) fieldToSchema(field reflect.StructField) *openapi3.Schema {
 			Items: &openapi3.SchemaRef{Value: items},
 		}
 	case reflect.Struct:
+		// Handle null.* wrapper types (null.String, null.Int64, etc.)
+		if nullType := mapNullType(t); nullType != "" {
+			return &openapi3.Schema{
+				Type:     &openapi3.Types{nullType},
+				Nullable: true,
+			}
+		}
 		nested := app.generateSchema(reflect.New(t).Interface())
 		nested.Nullable = nullable
 		return nested
@@ -386,6 +393,25 @@ func (app *App) fieldToSchema(field reflect.StructField) *openapi3.Schema {
 	default:
 		return &openapi3.Schema{Type: schemaTypeString}
 	}
+}
+
+// mapNullType detects null.* wrapper types (null.String, null.Int64, etc.)
+// and returns the underlying OpenAPI type name. Returns empty string for non-null types.
+func mapNullType(t reflect.Type) string {
+	if t.PkgPath() != "github.com/volatiletech/null" {
+		return ""
+	}
+	switch t.Name() {
+	case "String", "Byte":
+		return "string"
+	case "Int", "Int8", "Int16", "Int32", "Int64", "Uint", "Uint8", "Uint16", "Uint32", "Uint64":
+		return "integer"
+	case "Float32", "Float64":
+		return "number"
+	case "Bool":
+		return "boolean"
+	}
+	return ""
 }
 
 // autoErrorResponses generates standard error responses based on route configuration.
