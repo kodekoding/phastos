@@ -128,6 +128,15 @@ func (app *App) buildOpenAPISpec() *openapi3.T {
 						},
 					},
 				},
+				"ResponseMetaData": &openapi3.SchemaRef{
+					Value: &openapi3.Schema{
+						Type: schemaTypeObject,
+						Properties: openapi3.Schemas{
+							"total_data":     &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"integer"}}},
+							"total_filtered": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"integer"}}},
+						},
+					},
+				},
 			},
 		},
 	}
@@ -137,6 +146,7 @@ func (app *App) buildOpenAPISpec() *openapi3.T {
 	for _, entry := range app.routeRegistry {
 		app.registerSchema(spec, entry.Doc.RequestType, schemaNames)
 		app.registerSchema(spec, entry.Doc.ResponseType, schemaNames)
+		app.registerSchema(spec, entry.Doc.SelectResponseType, schemaNames)
 	}
 
 	prefixCounts := make(map[string]int)
@@ -198,7 +208,14 @@ func (app *App) buildOperation(item *openapi3.PathItem, entry routeRegistryEntry
 		}
 	}
 
-	if entry.Doc.ResponseType != nil {
+	if entry.Doc.SelectResponseType != nil {
+		itemRef := app.schemaRefOrValue(entry.Doc.SelectResponseType, schemaNames)
+		schemaRef := generateSelectResponseSchema(itemRef)
+		operation.AddResponse(200, openapi3.NewResponse().
+			WithDescription("Success").
+			WithJSONSchemaRef(&openapi3.SchemaRef{Value: schemaRef}),
+		)
+	} else if entry.Doc.ResponseType != nil {
 		schemaRef := app.schemaRefOrValue(entry.Doc.ResponseType, schemaNames)
 		operation.AddResponse(200, openapi3.NewResponse().
 			WithDescription("Success").
@@ -456,4 +473,16 @@ func (app *App) schemaRefOrValue(model any, names map[string]string) *openapi3.S
 		}
 	}
 	return &openapi3.SchemaRef{Value: app.generateSchema(model)}
+}
+
+// generateSelectResponseSchema creates a schema that wraps the item type
+// in a SelectResponse-like structure: { data, metadata }.
+func generateSelectResponseSchema(itemRef *openapi3.SchemaRef) *openapi3.Schema {
+	return &openapi3.Schema{
+		Type: schemaTypeObject,
+		Properties: openapi3.Schemas{
+			"data":     itemRef,
+			"metadata": &openapi3.SchemaRef{Ref: "#/components/schemas/ResponseMetaData"},
+		},
+	}
 }

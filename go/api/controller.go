@@ -50,10 +50,11 @@ type RouteDoc struct {
 	Description    string
 	Tags           []string
 	Deprecated     bool
-	RequestType    any
-	ResponseType   any
-	QueryType      any
-	ErrorResponses []ErrorResponseDoc
+	RequestType       any
+	ResponseType      any
+	QueryType         any
+	SelectResponseType any
+	ErrorResponses    []ErrorResponseDoc
 	Headers        []HeaderDoc
 	Security       *SecuritySchemeDoc
 }
@@ -288,6 +289,18 @@ func WithResponse(resp any) RouteOption {
 			r.Doc = &RouteDoc{}
 		}
 		r.Doc.ResponseType = resp
+	}
+}
+
+// WithSelectResponse sets the response type as a wrapped SelectResponse
+// where the data field is typed as the given struct/slice.
+// Use for GET list endpoints where data is []SomeEntity.
+func WithSelectResponse(item any) RouteOption {
+	return func(r *Route) {
+		if r.Doc == nil {
+			r.Doc = &RouteDoc{}
+		}
+		r.Doc.SelectResponseType = item
 	}
 }
 
