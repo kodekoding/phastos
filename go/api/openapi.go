@@ -172,6 +172,9 @@ func (app *App) buildOpenAPISpec() *openapi3.T {
 
 	for _, info := range app.middlewareDocs {
 		if info.SecurityScheme != nil {
+			if spec.Components.SecuritySchemes == nil {
+				spec.Components.SecuritySchemes = openapi3.SecuritySchemes{}
+			}
 			scheme := &openapi3.SecurityScheme{
 				Type: info.SecurityScheme.Type,
 				Name: info.SecurityScheme.Name,

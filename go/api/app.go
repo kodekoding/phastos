@@ -917,6 +917,14 @@ func (app *App) registerRoutes(prefix string, parentMiddlewares *[]func(http.Han
 		route.Doc.Headers = append(route.Doc.Headers, meta.Headers...)
 	}
 
+	// Inject security scheme from ALL registered middlewares into every route
+	// (e.g., JWTAuth that is applied globally via JoinMiddleware).
+	for _, info := range app.middlewareDocs {
+		if info.SecurityScheme != nil && route.Doc != nil && route.Doc.Security == nil {
+			route.Doc.Security = info.SecurityScheme
+		}
+	}
+
 		var middlewares []func(http.Handler) http.Handler
 		if parentMiddlewares != nil {
 			middlewares = append(middlewares, *parentMiddlewares...)
