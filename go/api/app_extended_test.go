@@ -1104,3 +1104,71 @@ func TestHandlerV2_WithoutMeta_SimplePassThrough(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "hello")
 }
+
+func TestHandlerV2_PutWithQueryAndBody(t *testing.T) {
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
+	app.Init()
+
+	type queryFilter struct {
+		Date string `schema:"date"`
+	}
+
+	h2 := HandlerV2(func(ctx context.Context) (any, error) {
+		payload := context2.RequestBody[handler2TestPayload](ctx)
+		query := context2.QueryParams[queryFilter](ctx)
+		return map[string]any{
+			"name":  payload.Name,
+			"value": payload.Value,
+			"date":  query.Date,
+		}, nil
+	})
+
+	m := handler2WithMeta{
+		h:              h2,
+		requestType:    new(handler2TestPayload),
+		queryType:      new(queryFilter),
+		pathParamTypes: []PathParamType{ParamInt64},
+	}
+	wrapped := app.wrapHandler(m)
+
+	app.Http.Put("/v1/item/{id}", wrapped)
+
+	body := `{"name":"item","value":42}`
+	req := httptest.NewRequest("PUT", "/v1/item/99?date=2026-01-13", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	app.Http.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"name":"item"`)
+	assert.Contains(t, w.Body.String(), `"value":42`)
+	assert.Contains(t, w.Body.String(), `"date":"2026-01-13"`)
+}
+
+func TestHandlerV2_GetWithQuery(t *testing.T) {
+	type filter struct {
+		Month string `schema:"month"`
+	}
+
+	h2 := HandlerV2(func(ctx context.Context) (any, error) {
+		query := context2.QueryParams[filter](ctx)
+		return map[string]string{"month": query.Month}, nil
+	})
+
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(0))
+	app.Init()
+	m := handler2WithMeta{
+		h:         h2,
+		queryType: new(filter),
+	}
+	wrapped := app.wrapHandler(m)
+
+	app.Http.Get("/v1/filter", wrapped)
+
+	req := httptest.NewRequest("GET", "/v1/filter?month=2026-07", nil)
+	w := httptest.NewRecorder()
+	app.Http.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), `"month":"2026-07"`)
+}

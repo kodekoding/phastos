@@ -481,6 +481,7 @@ func (app *App) requestValidator(i interface{}) error {
 type handler2WithMeta struct {
 	h              HandlerV2
 	requestType    any
+	queryType      any
 	pathParamTypes []PathParamType
 }
 
@@ -649,9 +650,13 @@ func (app *App) wrapHandlerV2WithMeta(m handler2WithMeta) http.HandlerFunc {
 			ctx = phastosctx.SetPathParams(ctx, params)
 		}
 
-		// 2. Bind query params (for GET)
-		if m.requestType != nil && r.Method == http.MethodGet {
-			reqType := reflect.TypeOf(m.requestType)
+		// 2. Bind query params (for all methods if QueryType or RequestType is set)
+		queryTarget := m.queryType
+		if queryTarget == nil && r.Method == http.MethodGet {
+			queryTarget = m.requestType
+		}
+		if queryTarget != nil {
+			reqType := reflect.TypeOf(queryTarget)
 			if reqType.Kind() == reflect.Ptr {
 				reqType = reqType.Elem()
 			}
@@ -927,6 +932,7 @@ func (app *App) registerRoutes(prefix string, parentMiddlewares *[]func(http.Han
 			handler = handler2WithMeta{
 				h:              h2,
 				requestType:    route.Doc.RequestType,
+				queryType:      route.Doc.QueryType,
 				pathParamTypes: route.PathParamTypes,
 			}
 		}
