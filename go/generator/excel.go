@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"mime/multipart"
@@ -21,6 +22,7 @@ type Excels interface {
 	ScanContentToStruct(sheetName string, destinationStruct interface{}) error
 	GetContents(sheetName string) ([]map[string]string, error)
 	GetMergeCell(sheetName string) ([]excelize.MergeCell, error)
+	WriteToBuffer() (*bytes.Buffer, error)
 }
 
 type excel struct {
@@ -158,6 +160,44 @@ func (c *excel) Generate() error {
 		return errors.Wrap(err, "phastos.go.generator.excel.Generate.CloseFile")
 	}
 	return nil
+}
+
+func (c *excel) WriteToBuffer() (*bytes.Buffer, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+
+	sheetIndex, err := c.excelFile.NewSheet(c.sheetName)
+	if err != nil {
+		return nil, errors.Wrap(err, "phastos.go.generator.excel.WriteToBuffer.NewSheet")
+	}
+
+	c.excelFile.SetActiveSheet(sheetIndex)
+
+	headerStyle, _ := c.excelFile.NewStyle(&excelize.Style{
+		Font:      &excelize.Font{Bold: true},
+		Alignment: &excelize.Alignment{Horizontal: "center"},
+	})
+
+	for row, column := range c.content {
+		totalColumn := len(column)
+		for i, data := range column {
+			cellIndex := fmt.Sprintf("%s%d", getColumnAlphabet(i+1), row+1)
+			if err = c.excelFile.SetCellStr(c.sheetName, cellIndex, data); err != nil {
+				return nil, errors.Wrap(err, "phastos.go.generator.excel.WriteToBuffer.SetCellValue")
+			}
+		}
+		if row == 0 {
+			_ = c.excelFile.SetCellStyle(c.sheetName, "A1", fmt.Sprintf("%s1", getColumnAlphabet(totalColumn)), headerStyle)
+		}
+	}
+
+	buf, err := c.excelFile.WriteToBuffer()
+	if err != nil {
+		return nil, errors.Wrap(err, "phastos.go.generator.excel.WriteToBuffer.WriteToBuffer")
+	}
+	_ = c.excelFile.Close()
+	return buf, nil
 }
 
 func (c *excel) GetMergeCell(sheetName string) ([]excelize.MergeCell, error) {
