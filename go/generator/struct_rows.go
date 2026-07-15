@@ -14,8 +14,12 @@ func structFieldToString(value interface{}) string {
 		return ""
 	}
 	rv := reflect.ValueOf(value)
-	if rv.Kind() == reflect.Ptr && rv.IsNil() {
-		return ""
+	if rv.Kind() == reflect.Ptr {
+		if rv.IsNil() {
+			return ""
+		}
+		rv = rv.Elem()
+		value = rv.Interface()
 	}
 	if valuer, ok := value.(driver.Valuer); ok {
 		resolved, err := valuer.Value()
@@ -40,6 +44,9 @@ func collectDBTaggedFields(v reflect.Value, out map[string]string) {
 	t := v.Type()
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
+		if !field.IsExported() {
+			continue
+		}
 		fieldValue := v.Field(i)
 
 		if field.Anonymous && fieldValue.Kind() == reflect.Struct {
