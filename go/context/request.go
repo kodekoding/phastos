@@ -2,12 +2,14 @@ package context
 
 import (
 	"context"
+	"net/http"
 	"strconv"
 )
 
 type requestBodyKey struct{}
 type queryParamsKey struct{}
 type pathParamsKey struct{}
+type httpRequestKey struct{}
 
 func SetRequestBody(ctx context.Context, val any) context.Context {
 	return context.WithValue(ctx, requestBodyKey{}, val)
@@ -48,6 +50,15 @@ func PathParam[T any](ctx context.Context, name string) T {
 		return zero
 	}
 	return convertParam[T](raw)
+}
+
+func SetHTTPRequest(ctx context.Context, r *http.Request) context.Context {
+	return context.WithValue(ctx, httpRequestKey{}, r)
+}
+
+func HTTPRequest(ctx context.Context) *http.Request {
+	val, _ := ctx.Value(httpRequestKey{}).(*http.Request)
+	return val
 }
 
 func convertParam[T any](raw string) T {

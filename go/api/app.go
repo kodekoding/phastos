@@ -612,7 +612,8 @@ func (app *App) wrapHandlerV2(h HandlerV2) http.HandlerFunc {
 		}
 		w.Header().Set("X-Trace-ID", requestId)
 
-		result, err := h(r.Context())
+		ctx := phastosctx.SetHTTPRequest(r.Context(), r)
+		result, err := h(ctx)
 
 		var response *Response
 		switch {
@@ -724,6 +725,7 @@ func (app *App) wrapHandlerV2WithMeta(m handler2WithMeta) http.HandlerFunc {
 		}
 
 		// 4. Call handler with enriched context
+		ctx = phastosctx.SetHTTPRequest(ctx, r)
 		result, err := m.h(ctx)
 
 		var response *Response

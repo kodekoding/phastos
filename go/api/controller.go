@@ -292,6 +292,22 @@ func WithResponse(resp any) RouteOption {
 	}
 }
 
+// MessageResponse is a placeholder type for endpoints that return {message: string}.
+type MessageResponse struct {
+	Message string `json:"message"`
+}
+
+// WithMessageResponse sets the 200 response schema as a simple {message: string}
+// object for endpoints that return via SetMessage() (forgot password, logout, etc).
+func WithMessageResponse() RouteOption {
+	return func(r *Route) {
+		if r.Doc == nil {
+			r.Doc = &RouteDoc{}
+		}
+		r.Doc.ResponseType = new(MessageResponse)
+	}
+}
+
 // WithSelectResponse sets the response type as a wrapped SelectResponse
 // where the data field is typed as the given struct/slice.
 // Use for GET list endpoints where data is []SomeEntity.

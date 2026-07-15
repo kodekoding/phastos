@@ -137,6 +137,14 @@ func (app *App) buildOpenAPISpec() *openapi3.T {
 						},
 					},
 				},
+				"MessageResponse": &openapi3.SchemaRef{
+					Value: &openapi3.Schema{
+						Type: schemaTypeObject,
+						Properties: openapi3.Schemas{
+							"message": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: schemaTypeString}},
+						},
+					},
+				},
 			},
 		},
 	}
