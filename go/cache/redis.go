@@ -15,6 +15,7 @@ import (
 	"github.com/kodekoding/phastos/v2/go/monitoring"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
+	"golang.org/x/sync/singleflight"
 )
 
 // Store object
@@ -22,6 +23,7 @@ type Store struct {
 	Pool      Handler
 	prefixKey string
 	maxRetry  int
+	sf        *singleflight.Group
 }
 
 type Options func(*RedisCfg)
@@ -136,6 +138,7 @@ func New(options ...Options) *Store {
 	}
 	store.prefixKey = prefixKey
 	store.maxRetry = cfg.MaxRetry
+	store.sf = &singleflight.Group{}
 	log.Info().Int("db", cfg.dbNo).Msg("Successful connect to redis")
 
 	return store
@@ -270,68 +273,80 @@ func (r *Store) Get(ctx context.Context, key string, typeDestination any, fallba
 
 func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackFn FallbackFn, span monitoring.Span, conn redigo.Conn) (string, error) {
 	log := plog.Ctx(ctx)
-	fallbackResult, fallbackExpire, fallbackErr := fallbackFn(ctx)
-	if fallbackErr != nil {
-		return "", errors.Wrap(fallbackErr, "phastos.cache.redis.Get.FallbackFunction.Error")
-	}
-
-	fallbackValue, isStringType := fallbackResult.(string)
-	var cacheValue string
-	if !isStringType {
-		byteFallbackResult, marshallErr := json.Marshal(fallbackResult)
-		if marshallErr != nil {
-			return "", errors.Wrap(marshallErr, "phastos.cache.redis.Get.FallbackFunction.FailedMarshalResult")
-		}
-		cacheValue = string(byteFallbackResult)
-	} else {
-		cacheValue = fallbackValue
-	}
-	var setParams []any
-	key = fmt.Sprintf("%s%s", r.prefixKey, key)
-	setParams = append(setParams, key)
+	sfKey := fmt.Sprintf("%s%s", r.prefixKey, key)
 	if field != "" {
-		setParams = append(setParams, field)
-	}
-	setParams = append(setParams, cacheValue)
-	if fallbackExpire == 0 {
-		// set default expired time to 10 minutes
-		fallbackExpire = int64(10 * time.Minute.Seconds())
-	}
-	if span != nil {
-		span.SetAttributes(attribute.Int64("expire", fallbackExpire))
+		sfKey = fmt.Sprintf("%s:%s", sfKey, field)
 	}
 
-	redisCommand := "SET"
-	isHSETTTLAlreadyExist := false
-	if field != "" {
-		redisCommand = "HSET"
-		val, err := redigo.Int64(conn.Do("TTL", key))
-		if err != nil {
-			return "", err
+	if r.sf == nil {
+		r.sf = &singleflight.Group{}
+	}
+
+	result, err, _ := r.sf.Do(sfKey, func() (any, error) {
+		fallbackResult, fallbackExpire, fallbackErr := fallbackFn(ctx)
+		if fallbackErr != nil {
+			return "", errors.Wrap(fallbackErr, "phastos.cache.redis.Get.FallbackFunction.Error")
 		}
 
-		if val > 0 {
-			isHSETTTLAlreadyExist = true
+		fallbackValue, isStringType := fallbackResult.(string)
+		var cacheValue string
+		if !isStringType {
+			byteFallbackResult, marshallErr := json.Marshal(fallbackResult)
+			if marshallErr != nil {
+				return "", errors.Wrap(marshallErr, "phastos.cache.redis.Get.FallbackFunction.FailedMarshalResult")
+			}
+			cacheValue = string(byteFallbackResult)
+		} else {
+			cacheValue = fallbackValue
 		}
-	}
-
-	if field == "" {
-		setParams = append(setParams, "EX")
-		setParams = append(setParams, fallbackExpire)
-	}
-
-	if _, err := conn.Do(redisCommand, setParams...); err != nil {
-		return "", errors.Wrap(err, fmt.Sprintf("phastos.cache.redis.fallbackAction.%s", redisCommand))
-	}
-
-	// override the fallback expire (HGET only) when not exists !
-	// to prevent re-assign the EXPIRE of session key
-	if field != "" && fallbackExpire > 0 && !isHSETTTLAlreadyExist {
-		if _, err := conn.Do("EXPIRE", key, fallbackExpire); err != nil {
-			log.Err(err).Str("key", key).Str("field", field).Msg("Failed to set Expire")
+		var setParams []any
+		key = fmt.Sprintf("%s%s", r.prefixKey, key)
+		setParams = append(setParams, key)
+		if field != "" {
+			setParams = append(setParams, field)
 		}
+		setParams = append(setParams, cacheValue)
+		if fallbackExpire == 0 {
+			fallbackExpire = int64(10 * time.Minute.Seconds())
+		}
+		if span != nil {
+			span.SetAttributes(attribute.Int64("expire", fallbackExpire))
+		}
+
+		redisCommand := "SET"
+		isHSETTTLAlreadyExist := false
+		if field != "" {
+			redisCommand = "HSET"
+			val, err := redigo.Int64(conn.Do("TTL", key))
+			if err != nil {
+				return "", err
+			}
+
+			if val > 0 {
+				isHSETTTLAlreadyExist = true
+			}
+		}
+
+		if field == "" {
+			setParams = append(setParams, "EX")
+			setParams = append(setParams, fallbackExpire)
+		}
+
+		if _, err := conn.Do(redisCommand, setParams...); err != nil {
+			return "", errors.Wrap(err, fmt.Sprintf("phastos.cache.redis.fallbackAction.%s", redisCommand))
+		}
+
+		if field != "" && fallbackExpire > 0 && !isHSETTTLAlreadyExist {
+			if _, err := conn.Do("EXPIRE", key, fallbackExpire); err != nil {
+				log.Err(err).Str("key", key).Str("field", field).Msg("Failed to set Expire")
+			}
+		}
+		return cacheValue, nil
+	})
+	if err != nil {
+		return "", err
 	}
-	return cacheValue, nil
+	return result.(string), nil
 }
 
 // Del key value

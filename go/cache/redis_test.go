@@ -5,21 +5,25 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/singleflight"
 )
 
 // --- stub conn for redigo.Conn ---
 
 type stubConn struct {
-	closed   bool
-	err      error
+	mu        sync.Mutex
+	closed    bool
+	err       error
 	responses map[string]any
-	callLog  []string
+	callLog   []string
 }
 
 func newStubConn() *stubConn {
@@ -28,10 +32,12 @@ func newStubConn() *stubConn {
 	}
 }
 
-func (sc *stubConn) Close() error { sc.closed = true; return nil }
+func (sc *stubConn) Close() error { sc.mu.Lock(); defer sc.mu.Unlock(); sc.closed = true; return nil }
 func (sc *stubConn) Err() error   { return sc.err }
 
 func (sc *stubConn) Do(commandName string, args ...interface{}) (interface{}, error) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
 	sc.callLog = append(sc.callLog, commandName)
 	if sc.err != nil {
 		return nil, sc.err
@@ -108,6 +114,7 @@ func newTestStore(sc *stubConn) *Store {
 		Pool:      &stubHandler{conn: sc},
 		prefixKey: "phastos:",
 		maxRetry:  3,
+		sf:        &singleflight.Group{},
 	}
 }
 
@@ -231,6 +238,70 @@ func TestStoreGet_KeyNotFound_FallbackZeroExpire(t *testing.T) {
 		}
 	}
 	assert.True(t, found)
+}
+
+func TestStoreGet_FallbackSingleflight_Concurrent(t *testing.T) {
+	sc := newStubConn()
+	store := newTestStore(sc)
+	ctx := context.Background()
+
+	var callCount atomic.Int32
+	fallback := func(ctx context.Context) (any, int64, error) {
+		callCount.Add(1)
+		time.Sleep(10 * time.Millisecond)
+		return "fb-val", int64(300), nil
+	}
+
+	var wg sync.WaitGroup
+	const n = 50
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var result string
+			if err := store.Get(ctx, "sf-key", &result, fallback); err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if result != "fb-val" {
+				t.Errorf("unexpected result: %s", result)
+			}
+		}()
+	}
+	wg.Wait()
+
+	assert.Equal(t, int32(1), callCount.Load(), "fallbackFn harus dipanggil tepat 1x, bukan %d", callCount.Load())
+}
+
+func TestStoreHGet_FallbackSingleflight_Concurrent(t *testing.T) {
+	sc := newStubConn()
+	store := newTestStore(sc)
+	ctx := context.Background()
+
+	var callCount atomic.Int32
+	fallback := func(ctx context.Context) (any, int64, error) {
+		callCount.Add(1)
+		time.Sleep(10 * time.Millisecond)
+		return "fb-hval", int64(300), nil
+	}
+
+	var wg sync.WaitGroup
+	const n = 50
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var result string
+			if err := store.HGet(ctx, "sf-hkey", "field1", &result, fallback); err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+			if result != "fb-hval" {
+				t.Errorf("unexpected result: %s", result)
+			}
+		}()
+	}
+	wg.Wait()
+
+	assert.Equal(t, int32(1), callCount.Load(), "fallbackFn harus dipanggil tepat 1x, bukan %d", callCount.Load())
 }
 
 func TestStoreGet_ConnectionError(t *testing.T) {
