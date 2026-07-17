@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -246,4 +248,83 @@ func TestGenerateUniqueRequestKey_RemoteAddrFallback(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	key := generateUniqueRequestKey(req)
 	assert.NotEmpty(t, key)
+}
+
+func TestApp_WrapHandler_AsyncPath_Singleflight_HandlerPanic(t *testing.T) {
+	originalSF := os.Getenv("SINGLEFLIGHT_ACTIVE")
+	os.Setenv("SINGLEFLIGHT_ACTIVE", "true")
+	defer os.Setenv("SINGLEFLIGHT_ACTIVE", originalSF)
+
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(5))
+	app.Init()
+
+	handler := func(req Request, ctx context.Context) *Response {
+		panic("simulated panic in handler")
+	}
+
+	wrapped := app.wrapHandler(handler)
+	req := httptest.NewRequest(http.MethodGet, "/sf-panic", nil)
+	req.Header.Set(common.RequestIDHeader, "sf-panic-trace")
+	req.Header.Set("X-Forwarded-For", "10.0.0.3")
+	w := httptest.NewRecorder()
+	wrapped(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestApp_WrapHandler_AsyncPath_Singleflight_HandlerNilReturn(t *testing.T) {
+	originalSF := os.Getenv("SINGLEFLIGHT_ACTIVE")
+	os.Setenv("SINGLEFLIGHT_ACTIVE", "true")
+	defer os.Setenv("SINGLEFLIGHT_ACTIVE", originalSF)
+
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(5))
+	app.Init()
+
+	handler := func(req Request, ctx context.Context) *Response {
+		return nil
+	}
+
+	wrapped := app.wrapHandler(handler)
+	req := httptest.NewRequest(http.MethodGet, "/sf-nil", nil)
+	req.Header.Set(common.RequestIDHeader, "sf-nil-trace")
+	req.Header.Set("X-Forwarded-For", "10.0.0.4")
+	w := httptest.NewRecorder()
+	wrapped(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestApp_WrapHandler_AsyncPath_Singleflight_ConcurrentPanic(t *testing.T) {
+	originalSF := os.Getenv("SINGLEFLIGHT_ACTIVE")
+	os.Setenv("SINGLEFLIGHT_ACTIVE", "true")
+	defer os.Setenv("SINGLEFLIGHT_ACTIVE", originalSF)
+
+	app := NewApp(WithTimezone("UTC"), WithAPITimeout(5))
+	app.Init()
+
+	var callCount atomic.Int32
+	handler := func(req Request, ctx context.Context) *Response {
+		callCount.Add(1)
+		panic("concurrent panic")
+	}
+
+	wrapped := app.wrapHandler(handler)
+
+	var wg sync.WaitGroup
+	const n = 10
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			req := httptest.NewRequest(http.MethodGet, "/sf-panic", nil)
+			req.Header.Set(common.RequestIDHeader, "sf-conc-trace")
+			req.Header.Set("X-Forwarded-For", "10.0.0.5")
+			w := httptest.NewRecorder()
+			wrapped(w, req)
+			assert.Equal(t, http.StatusInternalServerError, w.Code)
+		}()
+	}
+	wg.Wait()
+
+	assert.LessOrEqual(t, callCount.Load(), int32(n))
 }

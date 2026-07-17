@@ -551,31 +551,41 @@ func (app *App) wrapHandler(handler any) http.HandlerFunc {
 
 		respChan := make(chan *Response)
 		go func() {
-			// close the channel after finished the process
-			defer close(respChan)
-			defer ReleaseRequest(request)
-			var uniqueReqKey string
-			defer panicRecover(r, requestId, uniqueReqKey)
+				var resp *Response
+				defer func() {
+					if resp == nil {
+						resp = NewResponse().SetError(InternalServerError("internal error", "INTERNAL_ERROR"))
+					}
+					respChan <- resp
+					ReleaseRequest(request)
+					close(respChan)
+				}()
+				var uniqueReqKey string
+				defer panicRecover(r, requestId, uniqueReqKey)
 
-			// Use cached sfActive instead of per-request env var parsing.
-			if !app.sfActive {
-				respChan <- h(*request, ctx)
-				return
-			}
+				if !app.sfActive {
+					resp = h(*request, ctx)
+					return
+				}
 
-			uniqueReqKey = generateUniqueRequestKey(r)
+				uniqueReqKey = generateUniqueRequestKey(r)
 
-			sfResponse, sfErr, _ := app.sf.Do(uniqueReqKey, func() (interface{}, error) {
-				handlerResp := h(*request, ctx)
-				return handlerResp, nil
-			})
-			if sfErr != nil {
-				log.Err(sfErr).Msg("[SINGLEFLIGHT] - Error when do singleFlight request")
-				respChan <- NewResponse().SetError(sfErr)
-				return
-			}
-			respChan <- sfResponse.(*Response) //nolint:errcheck
-		}()
+				sfResponse, sfErr, _ := app.sf.Do(uniqueReqKey, func() (any, error) {
+					defer func() {
+						if r := recover(); r != nil {
+							log.Error().Interface("panic", r).Msg("[SINGLEFLIGHT] handler panic recovered")
+						}
+					}()
+					handlerResp := h(*request, ctx)
+					return handlerResp, nil
+				})
+				if sfErr != nil {
+					log.Err(sfErr).Msg("[SINGLEFLIGHT] - Error when do singleFlight request")
+					resp = NewResponse().SetError(sfErr)
+					return
+				}
+				resp, _ = sfResponse.(*Response)
+			}()
 
 		select {
 		case <-timeoutCtx.Done():
