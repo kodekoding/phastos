@@ -106,5 +106,5 @@ func convertParam[T any](raw string) T {
 	default:
 		result = raw
 	}
-	return result.(T)
+	return result.(T) //nolint:errcheck
 }

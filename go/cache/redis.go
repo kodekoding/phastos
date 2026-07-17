@@ -237,7 +237,7 @@ func (r *Store) Get(ctx context.Context, key string, typeDestination any, fallba
 			return "", errors.Wrap(err, "cache.redis.Get.GetContext")
 		}
 
-		defer conn.Close() //nolint:errcheck
+		defer conn.Close() //nolint:errcheck //nolint:errcheck
 		resp, err := redigo.String(conn.Do("GET", fmt.Sprintf("%s%s", r.prefixKey, key)))
 		if errors.Is(err, redigo.ErrNil) {
 			if len(fallbackFn) > 0 {
@@ -346,7 +346,7 @@ func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackF
 	if err != nil {
 		return "", err
 	}
-	return result.(string), nil
+	return result.(string), nil //nolint:errcheck
 }
 
 // Del key value
@@ -359,7 +359,7 @@ func (r *Store) Del(ctx context.Context, key string) (int64, error) {
 		if err != nil {
 			return 0, errors.Wrap(err, "cache.redis.Del.GetContext")
 		}
-		defer conn.Close() //nolint:errcheck
+		defer conn.Close() //nolint:errcheck //nolint:errcheck
 		resp, err := redigo.Int64(conn.Do("DEL", fmt.Sprintf("%s%s", r.prefixKey, key)))
 		if err != nil {
 			return int64(0), errors.Wrap(err, "infrastructure.cache.redis.Del")
@@ -379,7 +379,7 @@ func (r *Store) PublishStream(ctx context.Context, streamName string, data ...ma
 		if err != nil {
 			return "", errors.Wrap(err, "cache.redis.PublishStream.GetContext")
 		}
-		defer conn.Close() //nolint:errcheck
+		defer conn.Close() //nolint:errcheck //nolint:errcheck
 
 		if len(data) == 0 {
 			return "", errors.New("please provide the data at least 1 data")
@@ -490,7 +490,7 @@ func (r *Store) HSet(ctx context.Context, key, field string, value any, expire .
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.HSET.GetPoolContext")
 		}
-		defer conn.Close() //nolint:errcheck
+		defer conn.Close() //nolint:errcheck //nolint:errcheck
 
 		params := []any{key, field}
 		if val, isStringType := value.(string); isStringType {
@@ -546,7 +546,7 @@ func (r *Store) HGet(ctx context.Context, key, field string, typeDestination any
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.HGET.GetPoolContext")
 		}
-		defer conn.Close() //nolint:errcheck
+		defer conn.Close() //nolint:errcheck //nolint:errcheck
 		resp, err := redigo.String(conn.Do("HGET", fmt.Sprintf("%s%s", r.prefixKey, key), field))
 		if errors.Is(err, redigo.ErrNil) && len(fallbackFn) > 0 {
 			fallbackAction := fallbackFn[0]
@@ -585,7 +585,7 @@ func (r *Store) HDel(ctx context.Context, key, field string) error {
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.HDEL.GetPoolContext")
 		}
-		defer conn.Close() //nolint:errcheck
+		defer conn.Close() //nolint:errcheck //nolint:errcheck
 		resp, err := redigo.Int64(conn.Do("HDEL", fmt.Sprintf("%s%s", r.prefixKey, key), field))
 		if err != nil {
 			return int64(0), errors.Wrap(err, "phastos.cache.redis.HDEL")
@@ -608,7 +608,7 @@ func (r *Store) Set(ctx context.Context, key string, value any, expire ...int) e
 		if err != nil {
 			return "", errors.Wrap(err, "cache.redis.Set.GetContext")
 		}
-		defer conn.Close() //nolint:errcheck
+		defer conn.Close() //nolint:errcheck //nolint:errcheck
 		var setParams []any
 		setParams = append(setParams, fmt.Sprintf("%s%s", r.prefixKey, key))
 
@@ -662,7 +662,7 @@ func (r *Store) HGetAll(ctx context.Context, key string, dest interface{}) error
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.HGetAll.GetPoolContext")
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck //nolint:errcheck
 		resp, err := redigo.StringMap(conn.Do("HGETALL", fmt.Sprintf("%s%s", r.prefixKey, key)))
 		if err != nil {
 			return nil, err
@@ -695,7 +695,7 @@ func (r *Store) HSetBulk(ctx context.Context, key string, fields map[string]inte
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.HSetBulk.GetPoolContext")
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck
 		fullKey := fmt.Sprintf("%s%s", r.prefixKey, key)
 		for field, value := range fields {
 			var val string
@@ -738,7 +738,7 @@ func (r *Store) XGroupCreateMkStream(ctx context.Context, streamKey, group, star
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.XGroupCreateMkStream.GetPoolContext")
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck
 		fullKey := fmt.Sprintf("%s%s", r.prefixKey, streamKey)
 		_, err = conn.Do("XGROUP", "CREATE", fullKey, group, startID, "MKSTREAM")
 		return nil, err
@@ -752,7 +752,7 @@ func (r *Store) XReadGroup(ctx context.Context, group, consumer string, streams 
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.XReadGroup.GetPoolContext")
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck
 		prefixedStreams := make([]string, len(streams))
 		for i, s := range streams {
 			prefixedStreams[i] = fmt.Sprintf("%s%s", r.prefixKey, s)
@@ -777,13 +777,13 @@ func (r *Store) XReadGroup(ctx context.Context, group, consumer string, streams 
 		}
 		var output []StreamMessages
 		for _, streamEntry := range reply {
-			entry := streamEntry.([]interface{})
-			streamName := string(entry[0].([]byte))
-			messages := entry[1].([]interface{})
+			entry := streamEntry.([]interface{})    //nolint:errcheck
+			streamName := string(entry[0].([]byte)) //nolint:errcheck
+			messages := entry[1].([]interface{})    //nolint:errcheck
 			var msgs []StreamData
 			for _, msg := range messages {
-				item := msg.([]interface{})
-				id := string(item[0].([]byte))
+				item := msg.([]interface{})    //nolint:errcheck
+				id := string(item[0].([]byte)) //nolint:errcheck
 				fields, _ := redigo.StringMap(item[1], nil)
 				msgs = append(msgs, StreamData{ID: id, Values: fields})
 			}
@@ -794,7 +794,7 @@ func (r *Store) XReadGroup(ctx context.Context, group, consumer string, streams 
 	if err != nil {
 		return nil, err
 	}
-	return wrapResult.([]StreamMessages), nil
+	return wrapResult.([]StreamMessages), nil //nolint:errcheck
 }
 
 func (r *Store) XAck(ctx context.Context, streamKey, group, id string) (int64, error) {
@@ -803,7 +803,7 @@ func (r *Store) XAck(ctx context.Context, streamKey, group, id string) (int64, e
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.XAck.GetPoolContext")
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck
 		fullKey := fmt.Sprintf("%s%s", r.prefixKey, streamKey)
 		resp, err := redigo.Int64(conn.Do("XACK", fullKey, group, id))
 		return resp, err
@@ -811,5 +811,5 @@ func (r *Store) XAck(ctx context.Context, streamKey, group, id string) (int64, e
 	if err != nil {
 		return 0, err
 	}
-	return wrapResult.(int64), nil
+	return wrapResult.(int64), nil //nolint:errcheck
 }

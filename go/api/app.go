@@ -63,33 +63,33 @@ type (
 	App struct {
 		Http *chi.Mux
 		*server.Config
-		TotalEndpoints     int
-		apiTimeout         int
-		wrapper            []Wrapper
-		cron               cron.Engines
-		db                 database.ISQL
-		trx                database.Transactions
-		newRelic           *newrelic.Application
-		timezoneRegion     string
-		pprofEnabled       bool
-		sf                 singleflight.Group
-		middlewares        map[string]any
-		globalMiddlewares  []func(http.Handler) http.Handler
-		pendingMiddlewares bool
-		sseEvent           *sse.Hub
-		useFastHttp        bool                // if true, server runs with fasthttp
-		sfActive           bool                // cached SINGLEFLIGHT_ACTIVE env var
-		syncMode           bool                // true when apiTimeout==0 && !sfActive → sync handler path
-		skipLogPaths       map[string]struct{} // paths that skip requestLogger
-		otelTp             *sdktrace.TracerProvider
-		otelSvcName        string
-		nrProv             monitoring.Provider
-		otelProv           monitoring.Provider
+		TotalEndpoints        int
+		apiTimeout            int
+		wrapper               []Wrapper
+		cron                  cron.Engines
+		db                    database.ISQL
+		trx                   database.Transactions
+		newRelic              *newrelic.Application
+		timezoneRegion        string
+		pprofEnabled          bool
+		sf                    singleflight.Group
+		middlewares           map[string]any
+		globalMiddlewares     []func(http.Handler) http.Handler
+		pendingMiddlewares    bool
+		sseEvent              *sse.Hub
+		useFastHttp           bool                // if true, server runs with fasthttp
+		sfActive              bool                // cached SINGLEFLIGHT_ACTIVE env var
+		syncMode              bool                // true when apiTimeout==0 && !sfActive → sync handler path
+		skipLogPaths          map[string]struct{} // paths that skip requestLogger
+		otelTp                *sdktrace.TracerProvider
+		otelSvcName           string
+		nrProv                monitoring.Provider
+		otelProv              monitoring.Provider
 		middlewareDocs        map[string]MiddlewareInfo
 		globalMiddlewareMetas []MiddlewareInfo
 		routeRegistry         []routeRegistryEntry
-		enableOpenAPI      bool
-		apiRouters         map[string]*chi.Mux
+		enableOpenAPI         bool
+		apiRouters            map[string]*chi.Mux
 	}
 
 	Options func(api *App)
@@ -551,41 +551,41 @@ func (app *App) wrapHandler(handler any) http.HandlerFunc {
 
 		respChan := make(chan *Response)
 		go func() {
-				var resp *Response
-				defer func() {
-					if resp == nil {
-						resp = NewResponse().SetError(InternalServerError("internal error", "INTERNAL_ERROR"))
-					}
-					respChan <- resp
-					ReleaseRequest(request)
-					close(respChan)
-				}()
-				var uniqueReqKey string
-				defer panicRecover(r, requestId, uniqueReqKey)
-
-				if !app.sfActive {
-					resp = h(*request, ctx)
-					return
+			var resp *Response
+			defer func() {
+				if resp == nil {
+					resp = NewResponse().SetError(InternalServerError("internal error", "INTERNAL_ERROR"))
 				}
-
-				uniqueReqKey = generateUniqueRequestKey(r)
-
-				sfResponse, sfErr, _ := app.sf.Do(uniqueReqKey, func() (any, error) {
-					defer func() {
-						if r := recover(); r != nil {
-							log.Error().Interface("panic", r).Msg("[SINGLEFLIGHT] handler panic recovered")
-						}
-					}()
-					handlerResp := h(*request, ctx)
-					return handlerResp, nil
-				})
-				if sfErr != nil {
-					log.Err(sfErr).Msg("[SINGLEFLIGHT] - Error when do singleFlight request")
-					resp = NewResponse().SetError(sfErr)
-					return
-				}
-				resp, _ = sfResponse.(*Response)
+				respChan <- resp
+				ReleaseRequest(request)
+				close(respChan)
 			}()
+			var uniqueReqKey string
+			defer panicRecover(r, requestId, uniqueReqKey)
+
+			if !app.sfActive {
+				resp = h(*request, ctx)
+				return
+			}
+
+			uniqueReqKey = generateUniqueRequestKey(r)
+
+			sfResponse, sfErr, _ := app.sf.Do(uniqueReqKey, func() (any, error) {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Error().Interface("panic", r).Msg("[SINGLEFLIGHT] handler panic recovered")
+					}
+				}()
+				handlerResp := h(*request, ctx)
+				return handlerResp, nil
+			})
+			if sfErr != nil {
+				log.Err(sfErr).Msg("[SINGLEFLIGHT] - Error when do singleFlight request")
+				resp = NewResponse().SetError(sfErr)
+				return
+			}
+			resp, _ = sfResponse.(*Response)
+		}()
 
 		select {
 		case <-timeoutCtx.Done():
@@ -925,38 +925,38 @@ func (app *App) registerRoutes(prefix string, parentMiddlewares *[]func(http.Han
 			continue
 		}
 
-	// Auto-inject middleware metadata into RouteDoc.
-	// Controller-specific keys inject security + headers.
-	if len(middlewareKeys) > 0 {
-		if route.Doc == nil {
-			route.Doc = &RouteDoc{}
-		}
-		for _, key := range middlewareKeys {
-			if info, ok := app.middlewareDocs[key]; ok {
-				if info.SecurityScheme != nil && route.Doc.Security == nil {
-					route.Doc.Security = info.SecurityScheme
+		// Auto-inject middleware metadata into RouteDoc.
+		// Controller-specific keys inject security + headers.
+		if len(middlewareKeys) > 0 {
+			if route.Doc == nil {
+				route.Doc = &RouteDoc{}
+			}
+			for _, key := range middlewareKeys {
+				if info, ok := app.middlewareDocs[key]; ok {
+					if info.SecurityScheme != nil && route.Doc.Security == nil {
+						route.Doc.Security = info.SecurityScheme
+					}
+					route.Doc.Headers = append(route.Doc.Headers, info.Headers...)
 				}
-				route.Doc.Headers = append(route.Doc.Headers, info.Headers...)
 			}
 		}
-	}
 
-	// Inject global middleware metadata (headers only) into every route.
-	// These are middlewares applied to ALL API routes (e.g., AllowPlatform).
-	for _, meta := range app.globalMiddlewareMetas {
-		if route.Doc == nil {
-			route.Doc = &RouteDoc{}
+		// Inject global middleware metadata (headers only) into every route.
+		// These are middlewares applied to ALL API routes (e.g., AllowPlatform).
+		for _, meta := range app.globalMiddlewareMetas {
+			if route.Doc == nil {
+				route.Doc = &RouteDoc{}
+			}
+			route.Doc.Headers = append(route.Doc.Headers, meta.Headers...)
 		}
-		route.Doc.Headers = append(route.Doc.Headers, meta.Headers...)
-	}
 
-	// Inject security scheme from ALL registered middlewares into every route
-	// (e.g., JWTAuth that is applied globally via JoinMiddleware).
-	for _, info := range app.middlewareDocs {
-		if info.SecurityScheme != nil && route.Doc != nil && route.Doc.Security == nil {
-			route.Doc.Security = info.SecurityScheme
+		// Inject security scheme from ALL registered middlewares into every route
+		// (e.g., JWTAuth that is applied globally via JoinMiddleware).
+		for _, info := range app.middlewareDocs {
+			if info.SecurityScheme != nil && route.Doc != nil && route.Doc.Security == nil {
+				route.Doc.Security = info.SecurityScheme
+			}
 		}
-	}
 
 		var middlewares []func(http.Handler) http.Handler
 		if parentMiddlewares != nil {

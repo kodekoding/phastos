@@ -1,3 +1,4 @@
+//nolint:goconst
 package api
 
 import (
@@ -46,17 +47,17 @@ type Route struct {
 }
 
 type RouteDoc struct {
-	Summary        string
-	Description    string
-	Tags           []string
-	Deprecated     bool
-	RequestType       any
-	ResponseType      any
-	QueryType         any
+	Summary            string
+	Description        string
+	Tags               []string
+	Deprecated         bool
+	RequestType        any
+	ResponseType       any
+	QueryType          any
 	SelectResponseType any
-	ErrorResponses    []ErrorResponseDoc
-	Headers        []HeaderDoc
-	Security       *SecuritySchemeDoc
+	ErrorResponses     []ErrorResponseDoc
+	Headers            []HeaderDoc
+	Security           *SecuritySchemeDoc
 }
 
 type ErrorResponseDoc struct {
