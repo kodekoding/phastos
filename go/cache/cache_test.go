@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/kodekoding/phastos/v2/go/entity"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +27,20 @@ func (s *stubStore) HSet(ctx context.Context, key, field string, value any, expi
 func (s *stubStore) HGet(ctx context.Context, key, field string, typeDestination any, fallbackFn ...FallbackFn) error {
 	return nil
 }
-func (s *stubStore) HDel(ctx context.Context, key, field string) error { return nil }
+func (s *stubStore) HDel(ctx context.Context, key, field string) error           { return nil }
+func (s *stubStore) HGetAll(ctx context.Context, key string, dest interface{}) error { return nil }
+func (s *stubStore) HSetBulk(ctx context.Context, key string, fields map[string]interface{}, expire ...int) error {
+	return nil
+}
+func (s *stubStore) XGroupCreateMkStream(ctx context.Context, streamKey, group, startID string) error {
+	return nil
+}
+func (s *stubStore) XReadGroup(ctx context.Context, group, consumer string, streams []string, ids []string, block time.Duration, count int64) ([]StreamMessages, error) {
+	return nil, nil
+}
+func (s *stubStore) XAck(ctx context.Context, streamKey, group, id string) (int64, error) {
+	return 0, nil
+}
 
 func TestGetCacheFromContext_WhenPresent(t *testing.T) {
 	ctx := context.Background()
