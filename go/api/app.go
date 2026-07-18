@@ -862,6 +862,7 @@ func generateUniqueRequestKey(req *http.Request) string {
 	if clientIP == "" {
 		clientIP = req.RemoteAddr
 	}
+	auth := req.Header.Get("Authorization")
 
 	// Sort query parameters to ensure consistent key generation
 	query := req.URL.Query()
@@ -876,7 +877,7 @@ func generateUniqueRequestKey(req *http.Request) string {
 		sort.Strings(queryParams)
 	}
 
-	return fmt.Sprintf("%s|%s|%s|%s", clientIP, method, path, strings.Join(queryParams, "&"))
+	return fmt.Sprintf("%s|%s|%s|%s|%s", clientIP, method, path, auth, strings.Join(queryParams, "&"))
 }
 
 func (app *App) RegisterMiddlewareFunc(key string, middlewareHandler func(http.Handler) http.Handler, opts ...MiddlewareOption) {

@@ -429,10 +429,37 @@ func TestGenerateUniqueRequestKey(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		req.Header.Set("X-Forwarded-For", "10.0.0.1")
 		key := generateUniqueRequestKey(req)
-		parts := strings.SplitN(key, "|", 4)
-		require.Len(t, parts, 4)
-		// When no query params, queryParams is [""]
-		assert.Equal(t, "", parts[3])
+		parts := strings.SplitN(key, "|", 5)
+		require.Len(t, parts, 5)
+		assert.Equal(t, "", parts[4])
+	})
+
+	t.Run("different auth tokens produce different keys", func(t *testing.T) {
+		reqA := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
+		reqA.Header.Set("X-Forwarded-For", "10.0.0.1")
+		reqA.Header.Set("Authorization", "Bearer token-aaa")
+		keyA := generateUniqueRequestKey(reqA)
+
+		reqB := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
+		reqB.Header.Set("X-Forwarded-For", "10.0.0.1")
+		reqB.Header.Set("Authorization", "Bearer token-bbb")
+		keyB := generateUniqueRequestKey(reqB)
+
+		assert.NotEqual(t, keyA, keyB, "keys must differ when auth tokens differ")
+	})
+
+	t.Run("same auth token produces same key", func(t *testing.T) {
+		reqA := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
+		reqA.Header.Set("X-Forwarded-For", "10.0.0.1")
+		reqA.Header.Set("Authorization", "Bearer token-xxx")
+		keyA := generateUniqueRequestKey(reqA)
+
+		reqB := httptest.NewRequest(http.MethodGet, "/v1/me", nil)
+		reqB.Header.Set("X-Forwarded-For", "10.0.0.1")
+		reqB.Header.Set("Authorization", "Bearer token-xxx")
+		keyB := generateUniqueRequestKey(reqB)
+
+		assert.Equal(t, keyA, keyB, "keys must match when auth tokens match")
 	})
 }
 
