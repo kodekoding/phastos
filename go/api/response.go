@@ -1,4 +1,3 @@
-//nolint:goconst
 package api
 
 import (
@@ -207,8 +206,8 @@ func (resp *Response) Send(w http.ResponseWriter) {
 			dataToMarshal = resp.Data
 			if resp.MetaData != nil && resp.isPaginationData {
 				dataToMarshal = map[string]any{
-					"data":     resp.Data,
-					"metadata": resp.MetaData,
+					jsonFieldData: resp.Data,
+					"metadata":    resp.MetaData,
 				}
 			}
 		}
@@ -217,7 +216,7 @@ func (resp *Response) Send(w http.ResponseWriter) {
 			bodyContentAvailable = true
 
 			dataToMarshal = map[string]string{
-				"message": resp.Message,
+				jsonFieldMessage: resp.Message,
 			}
 		}
 

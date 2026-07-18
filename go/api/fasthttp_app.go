@@ -1,4 +1,3 @@
-//nolint:goconst
 package api
 
 import (
@@ -602,8 +601,8 @@ func fastSendResponse(ctx *fasthttp.RequestCtx, resp *Response) {
 			dataToMarshal = resp.Data
 			if resp.MetaData != nil && resp.isPaginationData {
 				dataToMarshal = map[string]any{
-					"data":     resp.Data,
-					"metadata": resp.MetaData,
+					jsonFieldData: resp.Data,
+					"metadata":    resp.MetaData,
 				}
 			}
 		}
@@ -616,7 +615,7 @@ func fastSendResponse(ctx *fasthttp.RequestCtx, resp *Response) {
 		if resp.Message != "" {
 			bodyContentAvailable = true
 			dataToMarshal = map[string]string{
-				"message": resp.Message,
+				jsonFieldMessage: resp.Message,
 			}
 		}
 		if !bodyContentAvailable {

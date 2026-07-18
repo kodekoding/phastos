@@ -237,7 +237,7 @@ func (r *Store) Get(ctx context.Context, key string, typeDestination any, fallba
 			return "", errors.Wrap(err, "cache.redis.Get.GetContext")
 		}
 
-		defer conn.Close() //nolint:errcheck //nolint:errcheck
+		defer conn.Close() //nolint:errcheck
 		resp, err := redigo.String(conn.Do("GET", fmt.Sprintf("%s%s", r.prefixKey, key)))
 		if errors.Is(err, redigo.ErrNil) {
 			if len(fallbackFn) > 0 {
@@ -346,7 +346,11 @@ func (r *Store) fallbackAction(ctx context.Context, key, field string, fallbackF
 	if err != nil {
 		return "", err
 	}
-	return result.(string), nil //nolint:errcheck
+	str, ok := result.(string)
+	if !ok {
+		return "", errors.New("phastos.cache.redis.PublishStream: invalid result type")
+	}
+	return str, nil
 }
 
 // Del key value
@@ -359,7 +363,7 @@ func (r *Store) Del(ctx context.Context, key string) (int64, error) {
 		if err != nil {
 			return 0, errors.Wrap(err, "cache.redis.Del.GetContext")
 		}
-		defer conn.Close() //nolint:errcheck //nolint:errcheck
+		defer conn.Close() //nolint:errcheck
 		resp, err := redigo.Int64(conn.Do("DEL", fmt.Sprintf("%s%s", r.prefixKey, key)))
 		if err != nil {
 			return int64(0), errors.Wrap(err, "infrastructure.cache.redis.Del")
@@ -379,7 +383,7 @@ func (r *Store) PublishStream(ctx context.Context, streamName string, data ...ma
 		if err != nil {
 			return "", errors.Wrap(err, "cache.redis.PublishStream.GetContext")
 		}
-		defer conn.Close() //nolint:errcheck //nolint:errcheck
+		defer conn.Close() //nolint:errcheck
 
 		if len(data) == 0 {
 			return "", errors.New("please provide the data at least 1 data")
@@ -490,7 +494,7 @@ func (r *Store) HSet(ctx context.Context, key, field string, value any, expire .
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.HSET.GetPoolContext")
 		}
-		defer conn.Close() //nolint:errcheck //nolint:errcheck
+		defer conn.Close() //nolint:errcheck
 
 		params := []any{key, field}
 		if val, isStringType := value.(string); isStringType {
@@ -546,7 +550,7 @@ func (r *Store) HGet(ctx context.Context, key, field string, typeDestination any
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.HGET.GetPoolContext")
 		}
-		defer conn.Close() //nolint:errcheck //nolint:errcheck
+		defer conn.Close() //nolint:errcheck
 		resp, err := redigo.String(conn.Do("HGET", fmt.Sprintf("%s%s", r.prefixKey, key), field))
 		if errors.Is(err, redigo.ErrNil) && len(fallbackFn) > 0 {
 			fallbackAction := fallbackFn[0]
@@ -585,7 +589,7 @@ func (r *Store) HDel(ctx context.Context, key, field string) error {
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.HDEL.GetPoolContext")
 		}
-		defer conn.Close() //nolint:errcheck //nolint:errcheck
+		defer conn.Close() //nolint:errcheck
 		resp, err := redigo.Int64(conn.Do("HDEL", fmt.Sprintf("%s%s", r.prefixKey, key), field))
 		if err != nil {
 			return int64(0), errors.Wrap(err, "phastos.cache.redis.HDEL")
@@ -608,7 +612,7 @@ func (r *Store) Set(ctx context.Context, key string, value any, expire ...int) e
 		if err != nil {
 			return "", errors.Wrap(err, "cache.redis.Set.GetContext")
 		}
-		defer conn.Close() //nolint:errcheck //nolint:errcheck
+		defer conn.Close() //nolint:errcheck
 		var setParams []any
 		setParams = append(setParams, fmt.Sprintf("%s%s", r.prefixKey, key))
 
@@ -662,7 +666,7 @@ func (r *Store) HGetAll(ctx context.Context, key string, dest interface{}) error
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.HGetAll.GetPoolContext")
 		}
-		defer conn.Close() //nolint:errcheck //nolint:errcheck
+		defer func() { _ = conn.Close() }()
 		resp, err := redigo.StringMap(conn.Do("HGETALL", fmt.Sprintf("%s%s", r.prefixKey, key)))
 		if err != nil {
 			return nil, err
@@ -695,7 +699,7 @@ func (r *Store) HSetBulk(ctx context.Context, key string, fields map[string]inte
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.HSetBulk.GetPoolContext")
 		}
-		defer conn.Close() //nolint:errcheck
+		defer func() { _ = conn.Close() }()
 		fullKey := fmt.Sprintf("%s%s", r.prefixKey, key)
 		for field, value := range fields {
 			var val string
@@ -738,7 +742,7 @@ func (r *Store) XGroupCreateMkStream(ctx context.Context, streamKey, group, star
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.XGroupCreateMkStream.GetPoolContext")
 		}
-		defer conn.Close() //nolint:errcheck
+		defer func() { _ = conn.Close() }()
 		fullKey := fmt.Sprintf("%s%s", r.prefixKey, streamKey)
 		_, err = conn.Do("XGROUP", "CREATE", fullKey, group, startID, "MKSTREAM")
 		return nil, err
@@ -752,7 +756,7 @@ func (r *Store) XReadGroup(ctx context.Context, group, consumer string, streams 
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.XReadGroup.GetPoolContext")
 		}
-		defer conn.Close() //nolint:errcheck
+		defer func() { _ = conn.Close() }()
 		prefixedStreams := make([]string, len(streams))
 		for i, s := range streams {
 			prefixedStreams[i] = fmt.Sprintf("%s%s", r.prefixKey, s)
@@ -777,24 +781,43 @@ func (r *Store) XReadGroup(ctx context.Context, group, consumer string, streams 
 		}
 		var output []StreamMessages
 		for _, streamEntry := range reply {
-			entry := streamEntry.([]interface{})    //nolint:errcheck
-			streamName := string(entry[0].([]byte)) //nolint:errcheck
-			messages := entry[1].([]interface{})    //nolint:errcheck
+			entry, ok := streamEntry.([]interface{})
+			if !ok || len(entry) < 2 {
+				return nil, errors.New("phastos.cache.redis.XReadGroup: invalid stream entry format")
+			}
+			streamName, ok := entry[0].([]byte)
+			if !ok {
+				return nil, errors.New("phastos.cache.redis.XReadGroup: invalid stream name type")
+			}
+			messages, ok := entry[1].([]interface{})
+			if !ok {
+				return nil, errors.New("phastos.cache.redis.XReadGroup: invalid messages type")
+			}
 			var msgs []StreamData
 			for _, msg := range messages {
-				item := msg.([]interface{})    //nolint:errcheck
-				id := string(item[0].([]byte)) //nolint:errcheck
+				item, ok := msg.([]interface{})
+				if !ok || len(item) < 2 {
+					return nil, errors.New("phastos.cache.redis.XReadGroup: invalid message format")
+				}
+				msgID, ok := item[0].([]byte)
+				if !ok {
+					return nil, errors.New("phastos.cache.redis.XReadGroup: invalid message ID type")
+				}
 				fields, _ := redigo.StringMap(item[1], nil)
-				msgs = append(msgs, StreamData{ID: id, Values: fields})
+				msgs = append(msgs, StreamData{ID: string(msgID), Values: fields})
 			}
-			output = append(output, StreamMessages{Stream: streamName, Messages: msgs})
+			output = append(output, StreamMessages{Stream: string(streamName), Messages: msgs})
 		}
 		return output, nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return wrapResult.([]StreamMessages), nil //nolint:errcheck
+	out, ok := wrapResult.([]StreamMessages)
+	if !ok {
+		return nil, errors.New("phastos.cache.redis.XReadGroup: invalid result type from retry wrapper")
+	}
+	return out, nil
 }
 
 func (r *Store) XAck(ctx context.Context, streamKey, group, id string) (int64, error) {
@@ -803,7 +826,7 @@ func (r *Store) XAck(ctx context.Context, streamKey, group, id string) (int64, e
 		if err != nil {
 			return nil, errors.Wrap(err, "cache.redis.XAck.GetPoolContext")
 		}
-		defer conn.Close() //nolint:errcheck
+		defer func() { _ = conn.Close() }()
 		fullKey := fmt.Sprintf("%s%s", r.prefixKey, streamKey)
 		resp, err := redigo.Int64(conn.Do("XACK", fullKey, group, id))
 		return resp, err
@@ -811,5 +834,9 @@ func (r *Store) XAck(ctx context.Context, streamKey, group, id string) (int64, e
 	if err != nil {
 		return 0, err
 	}
-	return wrapResult.(int64), nil //nolint:errcheck
+	out, ok := wrapResult.(int64)
+	if !ok {
+		return 0, errors.New("phastos.cache.redis.XAck: invalid result type from retry wrapper")
+	}
+	return out, nil
 }

@@ -1,4 +1,3 @@
-//nolint:goconst
 package api
 
 import (
@@ -10,9 +9,15 @@ import (
 )
 
 var (
-	// schemaTypeObject and schemaTypeString are reused across schema generation.
 	schemaTypeObject = &openapi3.Types{"object"}
-	schemaTypeString = &openapi3.Types{"string"}
+	schemaTypeString = &openapi3.Types{schemaStringType}
+)
+
+const (
+	schemaStringType  = "string"
+	schemaIntegerType = "integer"
+	jsonFieldData     = "data"
+	jsonFieldMessage  = "message"
 )
 
 // openapiHTML is the Swagger UI HTML page served at /docs.
@@ -123,9 +128,9 @@ func (app *App) buildOpenAPISpec() *openapi3.T {
 					Value: &openapi3.Schema{
 						Type: schemaTypeObject,
 						Properties: openapi3.Schemas{
-							"message": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: schemaTypeString}},
-							"code":    &openapi3.SchemaRef{Value: &openapi3.Schema{Type: schemaTypeString}},
-							"data":    &openapi3.SchemaRef{Value: &openapi3.Schema{Nullable: true}},
+							jsonFieldMessage: &openapi3.SchemaRef{Value: &openapi3.Schema{Type: schemaTypeString}},
+							"code":           &openapi3.SchemaRef{Value: &openapi3.Schema{Type: schemaTypeString}},
+							jsonFieldData:    &openapi3.SchemaRef{Value: &openapi3.Schema{Nullable: true}},
 						},
 					},
 				},
@@ -133,8 +138,8 @@ func (app *App) buildOpenAPISpec() *openapi3.T {
 					Value: &openapi3.Schema{
 						Type: schemaTypeObject,
 						Properties: openapi3.Schemas{
-							"total_data":     &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"integer"}}},
-							"total_filtered": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"integer"}}},
+							"total_data":     &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{schemaIntegerType}}},
+							"total_filtered": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{schemaIntegerType}}},
 						},
 					},
 				},
@@ -142,7 +147,7 @@ func (app *App) buildOpenAPISpec() *openapi3.T {
 					Value: &openapi3.Schema{
 						Type: schemaTypeObject,
 						Properties: openapi3.Schemas{
-							"message": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: schemaTypeString}},
+							jsonFieldMessage: &openapi3.SchemaRef{Value: &openapi3.Schema{Type: schemaTypeString}},
 						},
 					},
 				},
@@ -387,7 +392,7 @@ func (app *App) fieldToSchema(field reflect.StructField) *openapi3.Schema {
 	case reflect.String:
 		return &openapi3.Schema{Type: schemaTypeString}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return &openapi3.Schema{Type: &openapi3.Types{"integer"}}
+		return &openapi3.Schema{Type: &openapi3.Types{schemaIntegerType}}
 	case reflect.Float32, reflect.Float64:
 		return &openapi3.Schema{Type: &openapi3.Types{"number"}}
 	case reflect.Bool:
@@ -552,10 +557,10 @@ func generateSelectResponseSchema(itemRef *openapi3.SchemaRef) *openapi3.Schema 
 
 	// Flatten ResponseMetaData fields (total_data, total_filtered, request_param)
 	schema.Properties["total_data"] = &openapi3.SchemaRef{
-		Value: &openapi3.Schema{Type: &openapi3.Types{"integer"}},
+		Value: &openapi3.Schema{Type: &openapi3.Types{schemaIntegerType}},
 	}
 	schema.Properties["total_filtered"] = &openapi3.SchemaRef{
-		Value: &openapi3.Schema{Type: &openapi3.Types{"integer"}},
+		Value: &openapi3.Schema{Type: &openapi3.Types{schemaIntegerType}},
 	}
 	schema.Properties["request_param"] = &openapi3.SchemaRef{
 		Value: &openapi3.Schema{Type: schemaTypeObject},

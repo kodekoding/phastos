@@ -1,4 +1,3 @@
-//nolint:goconst
 package api
 
 import (
@@ -161,7 +160,7 @@ func (t PathParamType) String() string {
 	case ParamBool:
 		return "bool"
 	default:
-		return "string"
+		return schemaStringType
 	}
 }
 
