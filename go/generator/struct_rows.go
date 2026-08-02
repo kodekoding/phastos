@@ -2,6 +2,7 @@ package generator
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -9,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func structFieldToString(value interface{}) string {
+func structFieldToString(value interface{}, isJSONB bool) string {
 	if value == nil {
 		return ""
 	}
@@ -20,6 +21,13 @@ func structFieldToString(value interface{}) string {
 		}
 		rv = rv.Elem()
 		value = rv.Interface()
+	}
+	if isJSONB {
+		b, err := json.Marshal(value)
+		if err != nil {
+			return ""
+		}
+		return string(b)
 	}
 	if valuer, ok := value.(driver.Valuer); ok {
 		resolved, err := valuer.Value()
@@ -61,8 +69,14 @@ func collectDBTaggedFields(v reflect.Value, out map[string]string) {
 			continue
 		}
 		dbTag = strings.Split(dbTag, ",")[0]
-		out[dbTag] = structFieldToString(fieldValue.Interface())
+		out[dbTag] = structFieldToString(fieldValue.Interface(), isJSONCol(field))
 	}
+}
+
+// isJSONCol reports whether the field carries a `col:"json"` tag, marking it
+// as a JSONB column whose value must be rendered as a JSON string.
+func isJSONCol(field reflect.StructField) bool {
+	return strings.Contains(field.Tag.Get("col"), "json")
 }
 
 func StructRows(columns []string, slice interface{}) ([][]string, error) {

@@ -313,3 +313,26 @@ func TestStructFieldToString_ValuerNull(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "", rows[0][0])
 }
+
+type jsonbDoc struct {
+	Ktp string `json:"ktp"`
+}
+
+func TestStructRows_JSONBColTag(t *testing.T) {
+	type S struct {
+		Name string    `db:"name"`
+		Doc  *jsonbDoc `db:"document" col:"json"`
+	}
+	rows, err := StructRows([]string{"name", "document"}, []*S{{Name: "A", Doc: &jsonbDoc{Ktp: "1"}}})
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"A", `{"ktp":"1"}`}, rows[0])
+}
+
+func TestStructRows_JSONBNilPointer(t *testing.T) {
+	type S struct {
+		Doc *jsonbDoc `db:"document" col:"json"`
+	}
+	rows, err := StructRows([]string{"document"}, []*S{{}})
+	assert.NoError(t, err)
+	assert.Equal(t, []string{""}, rows[0])
+}
