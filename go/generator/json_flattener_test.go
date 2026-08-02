@@ -58,3 +58,66 @@ func TestFlattenJSONB_AllRows(t *testing.T) {
 	assert.Equal(t, "", r[1][2])
 	assert.Equal(t, "4", r[1][3])
 }
+
+func TestFlattenJSONB_NonJSONBraceValue(t *testing.T) {
+	cols := []string{"employee_id", "name"}
+	rows := [][]string{{"{EMP001 true}", "Budi"}}
+	h, r := FlattenJSONB(cols, rows)
+	assert.Equal(t, cols, h)
+	assert.Equal(t, rows, r)
+}
+
+func TestFlattenJSONB_ArrayValue(t *testing.T) {
+	cols := []string{"name", "documents"}
+	rows := [][]string{{"Budi", `[{"type":"ktp","ref_no":"A1"},{"type":"npwp"}]`}}
+	h, r := FlattenJSONB(cols, rows)
+	assert.Equal(t, []string{"name", "documents_0_ref_no", "documents_0_type", "documents_1_type"}, h)
+	assert.Equal(t, "A1", r[0][1])
+	assert.Equal(t, "ktp", r[0][2])
+	assert.Equal(t, "npwp", r[0][3])
+}
+
+func TestFlattenJSONB_ArrayOfObjects(t *testing.T) {
+	cols := []string{"data"}
+	rows := [][]string{{`[{"a":"1"},{"b":"2"}]`}}
+	h, r := FlattenJSONB(cols, rows)
+	assert.Equal(t, []string{"data_0_a", "data_1_b"}, h)
+	assert.Equal(t, "1", r[0][0])
+	assert.Equal(t, "2", r[0][1])
+}
+
+func TestFlattenJSONB_JSONNullBecomesEmpty(t *testing.T) {
+	cols := []string{"document"}
+	rows := [][]string{{`{"ktp":null,"npwp":{"no":"123"}}`}}
+	h, r := FlattenJSONB(cols, rows)
+	assert.Equal(t, []string{"document_ktp", "document_npwp_no"}, h)
+	assert.Equal(t, "", r[0][0])
+	assert.Equal(t, "123", r[0][1])
+}
+
+func TestFlattenJSONB_AllEmptyObjectsKeptRaw(t *testing.T) {
+	cols := []string{"name", "emergency_contact"}
+	rows := [][]string{{"A", "{}"}, {"B", "{}"}}
+	h, r := FlattenJSONB(cols, rows)
+	assert.Equal(t, cols, h)
+	assert.Equal(t, "{}", r[0][1])
+	assert.Equal(t, "{}", r[1][1])
+}
+
+func TestFlattenJSONB_MixedInvalidRowInJSONBColumn(t *testing.T) {
+	cols := []string{"document"}
+	rows := [][]string{{`{"ktp":"1"}`}, {"{broken json}"}}
+	h, r := FlattenJSONB(cols, rows)
+	assert.Equal(t, []string{"document_ktp"}, h)
+	assert.Equal(t, "1", r[0][0])
+	assert.Equal(t, "", r[1][0])
+}
+
+func TestFlattenJSONB_EmptyInputs(t *testing.T) {
+	h, r := FlattenJSONB(nil, nil)
+	assert.Nil(t, h)
+	assert.Nil(t, r)
+	h, r = FlattenJSONB([]string{"a"}, nil)
+	assert.Equal(t, []string{"a"}, h)
+	assert.Empty(t, r)
+}
