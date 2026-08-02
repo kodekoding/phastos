@@ -117,6 +117,31 @@ func TestValidateStruct(t *testing.T) {
 		assert.Len(t, errors, 1)
 		assert.Equal(t, "required", errors[0].Tag)
 	})
+
+	t.Run("should return no errors for valid slice of structs", func(t *testing.T) {
+		data := []testData{{Name: "John", Email: "john@example.com"}}
+		errors := ValidateStruct(data)
+		assert.Empty(t, errors)
+	})
+
+	t.Run("should return errors for invalid slice element", func(t *testing.T) {
+		data := []testData{{Name: "", Email: "john@example.com"}}
+		errors := ValidateStruct(data)
+		assert.Len(t, errors, 1)
+		assert.Equal(t, "required", errors[0].Tag)
+	})
+
+	t.Run("should return errors for pointer-to-slice", func(t *testing.T) {
+		data := &[]testData{{Name: "", Email: ""}}
+		errors := ValidateStruct(data)
+		assert.Len(t, errors, 2)
+	})
+
+	t.Run("should handle empty slice", func(t *testing.T) {
+		data := []testData{}
+		errors := ValidateStruct(data)
+		assert.Empty(t, errors)
+	})
 }
 
 func TestFilterFlags(t *testing.T) {

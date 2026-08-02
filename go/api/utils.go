@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"reflect"
@@ -49,18 +50,31 @@ type ValidationError struct {
 }
 
 func ValidateStruct(data interface{}) []*ValidationError {
-	var errors []*ValidationError
+	var errs []*ValidationError
 	err := validate.Struct(data)
 	if err != nil {
-		for _, err := range err.(validator.ValidationErrors) { //nolint:errcheck
+		var invalidErr *validator.InvalidValidationError
+		if errors.As(err, &invalidErr) {
+			rv := reflect.ValueOf(data)
+			if rv.Kind() == reflect.Ptr {
+				rv = rv.Elem()
+			}
+			if rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array {
+				for i := 0; i < rv.Len(); i++ {
+					errs = append(errs, ValidateStruct(rv.Index(i).Interface())...)
+				}
+			}
+			return errs
+		}
+		for _, e := range err.(validator.ValidationErrors) { //nolint:errcheck
 			var element ValidationError
-			element.Field = err.StructNamespace()
-			element.Tag = err.Tag()
-			element.Value = err.Param()
-			errors = append(errors, &element)
+			element.Field = e.StructNamespace()
+			element.Tag = e.Tag()
+			element.Value = e.Param()
+			errs = append(errs, &element)
 		}
 	}
-	return errors
+	return errs
 }
 
 func ArrContains[T string | int | float32](arr []T, val T) bool {
