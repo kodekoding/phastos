@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/kodekoding/phastos/v2/go/cache"
 	"github.com/kodekoding/phastos/v2/go/entity"
@@ -29,6 +30,21 @@ func (s *stubCaches) HGet(ctx context.Context, key, field string, typeDestinatio
 	return nil
 }
 func (s *stubCaches) HDel(ctx context.Context, key, field string) error { return nil }
+func (s *stubCaches) HGetAll(ctx context.Context, key string, dest interface{}) error {
+	return nil
+}
+func (s *stubCaches) HSetBulk(ctx context.Context, key string, fields map[string]interface{}, expire ...int) error {
+	return nil
+}
+func (s *stubCaches) XGroupCreateMkStream(ctx context.Context, streamKey, group, startID string) error {
+	return nil
+}
+func (s *stubCaches) XReadGroup(ctx context.Context, group, consumer string, streams []string, ids []string, block time.Duration, count int64) ([]cache.StreamMessages, error) {
+	return nil, nil
+}
+func (s *stubCaches) XAck(ctx context.Context, streamKey, group, id string) (int64, error) {
+	return 0, nil
+}
 
 func TestCreateAsyncContext_EmptyContext(t *testing.T) {
 	t.Run("should return background context when source context is empty", func(t *testing.T) {
