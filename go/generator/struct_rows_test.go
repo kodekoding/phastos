@@ -336,3 +336,7 @@ func TestStructRows_JSONBNilPointer(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []string{""}, rows[0])
 }
+
+func TestStructFieldToString_NilValue(t *testing.T) {
+	assert.Equal(t, "", structFieldToString(nil, false))
+}

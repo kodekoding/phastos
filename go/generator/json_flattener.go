@@ -151,10 +151,6 @@ func expandRecursive(prefix string, obj map[string]interface{}, result map[strin
 			expandRecursive(key, val, result)
 		case []interface{}:
 			expandArray(key, val, result)
-		default:
-			if b, err := json.Marshal(val); err == nil {
-				result[key] = string(b)
-			}
 		}
 	}
 }
@@ -175,10 +171,6 @@ func expandArray(prefix string, arr []interface{}, result map[string]string) {
 			expandRecursive(key, val, result)
 		case []interface{}:
 			expandArray(key, val, result)
-		default:
-			if b, err := json.Marshal(val); err == nil {
-				result[key] = string(b)
-			}
 		}
 	}
 }

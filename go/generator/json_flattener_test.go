@@ -121,3 +121,29 @@ func TestFlattenJSONB_EmptyInputs(t *testing.T) {
 	assert.Equal(t, []string{"a"}, h)
 	assert.Empty(t, r)
 }
+
+func TestFlattenJSONB_ScalarArrayElements(t *testing.T) {
+	cols := []string{"data"}
+	rows := [][]string{{`["a",1,true,null,[2]]`}}
+	h, r := FlattenJSONB(cols, rows)
+	assert.Equal(t, []string{"data_0", "data_1", "data_2", "data_3", "data_4_0"}, h)
+	assert.Equal(t, []string{"a", "1", "true", "", "2"}, r[0])
+}
+
+func TestFlattenJSONB_ScalarObjectValues(t *testing.T) {
+	cols := []string{"data"}
+	rows := [][]string{{`{"num":1.5,"flag":true,"arr":[1,2]}`}}
+	h, r := FlattenJSONB(cols, rows)
+	assert.Equal(t, []string{"data_arr_0", "data_arr_1", "data_flag", "data_num"}, h)
+	assert.Equal(t, []string{"1", "2", "true", "1.5"}, r[0])
+}
+
+func TestFlattenJSONB_RaggedRows(t *testing.T) {
+	cols := []string{"name", "data", "extra"}
+	rows := [][]string{{"A", `{"x":"1"}`}, {"B"}}
+	h, r := FlattenJSONB(cols, rows)
+	assert.Equal(t, []string{"name", "data_x", "extra"}, h)
+	assert.Equal(t, "A", r[0][0])
+	assert.Equal(t, "1", r[0][1])
+	assert.Equal(t, "B", r[1][0])
+}

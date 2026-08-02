@@ -23,10 +23,7 @@ func structFieldToString(value interface{}, isJSONB bool) string {
 		value = rv.Interface()
 	}
 	if isJSONB {
-		b, err := json.Marshal(value)
-		if err != nil {
-			return ""
-		}
+		b, _ := json.Marshal(value)
 		return string(b)
 	}
 	if valuer, ok := value.(driver.Valuer); ok {
