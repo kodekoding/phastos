@@ -1,0 +1,1267 @@
+{
+  "/Users/radityapratama/dev/others/phastos/.claude/settings.local.json": {
+    "mtime": 1778364664.376342,
+    "ast_hash": "574f28d24b59012807428df52e7c76fa",
+    "semantic_hash": "574f28d24b59012807428df52e7c76fa"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/api/chi_test.go": {
+    "mtime": 1778791617.374956,
+    "ast_hash": "6364465225ae5c7d936834b31acf0502",
+    "semantic_hash": "6364465225ae5c7d936834b31acf0502"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/api/echo_test.go": {
+    "mtime": 1778791617.375388,
+    "ast_hash": "d0c3189da753f1f061daa04d774e8eb8",
+    "semantic_hash": "d0c3189da753f1f061daa04d774e8eb8"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/api/fiber_test.go": {
+    "mtime": 1778791617.3758392,
+    "ast_hash": "dec1fc49593ddc0218b9e4d5ad615fb2",
+    "semantic_hash": "dec1fc49593ddc0218b9e4d5ad615fb2"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/api/gin_test.go": {
+    "mtime": 1778791617.3762832,
+    "ast_hash": "32e90facade53368919726dad91aec8f",
+    "semantic_hash": "32e90facade53368919726dad91aec8f"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/api/helpers_test.go": {
+    "mtime": 1778791617.3744674,
+    "ast_hash": "a27948dbbc20fb1120414bb2d8382c44",
+    "semantic_hash": "a27948dbbc20fb1120414bb2d8382c44"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/api/main_test.go": {
+    "mtime": 1778791617.3740575,
+    "ast_hash": "0be34e5aa561245316b285287f519ed5",
+    "semantic_hash": "0be34e5aa561245316b285287f519ed5"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/api/phastos_chi_test.go": {
+    "mtime": 1779028071.610833,
+    "ast_hash": "ac4d499b47a71ab673b5c18534070f4f",
+    "semantic_hash": "ac4d499b47a71ab673b5c18534070f4f"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/api/phastos_fasthttp_test.go": {
+    "mtime": 1778862613.849905,
+    "ast_hash": "87d90ef48c010bd20334d05f53934dc9",
+    "semantic_hash": "87d90ef48c010bd20334d05f53934dc9"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/api/stdlib_test.go": {
+    "mtime": 1778791617.3767688,
+    "ast_hash": "492755b9b5e8202a88affb1bc2a311e2",
+    "semantic_hash": "492755b9b5e8202a88affb1bc2a311e2"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/db/beego_test.go": {
+    "mtime": 1778791824.086961,
+    "ast_hash": "08b4a85081e83ec16ec7088f1dd61317",
+    "semantic_hash": "08b4a85081e83ec16ec7088f1dd61317"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/db/bun_test.go": {
+    "mtime": 1778791859.7043672,
+    "ast_hash": "163d6868d9a25dc84704a6995a7e6e85",
+    "semantic_hash": "163d6868d9a25dc84704a6995a7e6e85"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/db/gorm_test.go": {
+    "mtime": 1778790509.1853282,
+    "ast_hash": "c249c92c687e9079eb11a5813d7ad6c7",
+    "semantic_hash": "c249c92c687e9079eb11a5813d7ad6c7"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/db/main_test.go": {
+    "mtime": 1778793054.6342568,
+    "ast_hash": "5fb8565b497d6f96373f0a91878a9e6b",
+    "semantic_hash": "5fb8565b497d6f96373f0a91878a9e6b"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/db/model_test.go": {
+    "mtime": 1778791765.7929518,
+    "ast_hash": "c9eab538dab53abe045cd7875847f0ad",
+    "semantic_hash": "c9eab538dab53abe045cd7875847f0ad"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/db/phastos_test.go": {
+    "mtime": 1778793426.5559008,
+    "ast_hash": "edb234e0b860daf5a056515dbafc525b",
+    "semantic_hash": "edb234e0b860daf5a056515dbafc525b"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/db/run.sh": {
+    "mtime": 1778792547.023452,
+    "ast_hash": "44a232767fab4d2eae755a7ab6b45814",
+    "semantic_hash": "44a232767fab4d2eae755a7ab6b45814"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/db/run_all.sh": {
+    "mtime": 1778792571.4194705,
+    "ast_hash": "d9d6889d8c151167791092fcfb5852a9",
+    "semantic_hash": "d9d6889d8c151167791092fcfb5852a9"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/db/sqlx_test.go": {
+    "mtime": 1778793762.8060486,
+    "ast_hash": "b993c2c1d9001ca234e9ff0108c4ff98",
+    "semantic_hash": "b993c2c1d9001ca234e9ff0108c4ff98"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/db/stdlib_test.go": {
+    "mtime": 1778793741.5722215,
+    "ast_hash": "4899cad3d3212c5c8c4aa5db5ed435d2",
+    "semantic_hash": "4899cad3d3212c5c8c4aa5db5ed435d2"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/db/xorm_test.go": {
+    "mtime": 1778791794.967047,
+    "ast_hash": "309200eea90a0034365fbfabc837a9b7",
+    "semantic_hash": "309200eea90a0034365fbfabc837a9b7"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/app.go": {
+    "mtime": 1782230976.6250746,
+    "ast_hash": "773471cd7ec1f8a72441a90c1045c6ae",
+    "semantic_hash": "773471cd7ec1f8a72441a90c1045c6ae"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/app_extended_test.go": {
+    "mtime": 1779389397.3590589,
+    "ast_hash": "a748ca9654a94d5abee4236d22e29712",
+    "semantic_hash": "a748ca9654a94d5abee4236d22e29712"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/app_test.go": {
+    "mtime": 1781766928.06903,
+    "ast_hash": "09d005987c9ccbf1093d3a2616bcc931",
+    "semantic_hash": "09d005987c9ccbf1093d3a2616bcc931"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/controller.go": {
+    "mtime": 1779379633.4226704,
+    "ast_hash": "95cf0c67d53f64889eeaf63f75769291",
+    "semantic_hash": "95cf0c67d53f64889eeaf63f75769291"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/controller_test.go": {
+    "mtime": 1777213941.092127,
+    "ast_hash": "c8dfb6fe5c56b188135375e71e228624",
+    "semantic_hash": "c8dfb6fe5c56b188135375e71e228624"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/errors.go": {
+    "mtime": 1782919037.3439813,
+    "ast_hash": "ada08b23f71d485a2923bcdafc0a6e01",
+    "semantic_hash": "ada08b23f71d485a2923bcdafc0a6e01"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/errors_test.go": {
+    "mtime": 1782903823.34995,
+    "ast_hash": "83b91fbd85a55c7860c5409115d852a5",
+    "semantic_hash": "83b91fbd85a55c7860c5409115d852a5"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/fasthttp_app.go": {
+    "mtime": 1779379879.1523008,
+    "ast_hash": "5deb74d06ed1b2bdbc640ed0633e3745",
+    "semantic_hash": "5deb74d06ed1b2bdbc640ed0633e3745"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/fasthttp_app_test.go": {
+    "mtime": 1779383893.126435,
+    "ast_hash": "ab8040ea34d89d20db981de4330b497e",
+    "semantic_hash": "ab8040ea34d89d20db981de4330b497e"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/fasthttp_coverage_test.go": {
+    "mtime": 1779422368.4559023,
+    "ast_hash": "42ab1247992999af9d302166c1d5ed7d",
+    "semantic_hash": "42ab1247992999af9d302166c1d5ed7d"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/fasthttp_jwt_test.go": {
+    "mtime": 1779422276.5772233,
+    "ast_hash": "74b485c277cf56011916d0283e18b88f",
+    "semantic_hash": "74b485c277cf56011916d0283e18b88f"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/fasthttp_middlewares.go": {
+    "mtime": 1779379977.572982,
+    "ast_hash": "8ce1b5b05a063288cd6690c034c05149",
+    "semantic_hash": "8ce1b5b05a063288cd6690c034c05149"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/fasthttp_middlewares_test.go": {
+    "mtime": 1779383939.1604135,
+    "ast_hash": "53a1df822dade0ea2deba9a1d6ebd11a",
+    "semantic_hash": "53a1df822dade0ea2deba9a1d6ebd11a"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/fasthttp_server.go": {
+    "mtime": 1779379888.9434423,
+    "ast_hash": "da8849d7376915892e10faa106072a60",
+    "semantic_hash": "da8849d7376915892e10faa106072a60"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/fasthttp_server_coverage_test.go": {
+    "mtime": 1779437516.987562,
+    "ast_hash": "e1f4eaa7a44aac4f0b96063a2982429d",
+    "semantic_hash": "e1f4eaa7a44aac4f0b96063a2982429d"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/handler.go": {
+    "mtime": 1782583124.1044064,
+    "ast_hash": "1e7230c358c6f5b87c49904c5562d326",
+    "semantic_hash": "1e7230c358c6f5b87c49904c5562d326"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/handler_test.go": {
+    "mtime": 1779383296.3558607,
+    "ast_hash": "645e1221ed74e2289e5575d9f95ccbae",
+    "semantic_hash": "645e1221ed74e2289e5575d9f95ccbae"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/helper.go": {
+    "mtime": 1771149877.0511363,
+    "ast_hash": "773d0d1ce1f82faa24e13b2768f2e65f",
+    "semantic_hash": "773d0d1ce1f82faa24e13b2768f2e65f"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/helper_test.go": {
+    "mtime": 1777213959.8279696,
+    "ast_hash": "ad68e7640d99962e57fd41d3502c8b04",
+    "semantic_hash": "ad68e7640d99962e57fd41d3502c8b04"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/middlewares.go": {
+    "mtime": 1737915274.8465576,
+    "ast_hash": "d97dd53817836dca62ee5e72e044e49f",
+    "semantic_hash": "d97dd53817836dca62ee5e72e044e49f"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/middlewares_test.go": {
+    "mtime": 1779383794.5227654,
+    "ast_hash": "2219dc2155d9c11449b883d33cdc7e3a",
+    "semantic_hash": "2219dc2155d9c11449b883d33cdc7e3a"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/notification.go": {
+    "mtime": 1771149877.0512094,
+    "ast_hash": "8e45185e0c7bfb5ec2d2dddd3d346197",
+    "semantic_hash": "8e45185e0c7bfb5ec2d2dddd3d346197"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/recover.go": {
+    "mtime": 1779420399.0927343,
+    "ast_hash": "e37c120cfb7c33717060cd8a86c03042",
+    "semantic_hash": "e37c120cfb7c33717060cd8a86c03042"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/recover_test.go": {
+    "mtime": 1781766918.0178838,
+    "ast_hash": "559fe28f8191348c71398a42e47e4078",
+    "semantic_hash": "559fe28f8191348c71398a42e47e4078"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/resources.go": {
+    "mtime": 1772032015.598256,
+    "ast_hash": "dc449f990478cba0cc94dcc155f043aa",
+    "semantic_hash": "dc449f990478cba0cc94dcc155f043aa"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/response.go": {
+    "mtime": 1782918895.681019,
+    "ast_hash": "d7aac466df93528ffdb1b69bc6e1f914",
+    "semantic_hash": "d7aac466df93528ffdb1b69bc6e1f914"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/response_test.go": {
+    "mtime": 1782918950.973451,
+    "ast_hash": "ccec598f2db86bd73b38d66026385db5",
+    "semantic_hash": "ccec598f2db86bd73b38d66026385db5"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/scheduler_coverage_test.go": {
+    "mtime": 1779421851.0497293,
+    "ast_hash": "0d06c8a79453ae1bc27df4ece85ddc34",
+    "semantic_hash": "0d06c8a79453ae1bc27df4ece85ddc34"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/server.go": {
+    "mtime": 1779436451.327905,
+    "ast_hash": "f7759b9f625814f8d7c7efdacaf8973f",
+    "semantic_hash": "f7759b9f625814f8d7c7efdacaf8973f"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/server_coverage_test.go": {
+    "mtime": 1779512280.9554799,
+    "ast_hash": "c1ae71cf2c357ab121f98248290cccfa",
+    "semantic_hash": "c1ae71cf2c357ab121f98248290cccfa"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/utils.go": {
+    "mtime": 1781165388.1514838,
+    "ast_hash": "bcfe5333837a3710419ac3f8ab2ae0a1",
+    "semantic_hash": "bcfe5333837a3710419ac3f8ab2ae0a1"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/utils_test.go": {
+    "mtime": 1777214059.0785227,
+    "ast_hash": "6b9658d0923de22fe3d2c2f810270c84",
+    "semantic_hash": "6b9658d0923de22fe3d2c2f810270c84"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/api/wraphandler_test.go": {
+    "mtime": 1779420338.2736547,
+    "ast_hash": "fd516c38b5b8822891eee7cf5a5838f1",
+    "semantic_hash": "fd516c38b5b8822891eee7cf5a5838f1"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/binding/binding.go": {
+    "mtime": 1779379910.8469183,
+    "ast_hash": "c3bfad5d5f1974710e9f33e81871be55",
+    "semantic_hash": "c3bfad5d5f1974710e9f33e81871be55"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/binding/binding_extended_test.go": {
+    "mtime": 1779465894.7579436,
+    "ast_hash": "794e3444cc49108492ad18d63a6629bf",
+    "semantic_hash": "794e3444cc49108492ad18d63a6629bf"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/binding/binding_test.go": {
+    "mtime": 1777834393.0006628,
+    "ast_hash": "250c968707c5d467fb4ec74e0fd95e01",
+    "semantic_hash": "250c968707c5d467fb4ec74e0fd95e01"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/binding/validator.go": {
+    "mtime": 1777651079.5807283,
+    "ast_hash": "98e872ea87a72ec2a0d9ac96f91b7bb3",
+    "semantic_hash": "98e872ea87a72ec2a0d9ac96f91b7bb3"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/binding/validator_helper_test.go": {
+    "mtime": 1777835977.5287325,
+    "ast_hash": "482a40d388e6f29cde23d75176c0608d",
+    "semantic_hash": "482a40d388e6f29cde23d75176c0608d"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/binding/validator_test.go": {
+    "mtime": 1737915274.8474452,
+    "ast_hash": "190217d4bb15a5e378950cb6f36c432c",
+    "semantic_hash": "190217d4bb15a5e378950cb6f36c432c"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/cache/cache_coverage_test.go": {
+    "mtime": 1779422042.6287267,
+    "ast_hash": "e8d9e4e9481c35b2e378117cbe8d9782",
+    "semantic_hash": "e8d9e4e9481c35b2e378117cbe8d9782"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/cache/cache_test.go": {
+    "mtime": 1779385999.1409156,
+    "ast_hash": "cf956c8350aaaec2e887e0c2ca9a10be",
+    "semantic_hash": "cf956c8350aaaec2e887e0c2ca9a10be"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/cache/context.go": {
+    "mtime": 1777650636.741199,
+    "ast_hash": "f48c34013373035bcac4b0e6daddf54e",
+    "semantic_hash": "f48c34013373035bcac4b0e6daddf54e"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/cache/redis.go": {
+    "mtime": 1781165210.3583798,
+    "ast_hash": "c45e0fcefadbcbb9d10b7c0f8bdf45d8",
+    "semantic_hash": "c45e0fcefadbcbb9d10b7c0f8bdf45d8"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/cache/redis_test.go": {
+    "mtime": 1779386145.814557,
+    "ast_hash": "01658bd73ede0f532a0d2ba546e50590",
+    "semantic_hash": "01658bd73ede0f532a0d2ba546e50590"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/common/bufferpool.go": {
+    "mtime": 1779379905.476698,
+    "ast_hash": "fce23a4055858fba09775d2875c24867",
+    "semantic_hash": "fce23a4055858fba09775d2875c24867"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/common/bufferpool_test.go": {
+    "mtime": 1779383681.5551953,
+    "ast_hash": "0c44032fe25dda7a1a4d77a9b40d9451",
+    "semantic_hash": "0c44032fe25dda7a1a4d77a9b40d9451"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/common/constants.go": {
+    "mtime": 1771149877.0531647,
+    "ast_hash": "bc1e7ffd4c58cf8bbf8c4eeedf10605f",
+    "semantic_hash": "bc1e7ffd4c58cf8bbf8c4eeedf10605f"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/common/constants_test.go": {
+    "mtime": 1779383690.4701407,
+    "ast_hash": "4c52a096442a5f08a2a7ecf0b5347535",
+    "semantic_hash": "4c52a096442a5f08a2a7ecf0b5347535"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/common/definition.go": {
+    "mtime": 1771149877.053281,
+    "ast_hash": "f5aea376b243eeb1dfc832850a5d2860",
+    "semantic_hash": "f5aea376b243eeb1dfc832850a5d2860"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/common/request_ctx.go": {
+    "mtime": 1779379688.7680886,
+    "ast_hash": "53e52ed2a5bbbedeac0c191550a6dc59",
+    "semantic_hash": "53e52ed2a5bbbedeac0c191550a6dc59"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/common/request_ctx_test.go": {
+    "mtime": 1779384283.8161278,
+    "ast_hash": "a2e1c4e72a66f211bec1c5fbfd06a059",
+    "semantic_hash": "a2e1c4e72a66f211bec1c5fbfd06a059"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/common/wrap_function.go": {
+    "mtime": 1777650636.8196075,
+    "ast_hash": "8327fefe1f410630bf83b8aa3a083c28",
+    "semantic_hash": "8327fefe1f410630bf83b8aa3a083c28"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/context/async.go": {
+    "mtime": 1779540362.21149,
+    "ast_hash": "6faf8e0b2958a08856cf41896c01610c",
+    "semantic_hash": "6faf8e0b2958a08856cf41896c01610c"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/context/async_test.go": {
+    "mtime": 1779467088.4358041,
+    "ast_hash": "3d2ede65de0e86c88d94063e6506bfb1",
+    "semantic_hash": "3d2ede65de0e86c88d94063e6506bfb1"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/context/jwt.go": {
+    "mtime": 1771149877.053666,
+    "ast_hash": "a670d84db7b0b25ed189c74e542075bf",
+    "semantic_hash": "a670d84db7b0b25ed189c74e542075bf"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/context/jwt_test.go": {
+    "mtime": 1779383674.907319,
+    "ast_hash": "c5e9d76509b88647075768a2dca82ba7",
+    "semantic_hash": "c5e9d76509b88647075768a2dca82ba7"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/context/log.go": {
+    "mtime": 1777650799.4446666,
+    "ast_hash": "bf71ed01cc41206291ed36c0c2595e5a",
+    "semantic_hash": "bf71ed01cc41206291ed36c0c2595e5a"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/context/log_test.go": {
+    "mtime": 1779467102.6439338,
+    "ast_hash": "3bb6f124bcc3d1f9691c256781113204",
+    "semantic_hash": "3bb6f124bcc3d1f9691c256781113204"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/context/notification.go": {
+    "mtime": 1771149877.0537968,
+    "ast_hash": "ca5fd23d60c3bc20d12f7a56a3da85e4",
+    "semantic_hash": "ca5fd23d60c3bc20d12f7a56a3da85e4"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/context/notification_test.go": {
+    "mtime": 1781766907.738436,
+    "ast_hash": "c460c833411f79c1ddf775c1e2b8b292",
+    "semantic_hash": "c460c833411f79c1ddf775c1e2b8b292"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/cron/cron.go": {
+    "mtime": 1779436758.4682844,
+    "ast_hash": "d3a9bdf6e590390eac55235240851110",
+    "semantic_hash": "d3a9bdf6e590390eac55235240851110"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/cron/cron_coverage_test.go": {
+    "mtime": 1779387155.8694115,
+    "ast_hash": "55360d846b0630c99e584bf36d3c379b",
+    "semantic_hash": "55360d846b0630c99e584bf36d3c379b"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/cron/cron_test.go": {
+    "mtime": 1779476098.6525884,
+    "ast_hash": "4aeaadf957d1d11e46e2491151cfee75",
+    "semantic_hash": "4aeaadf957d1d11e46e2491151cfee75"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/cron/response.go": {
+    "mtime": 1771149877.053997,
+    "ast_hash": "28e5597b4011ce8ac990986f85e0e8b6",
+    "semantic_hash": "28e5597b4011ce8ac990986f85e0e8b6"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/cron/response_test.go": {
+    "mtime": 1779383798.6549065,
+    "ast_hash": "4dfa26ab8567b135f59e32bda569c513",
+    "semantic_hash": "4dfa26ab8567b135f59e32bda569c513"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/action/action_test.go": {
+    "mtime": 1780546374.1309192,
+    "ast_hash": "0dfb2775d089d30f3cfa32142e741108",
+    "semantic_hash": "0dfb2775d089d30f3cfa32142e741108"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/action/base.go": {
+    "mtime": 1777650850.5638294,
+    "ast_hash": "9364318fc481eff7fc9e5e2c614c5843",
+    "semantic_hash": "9364318fc481eff7fc9e5e2c614c5843"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/action/read.go": {
+    "mtime": 1779379905.4784534,
+    "ast_hash": "a506b508d0346b7a0a87ace4536c848f",
+    "semantic_hash": "a506b508d0346b7a0a87ace4536c848f"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/action/write.go": {
+    "mtime": 1780546312.027182,
+    "ast_hash": "c69baab3a95b3126f8299b3f95764f03",
+    "semantic_hash": "c69baab3a95b3126f8299b3f95764f03"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/constants.go": {
+    "mtime": 1780034800.3242865,
+    "ast_hash": "396e7b4b8212194dc8970b67a4a99e34",
+    "semantic_hash": "396e7b4b8212194dc8970b67a4a99e34"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/definition.go": {
+    "mtime": 1780024856.0486603,
+    "ast_hash": "2199cc70db6c260da46418471d035214",
+    "semantic_hash": "2199cc70db6c260da46418471d035214"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/definition_test.go": {
+    "mtime": 1779384395.5324466,
+    "ast_hash": "7d156317a9bd965046e7ddcc85f42fec",
+    "semantic_hash": "7d156317a9bd965046e7ddcc85f42fec"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/mocks/isql.go": {
+    "mtime": 1779376872.1789527,
+    "ast_hash": "f4adb63feef33b058b319d690964ec27",
+    "semantic_hash": "f4adb63feef33b058b319d690964ec27"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/mocks/sql.go": {
+    "mtime": 1759422701.2047567,
+    "ast_hash": "85b382d22252b7244c58c6a9eb6d3ac5",
+    "semantic_hash": "85b382d22252b7244c58c6a9eb6d3ac5"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/pool.go": {
+    "mtime": 1778824326.5810223,
+    "ast_hash": "2eab459ed3775f3be63b0b2b7da67a99",
+    "semantic_hash": "2eab459ed3775f3be63b0b2b7da67a99"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/pool_test.go": {
+    "mtime": 1779385431.6417751,
+    "ast_hash": "7e04264cd26e5116a8694ef9ba5b6e38",
+    "semantic_hash": "7e04264cd26e5116a8694ef9ba5b6e38"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/sql.go": {
+    "mtime": 1782919037.345308,
+    "ast_hash": "e9a007ca142e0134f034d2570318d69a",
+    "semantic_hash": "e9a007ca142e0134f034d2570318d69a"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/sql_deep_test.go": {
+    "mtime": 1781766906.887361,
+    "ast_hash": "42faa248e2359bd0c68c43fe3cd31e9d",
+    "semantic_hash": "42faa248e2359bd0c68c43fe3cd31e9d"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/sql_helpers_test.go": {
+    "mtime": 1782918915.8845284,
+    "ast_hash": "7b13e649772853d5918a63a0bd1e5532",
+    "semantic_hash": "7b13e649772853d5918a63a0bd1e5532"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/sql_test.go": {
+    "mtime": 1780855253.9058008,
+    "ast_hash": "7c9b54e0e903a228110fb1eb092c5943",
+    "semantic_hash": "7c9b54e0e903a228110fb1eb092c5943"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/transaction.go": {
+    "mtime": 1771149877.0565403,
+    "ast_hash": "f4e730b5f172ca6a76b55b00db6215b6",
+    "semantic_hash": "f4e730b5f172ca6a76b55b00db6215b6"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/transaction_test.go": {
+    "mtime": 1779385739.2554426,
+    "ast_hash": "3bbe2887c6d72c45d3b2c7b543e727bc",
+    "semantic_hash": "3bbe2887c6d72c45d3b2c7b543e727bc"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/entity/context.go": {
+    "mtime": 1771149877.0566087,
+    "ast_hash": "4fa0b5ae2c70dcadbc99e02aadd9acfe",
+    "semantic_hash": "4fa0b5ae2c70dcadbc99e02aadd9acfe"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/entity/entity_test.go": {
+    "mtime": 1779383913.2440164,
+    "ast_hash": "caba1475525dafc260c63a2cd26086a6",
+    "semantic_hash": "caba1475525dafc260c63a2cd26086a6"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/entity/jwt.go": {
+    "mtime": 1771149877.056675,
+    "ast_hash": "9821f9fc3ed2ecb84ced802fc37948b5",
+    "semantic_hash": "9821f9fc3ed2ecb84ced802fc37948b5"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/entity/slack/channel.go": {
+    "mtime": 1737915274.8501675,
+    "ast_hash": "29a68571f75f672386bd6e6cdc255e25",
+    "semantic_hash": "29a68571f75f672386bd6e6cdc255e25"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/entity/slack/common.go": {
+    "mtime": 1737915274.8502462,
+    "ast_hash": "d5f4d234fc5faaaaf9626079a8b64da1",
+    "semantic_hash": "d5f4d234fc5faaaaf9626079a8b64da1"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/entity/slack/oauth.go": {
+    "mtime": 1737915274.8503234,
+    "ast_hash": "b8f43132dc31134636dbf8e0936f1b5c",
+    "semantic_hash": "b8f43132dc31134636dbf8e0936f1b5c"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/entity/slack/reminder.go": {
+    "mtime": 1737915274.8503995,
+    "ast_hash": "fb584bbb01b86603898f2c711500a4c7",
+    "semantic_hash": "fb584bbb01b86603898f2c711500a4c7"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/entity/slack/slack_test.go": {
+    "mtime": 1779383935.3248465,
+    "ast_hash": "8480e91fc65a5fe20d88e46331754bbc",
+    "semantic_hash": "8480e91fc65a5fe20d88e46331754bbc"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/error/error.go": {
+    "mtime": 1737915274.850942,
+    "ast_hash": "abf2ddabde3d5a579c9490322b30ac4c",
+    "semantic_hash": "abf2ddabde3d5a579c9490322b30ac4c"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/error/error_test.go": {
+    "mtime": 1777213977.1309335,
+    "ast_hash": "138652d84cda3935faccaeffbf3ca993",
+    "semantic_hash": "138652d84cda3935faccaeffbf3ca993"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/generator/banner.go": {
+    "mtime": 1777651412.6625364,
+    "ast_hash": "7265a99a82f4fdba206f0a9052c87ef9",
+    "semantic_hash": "7265a99a82f4fdba206f0a9052c87ef9"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/generator/bulk.go": {
+    "mtime": 1777651426.2318792,
+    "ast_hash": "a533eea598dca4944bb5398020febd5d",
+    "semantic_hash": "a533eea598dca4944bb5398020febd5d"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/generator/constants.go": {
+    "mtime": 1737915274.8513734,
+    "ast_hash": "4b6e59f7e0ecb6a2d487b9136ca9ba62",
+    "semantic_hash": "4b6e59f7e0ecb6a2d487b9136ca9ba62"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/generator/csv.go": {
+    "mtime": 1777651418.0474174,
+    "ast_hash": "585e4b7486265c686686648d4cdb94c7",
+    "semantic_hash": "585e4b7486265c686686648d4cdb94c7"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/generator/example_test.go": {
+    "mtime": 1771263954.8049932,
+    "ast_hash": "28828252f52a81ae165c6ad7214a32e2",
+    "semantic_hash": "28828252f52a81ae165c6ad7214a32e2"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/generator/excel.go": {
+    "mtime": 1777652000.9664435,
+    "ast_hash": "108eaba6d31127a37db9360448b83c65",
+    "semantic_hash": "108eaba6d31127a37db9360448b83c65"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/generator/generator.go": {
+    "mtime": 1771175982.2912333,
+    "ast_hash": "2de2b054a97cb7537f4dc24b16c0fca6",
+    "semantic_hash": "2de2b054a97cb7537f4dc24b16c0fca6"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/generator/generator_coverage_test.go": {
+    "mtime": 1779422318.3094063,
+    "ast_hash": "4d70b5a1c0a20adca632e9e176aa6571",
+    "semantic_hash": "4d70b5a1c0a20adca632e9e176aa6571"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/generator/generator_extended_test.go": {
+    "mtime": 1779384641.4838183,
+    "ast_hash": "ec12732b5a73b21dc601891c0e8d68b7",
+    "semantic_hash": "ec12732b5a73b21dc601891c0e8d68b7"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/generator/generator_test.go": {
+    "mtime": 1779382765.8617303,
+    "ast_hash": "2ee426a5e99b5555af3ed6d1be0a1578",
+    "semantic_hash": "2ee426a5e99b5555af3ed6d1be0a1578"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/generator/pdf.go": {
+    "mtime": 1777650912.216284,
+    "ast_hash": "26cb6f643ca804943c3592c2a754ca5f",
+    "semantic_hash": "26cb6f643ca804943c3592c2a754ca5f"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/generator/qr.go": {
+    "mtime": 1777651032.2875953,
+    "ast_hash": "2d8eb91aa1cc4132d9503e424e3d1003",
+    "semantic_hash": "2d8eb91aa1cc4132d9503e424e3d1003"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/color.go": {
+    "mtime": 1777650636.8396356,
+    "ast_hash": "bd2906e6c8079ee0515a6768023470ec",
+    "semantic_hash": "bd2906e6c8079ee0515a6768023470ec"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/color_test.go": {
+    "mtime": 1779416663.2660093,
+    "ast_hash": "76091c199f60a5141ff5d5eed1e56f6a",
+    "semantic_hash": "76091c199f60a5141ff5d5eed1e56f6a"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/crypto.go": {
+    "mtime": 1779470100.486689,
+    "ast_hash": "d34dc30508497f0f8e53939911e910c6",
+    "semantic_hash": "d34dc30508497f0f8e53939911e910c6"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/crypto_test.go": {
+    "mtime": 1779449866.9871745,
+    "ast_hash": "7f6ee4c67820ae529311a83262f93199",
+    "semantic_hash": "7f6ee4c67820ae529311a83262f93199"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/fast_id.go": {
+    "mtime": 1779470104.7610574,
+    "ast_hash": "273ad3ff54d6b603bbbc5e4039444f76",
+    "semantic_hash": "273ad3ff54d6b603bbbc5e4039444f76"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/fast_id_test.go": {
+    "mtime": 1779446002.70678,
+    "ast_hash": "8c09ffaea346788d7938a60e21d88eab",
+    "semantic_hash": "8c09ffaea346788d7938a60e21d88eab"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/helper_coverage_test.go": {
+    "mtime": 1780561589.9677465,
+    "ast_hash": "3d3938e60db22b6a9537130aa01672db",
+    "semantic_hash": "3d3938e60db22b6a9537130aa01672db"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/jwt.go": {
+    "mtime": 1779470169.9793715,
+    "ast_hash": "92cc0430692f7b064a86209bfed1685a",
+    "semantic_hash": "92cc0430692f7b064a86209bfed1685a"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/jwt_test.go": {
+    "mtime": 1779384136.2740464,
+    "ast_hash": "9ef7f834751c0d7b2cf4850b866b7734",
+    "semantic_hash": "9ef7f834751c0d7b2cf4850b866b7734"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/notifications.go": {
+    "mtime": 1777650636.811155,
+    "ast_hash": "8cfdd5f29a4e7f598a376baa9c2aabb6",
+    "semantic_hash": "8cfdd5f29a4e7f598a376baa9c2aabb6"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/notifications_test.go": {
+    "mtime": 1781766906.3372185,
+    "ast_hash": "5560e2ab6489adb569f134e16d57aa2e",
+    "semantic_hash": "5560e2ab6489adb569f134e16d57aa2e"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/path.go": {
+    "mtime": 1771149877.0583136,
+    "ast_hash": "5042c11940a0cd9a1cf38a216da4f6ee",
+    "semantic_hash": "5042c11940a0cd9a1cf38a216da4f6ee"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/path_test.go": {
+    "mtime": 1779416565.64805,
+    "ast_hash": "e87837e5adb28ab6787a8e880a8425f2",
+    "semantic_hash": "e87837e5adb28ab6787a8e880a8425f2"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/slack.go": {
+    "mtime": 1777650636.8495593,
+    "ast_hash": "6e2aa622fe3b086acf35846878461170",
+    "semantic_hash": "6e2aa622fe3b086acf35846878461170"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/slice.go": {
+    "mtime": 1771149877.0586476,
+    "ast_hash": "3e4228436addaa8dfd6c2fdd259002b0",
+    "semantic_hash": "3e4228436addaa8dfd6c2fdd259002b0"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/slice_test.go": {
+    "mtime": 1777213788.4898064,
+    "ast_hash": "80da8c93f79820f58aeb151cb9537ecb",
+    "semantic_hash": "80da8c93f79820f58aeb151cb9537ecb"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/string_case.go": {
+    "mtime": 1777650636.7943685,
+    "ast_hash": "8e809489b6fb011ef8af13eb6ed449a0",
+    "semantic_hash": "8e809489b6fb011ef8af13eb6ed449a0"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/string_case_test.go": {
+    "mtime": 1777213808.896173,
+    "ast_hash": "4dfccef70a9845e06ef29bb5f81ca686",
+    "semantic_hash": "4dfccef70a9845e06ef29bb5f81ca686"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/string_generator.go": {
+    "mtime": 1777650636.6160295,
+    "ast_hash": "3ade1e63c50359212c933fd33aad6522",
+    "semantic_hash": "3ade1e63c50359212c933fd33aad6522"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/string_generator_test.go": {
+    "mtime": 1777213874.285405,
+    "ast_hash": "692222dabc6842daaabfe84cd28f2f36",
+    "semantic_hash": "692222dabc6842daaabfe84cd28f2f36"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/struct.go": {
+    "mtime": 1782716179.6403463,
+    "ast_hash": "23935fbed06d0b11dc1751bf31a53381",
+    "semantic_hash": "23935fbed06d0b11dc1751bf31a53381"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/struct_cache.go": {
+    "mtime": 1780577819.3576975,
+    "ast_hash": "7a2636ca2335529f8d15195aefca3f8c",
+    "semantic_hash": "7a2636ca2335529f8d15195aefca3f8c"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/struct_test.go": {
+    "mtime": 1780561666.6025746,
+    "ast_hash": "87b0cbbae2ab2a9edaead0710b54a6f8",
+    "semantic_hash": "87b0cbbae2ab2a9edaead0710b54a6f8"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/template.go": {
+    "mtime": 1777651746.5404372,
+    "ast_hash": "8f40c6e144d6b87c6988d7711bf09cb3",
+    "semantic_hash": "8f40c6e144d6b87c6988d7711bf09cb3"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/template_test.go": {
+    "mtime": 1779467656.5356703,
+    "ast_hash": "f8269291d56ee19d0f9e0cf2d4691ae7",
+    "semantic_hash": "f8269291d56ee19d0f9e0cf2d4691ae7"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/helper/upload.go": {
+    "mtime": 1777651437.7428458,
+    "ast_hash": "d38ac9a4fad1f07dcece1ce4e42badab",
+    "semantic_hash": "d38ac9a4fad1f07dcece1ce4e42badab"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/image/processing.go": {
+    "mtime": 1777651752.4984562,
+    "ast_hash": "017e2d5bb6d6159679f4fe60303b2648",
+    "semantic_hash": "017e2d5bb6d6159679f4fe60303b2648"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/image/processing_test.go": {
+    "mtime": 1779390529.9265976,
+    "ast_hash": "d152898972480595933beb726d9b3761",
+    "semantic_hash": "d152898972480595933beb726d9b3761"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/importer/csv.go": {
+    "mtime": 1777651051.7284582,
+    "ast_hash": "92b94849754f5d90eba131a1c5e4a345",
+    "semantic_hash": "92b94849754f5d90eba131a1c5e4a345"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/importer/custom_reader.go": {
+    "mtime": 1778413725.5039942,
+    "ast_hash": "80f04a9331f22ada2c69b329cfdb77f8",
+    "semantic_hash": "80f04a9331f22ada2c69b329cfdb77f8"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/importer/example_test.go": {
+    "mtime": 1777394101.0112512,
+    "ast_hash": "b49e247c70dac51325bad925550d7c07",
+    "semantic_hash": "b49e247c70dac51325bad925550d7c07"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/importer/excel.go": {
+    "mtime": 1777651475.4197836,
+    "ast_hash": "ffb1c3f27d267dc167aa291d3f9ba887",
+    "semantic_hash": "ffb1c3f27d267dc167aa291d3f9ba887"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/importer/import.go": {
+    "mtime": 1778413734.4983058,
+    "ast_hash": "8201b797d96628fead3b4ad894f46861",
+    "semantic_hash": "8201b797d96628fead3b4ad894f46861"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/importer/importer_coverage_test.go": {
+    "mtime": 1779423563.9732144,
+    "ast_hash": "cfbf880cf1cdb6ef62a6c244fb725f55",
+    "semantic_hash": "cfbf880cf1cdb6ef62a6c244fb725f55"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/importer/importer_test.go": {
+    "mtime": 1779385047.3307045,
+    "ast_hash": "5fa306702bb9692d73e1270dc9d8a644",
+    "semantic_hash": "5fa306702bb9692d73e1270dc9d8a644"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/importer/pool.go": {
+    "mtime": 1778413937.6599197,
+    "ast_hash": "e39906cfc4791669104550f77fe2c0a5",
+    "semantic_hash": "e39906cfc4791669104550f77fe2c0a5"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/importer/pool_test.go": {
+    "mtime": 1778413980.2786956,
+    "ast_hash": "0c3b7e5d84ca245bb4f2eabb9466f6d9",
+    "semantic_hash": "0c3b7e5d84ca245bb4f2eabb9466f6d9"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/log/otel_log_writer.go": {
+    "mtime": 1782283751.8168197,
+    "ast_hash": "d92fc0047beeece04cc99ea9b5c88288",
+    "semantic_hash": "d92fc0047beeece04cc99ea9b5c88288"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/log/zerolog.go": {
+    "mtime": 1782242189.0841136,
+    "ast_hash": "c6af1a07d9c1c1b8189522138ac6d10c",
+    "semantic_hash": "c6af1a07d9c1c1b8189522138ac6d10c"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/log/zerolog_test.go": {
+    "mtime": 1779465989.0999985,
+    "ast_hash": "395b55d1c6340976742d0f14cd441d5a",
+    "semantic_hash": "395b55d1c6340976742d0f14cd441d5a"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/mail/init.go": {
+    "mtime": 1771149877.0677228,
+    "ast_hash": "35afb81411ee60b91bb17d21acda37e9",
+    "semantic_hash": "35afb81411ee60b91bb17d21acda37e9"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/mail/mail_coverage_test.go": {
+    "mtime": 1779467437.0184255,
+    "ast_hash": "9f3e09b8967e22707ad677d80b871e65",
+    "semantic_hash": "9f3e09b8967e22707ad677d80b871e65"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/mail/mandrill.go": {
+    "mtime": 1779467391.5203059,
+    "ast_hash": "225c2b1dd3698ad240b39c530b6d24d1",
+    "semantic_hash": "225c2b1dd3698ad240b39c530b6d24d1"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/mail/smtp.go": {
+    "mtime": 1779467467.4071417,
+    "ast_hash": "4371da2420182503836ad642d78814a6",
+    "semantic_hash": "4371da2420182503836ad642d78814a6"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/mail/smtp_test.go": {
+    "mtime": 1779384021.543537,
+    "ast_hash": "e0c995ca4eb4c5615578b85155de3269",
+    "semantic_hash": "e0c995ca4eb4c5615578b85155de3269"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/middlewares/jwt.go": {
+    "mtime": 1779379905.4769077,
+    "ast_hash": "a7ab71bc3b1a0385940c8f0c38d5602c",
+    "semantic_hash": "a7ab71bc3b1a0385940c8f0c38d5602c"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/middlewares/jwt_test.go": {
+    "mtime": 1779467212.7230868,
+    "ast_hash": "04d6a159ea35a6fcb24e9ae4ee659ebf",
+    "semantic_hash": "04d6a159ea35a6fcb24e9ae4ee659ebf"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/middlewares/logger.go": {
+    "mtime": 1753558406.1731126,
+    "ast_hash": "92337381db7a170d03d8effc191106d1",
+    "semantic_hash": "92337381db7a170d03d8effc191106d1"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/middlewares/middlewares_extended_test.go": {
+    "mtime": 1779384977.5848644,
+    "ast_hash": "210fd1313fec79e8c82d6c98abac2530",
+    "semantic_hash": "210fd1313fec79e8c82d6c98abac2530"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/middlewares/ratelimit.go": {
+    "mtime": 1779379714.0336611,
+    "ast_hash": "d1a7ead453f42542fdaa713ca3c200e0",
+    "semantic_hash": "d1a7ead453f42542fdaa713ca3c200e0"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/middlewares/ratelimit_test.go": {
+    "mtime": 1779382765.8545432,
+    "ast_hash": "596f2a10e09324a2b281775537072167",
+    "semantic_hash": "596f2a10e09324a2b281775537072167"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/middlewares/static.go": {
+    "mtime": 1778786841.9758368,
+    "ast_hash": "bcff837d8f4352d19fc1b127ce77ae61",
+    "semantic_hash": "bcff837d8f4352d19fc1b127ce77ae61"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/middlewares/static_test.go": {
+    "mtime": 1779382765.8512082,
+    "ast_hash": "9b86c2fd7a6ddcd73f0c213ba0701d43",
+    "semantic_hash": "9b86c2fd7a6ddcd73f0c213ba0701d43"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/monitoring/composite.go": {
+    "mtime": 1782155891.1549082,
+    "ast_hash": "47d53c473d91cd9d1fd8a1ca3f4fd447",
+    "semantic_hash": "47d53c473d91cd9d1fd8a1ca3f4fd447"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/monitoring/monitor.go": {
+    "mtime": 1782155321.7947989,
+    "ast_hash": "8bd6a524a52310636c92a74976ce97a5",
+    "semantic_hash": "8bd6a524a52310636c92a74976ce97a5"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/monitoring/monitor_test.go": {
+    "mtime": 1782155573.6456184,
+    "ast_hash": "d93cf8a078ef316d9d50264421550aec",
+    "semantic_hash": "d93cf8a078ef316d9d50264421550aec"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/monitoring/new_relic.go": {
+    "mtime": 1782155332.6902518,
+    "ast_hash": "f752fbbcc4499d604d4f872e4ea868c8",
+    "semantic_hash": "f752fbbcc4499d604d4f872e4ea868c8"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/monitoring/new_relic_coverage_test.go": {
+    "mtime": 1779450575.7338028,
+    "ast_hash": "0f9631ec2d71e05e43d30500ee065272",
+    "semantic_hash": "0f9631ec2d71e05e43d30500ee065272"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/monitoring/new_relic_test.go": {
+    "mtime": 1779384844.6402159,
+    "ast_hash": "b8cbbe4d17494d3492db4604fbd15ccf",
+    "semantic_hash": "b8cbbe4d17494d3492db4604fbd15ccf"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/monitoring/otel.go": {
+    "mtime": 1782155343.4255753,
+    "ast_hash": "217c174b7986deb62b5114b6020a31a3",
+    "semantic_hash": "217c174b7986deb62b5114b6020a31a3"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/notifications/fcm/fcm.go": {
+    "mtime": 1782879821.1385028,
+    "ast_hash": "df503ba2cd304d4ff6792aeb057713db",
+    "semantic_hash": "df503ba2cd304d4ff6792aeb057713db"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/notifications/init.go": {
+    "mtime": 1781766892.1383164,
+    "ast_hash": "afc9d30fcf8e5ad4fef69beab502afac",
+    "semantic_hash": "afc9d30fcf8e5ad4fef69beab502afac"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/notifications/init_test.go": {
+    "mtime": 1781767023.2274277,
+    "ast_hash": "3203d5f6c554343605fc2d1e4a1ebe51",
+    "semantic_hash": "3203d5f6c554343605fc2d1e4a1ebe51"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/notifications/slack/slack.go": {
+    "mtime": 1781086349.5464473,
+    "ast_hash": "b3fb8aaa30c7d655289e1eb032a2cb7f",
+    "semantic_hash": "b3fb8aaa30c7d655289e1eb032a2cb7f"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/notifications/slack/slack_test.go": {
+    "mtime": 1781767023.2319486,
+    "ast_hash": "305e41beea946b2b52efe0032d699308",
+    "semantic_hash": "305e41beea946b2b52efe0032d699308"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/notifications/telegram/telegram.go": {
+    "mtime": 1779450465.9151173,
+    "ast_hash": "38cb7e1d04341ee222b6ba57b93fb875",
+    "semantic_hash": "38cb7e1d04341ee222b6ba57b93fb875"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/notifications/telegram/telegram_test.go": {
+    "mtime": 1781767023.2367406,
+    "ast_hash": "940750089206eb558a9e5396f301104d",
+    "semantic_hash": "940750089206eb558a9e5396f301104d"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/null/struct.go": {
+    "mtime": 1777650636.772796,
+    "ast_hash": "00c276423f3dd56fc1f10b7faa307aa3",
+    "semantic_hash": "00c276423f3dd56fc1f10b7faa307aa3"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/null/struct_extended_test.go": {
+    "mtime": 1779443404.3445115,
+    "ast_hash": "263ba989f908ee0df79bfffdbb947715",
+    "semantic_hash": "263ba989f908ee0df79bfffdbb947715"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/null/struct_test.go": {
+    "mtime": 1777214004.5618103,
+    "ast_hash": "74c1b6cb809a71df03429e5ec3a03be2",
+    "semantic_hash": "74c1b6cb809a71df03429e5ec3a03be2"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/response/response.go": {
+    "mtime": 1781086339.7374117,
+    "ast_hash": "13ad864153b9946584744c29101c2829",
+    "semantic_hash": "13ad864153b9946584744c29101c2829"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/response/response_test.go": {
+    "mtime": 1781766969.095714,
+    "ast_hash": "ba64c6d371a748c715be1393092a41cf",
+    "semantic_hash": "ba64c6d371a748c715be1393092a41cf"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/server/definition.go": {
+    "mtime": 1771149877.0704017,
+    "ast_hash": "130b1e3fd33a1680e8fcc381d148ed3b",
+    "semantic_hash": "130b1e3fd33a1680e8fcc381d148ed3b"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/server/definition_test.go": {
+    "mtime": 1779390334.5665586,
+    "ast_hash": "52d5d93b8f45f40c97fa7c90ec381ad7",
+    "semantic_hash": "52d5d93b8f45f40c97fa7c90ec381ad7"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/server/graceful.go": {
+    "mtime": 1779436453.8787017,
+    "ast_hash": "c7b1b242208d02999d3e5beb92b755bc",
+    "semantic_hash": "c7b1b242208d02999d3e5beb92b755bc"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/server/server_coverage_test.go": {
+    "mtime": 1779476374.2036254,
+    "ast_hash": "79903d33802a8fc4648e97008e708660",
+    "semantic_hash": "79903d33802a8fc4648e97008e708660"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/sse/examples/sse.js": {
+    "mtime": 1771262373.64663,
+    "ast_hash": "2d60e842c7369e11bbf71cb70b332b26",
+    "semantic_hash": "2d60e842c7369e11bbf71cb70b332b26"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/sse/hub_test.go": {
+    "mtime": 1779387507.0865438,
+    "ast_hash": "62d71be648e7dc98751356c45dbc9867",
+    "semantic_hash": "62d71be648e7dc98751356c45dbc9867"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/sse/message_buffer.go": {
+    "mtime": 1771199432.544195,
+    "ast_hash": "1a369b88ea4bba71c3a4f4afe3a448bb",
+    "semantic_hash": "1a369b88ea4bba71c3a4f4afe3a448bb"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/sse/sse.go": {
+    "mtime": 1778413520.729876,
+    "ast_hash": "002e05231108612930535ede353445d0",
+    "semantic_hash": "002e05231108612930535ede353445d0"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/sse/sse_test.go": {
+    "mtime": 1779386858.9430037,
+    "ast_hash": "bbf9139618738c70c0031b70e29f75d6",
+    "semantic_hash": "bbf9139618738c70c0031b70e29f75d6"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/storage/definition.go": {
+    "mtime": 1771149877.0706906,
+    "ast_hash": "52e4565ee77d774a319b0fc66fed0bef",
+    "semantic_hash": "52e4565ee77d774a319b0fc66fed0bef"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/storage/definition_test.go": {
+    "mtime": 1779390570.170543,
+    "ast_hash": "180a265a07f5714ef00b7e81716b454c",
+    "semantic_hash": "180a265a07f5714ef00b7e81716b454c"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/storage/drive.go": {
+    "mtime": 1777650636.730655,
+    "ast_hash": "b65fb14469ad5ff4858e00e1b9023154",
+    "semantic_hash": "b65fb14469ad5ff4858e00e1b9023154"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/storage/google.go": {
+    "mtime": 1777651999.5895505,
+    "ast_hash": "c72bac9d6d9cf588bb50a6dc1f48c450",
+    "semantic_hash": "c72bac9d6d9cf588bb50a6dc1f48c450"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/storage/google_extended_test.go": {
+    "mtime": 1779480158.8461983,
+    "ast_hash": "5651221266309887b2b7c413b094db71",
+    "semantic_hash": "5651221266309887b2b7c413b094db71"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/third_party/slack/api.go": {
+    "mtime": 1779468194.280293,
+    "ast_hash": "14d81cab8627e87239f04091a9d3b900",
+    "semantic_hash": "14d81cab8627e87239f04091a9d3b900"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/third_party/slack/api_test.go": {
+    "mtime": 1779468216.2754846,
+    "ast_hash": "d728932222dd8c64694256f5061997e0",
+    "semantic_hash": "d728932222dd8c64694256f5061997e0"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/third_party/slack/handler/api.go": {
+    "mtime": 1737915274.8597963,
+    "ast_hash": "db5cb66c48f7b94337da8972db96b66f",
+    "semantic_hash": "db5cb66c48f7b94337da8972db96b66f"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/third_party/slack/handler/api_test.go": {
+    "mtime": 1779384105.5596292,
+    "ast_hash": "8a016ca9323c8402b346290ba2aeb307",
+    "semantic_hash": "8a016ca9323c8402b346290ba2aeb307"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/third_party/slack/handler/socket.go": {
+    "mtime": 1777650636.8592143,
+    "ast_hash": "4e43f54d27383fbc84c2752ef27f27cc",
+    "semantic_hash": "4e43f54d27383fbc84c2752ef27f27cc"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/third_party/slack/handler/socket_test.go": {
+    "mtime": 1779384126.3568642,
+    "ast_hash": "2f54156df9461e7272528db2abdf70c7",
+    "semantic_hash": "2f54156df9461e7272528db2abdf70c7"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/third_party/slack/socket.go": {
+    "mtime": 1779512414.4543521,
+    "ast_hash": "c5189b2257192a43542d8f40e028d5ab",
+    "semantic_hash": "c5189b2257192a43542d8f40e028d5ab"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/third_party/slack/socket_extended_test.go": {
+    "mtime": 1779450765.8313482,
+    "ast_hash": "8b4dd6c23aaf295bdcfe537879f54819",
+    "semantic_hash": "8b4dd6c23aaf295bdcfe537879f54819"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/third_party/slack/socket_test.go": {
+    "mtime": 1779390176.404093,
+    "ast_hash": "50f9d80aa7f140ebe84cdaa653057f32",
+    "semantic_hash": "50f9d80aa7f140ebe84cdaa653057f32"
+  },
+  "/Users/radityapratama/dev/others/phastos/scripts/pre-push": {
+    "mtime": 1777218602.1645868,
+    "ast_hash": "efc0f8a222e4ace16fc7ecf715968b13",
+    "semantic_hash": "efc0f8a222e4ace16fc7ecf715968b13"
+  },
+  "/Users/radityapratama/dev/others/phastos/.github/workflows/auto-tag.yml": {
+    "mtime": 1779562708.9861472,
+    "ast_hash": "b295cf7f5dab5268b53225fbb0616bee",
+    "semantic_hash": "b295cf7f5dab5268b53225fbb0616bee"
+  },
+  "/Users/radityapratama/dev/others/phastos/.golangci.yml": {
+    "mtime": 1777834840.7924592,
+    "ast_hash": "1b8b5773b6416801f71c37af68245fee",
+    "semantic_hash": "1b8b5773b6416801f71c37af68245fee"
+  },
+  "/Users/radityapratama/dev/others/phastos/CHANGELOG.md": {
+    "mtime": 1779542262.3322284,
+    "ast_hash": "dbc0e1d158d7cffc7ff6639a972255fc",
+    "semantic_hash": "dbc0e1d158d7cffc7ff6639a972255fc"
+  },
+  "/Users/radityapratama/dev/others/phastos/README.md": {
+    "mtime": 1779562941.7274635,
+    "ast_hash": "c2c614b4c7591876208bbb7d77e4854e",
+    "semantic_hash": "c2c614b4c7591876208bbb7d77e4854e"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/README.md": {
+    "mtime": 1778792092.609757,
+    "ast_hash": "b7dd94af5c7b013ecb1189680db2ec5d",
+    "semantic_hash": "b7dd94af5c7b013ecb1189680db2ec5d"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/api/README.md": {
+    "mtime": 1778886460.9571004,
+    "ast_hash": "f021f31b6d7899d475f624e16859d4d6",
+    "semantic_hash": "f021f31b6d7899d475f624e16859d4d6"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/db/OPTIMIZATION_REPORT.md": {
+    "mtime": 1779027251.1640425,
+    "ast_hash": "3a95a6bcdf46fd39db5e02312b74bf04",
+    "semantic_hash": "3a95a6bcdf46fd39db5e02312b74bf04"
+  },
+  "/Users/radityapratama/dev/others/phastos/benchmark/db/README.md": {
+    "mtime": 1778823740.9877508,
+    "ast_hash": "be3570d8a443b19116a436ac4688e25a",
+    "semantic_hash": "be3570d8a443b19116a436ac4688e25a"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/README.md": {
+    "mtime": 1771149877.0495481,
+    "ast_hash": "53561bbf697ce0cd979139a94080d688",
+    "semantic_hash": "53561bbf697ce0cd979139a94080d688"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/database/action/README.md": {
+    "mtime": 1771149877.0541914,
+    "ast_hash": "c02a0c6db8a32da0c1a489e3515dce70",
+    "semantic_hash": "c02a0c6db8a32da0c1a489e3515dce70"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/importer/CHANGELOG.md": {
+    "mtime": 1771153301.5776055,
+    "ast_hash": "e081a5e3ed73ee8dc4ce63b3f6e5dae5",
+    "semantic_hash": "e081a5e3ed73ee8dc4ce63b3f6e5dae5"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/mail/testdata/test.html": {
+    "mtime": 1779387565.465641,
+    "ast_hash": "fff331e83b3854cfa129029bab73de69",
+    "semantic_hash": "fff331e83b3854cfa129029bab73de69"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/sse/README.md": {
+    "mtime": 1771260424.2268376,
+    "ast_hash": "2a40a99a6645c7d6f5397302797c8186",
+    "semantic_hash": "2a40a99a6645c7d6f5397302797c8186"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/sse/SSE_ENCRYPTED_TOKEN_GUIDE.md": {
+    "mtime": 1771235288.0,
+    "ast_hash": "b838e16cd311e1867e2bc481fe6fd659",
+    "semantic_hash": "b838e16cd311e1867e2bc481fe6fd659"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/sse/SSE_FLOW_DOCUMENTATION.md": {
+    "mtime": 1771235288.0,
+    "ast_hash": "1f9b50d2f72916e6a89eac09d2066539",
+    "semantic_hash": "1f9b50d2f72916e6a89eac09d2066539"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/sse/SSE_HTTP3_GUIDE.md": {
+    "mtime": 1771235288.0,
+    "ast_hash": "38d9b92e2c0489090e885c131865b9a2",
+    "semantic_hash": "38d9b92e2c0489090e885c131865b9a2"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/sse/SSE_TOKEN_AUTHENTICATION.md": {
+    "mtime": 1771235288.0,
+    "ast_hash": "68d89a25a32c31b2da60b3eb5c2f539b",
+    "semantic_hash": "68d89a25a32c31b2da60b3eb5c2f539b"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/sse/test_sse.html": {
+    "mtime": 1771263049.2188075,
+    "ast_hash": "7286ab462ded6855843659461db1e0e3",
+    "semantic_hash": "7286ab462ded6855843659461db1e0e3"
+  },
+  "/Users/radityapratama/dev/others/phastos/creating-tag-version.png": {
+    "mtime": 1779561542.1119528,
+    "ast_hash": "581f53e3c19af5fe27a528d23e1d64f5",
+    "semantic_hash": "581f53e3c19af5fe27a528d23e1d64f5"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/generator/banner-sample-output.jpg": {
+    "mtime": 1737915274.851199,
+    "ast_hash": "78398934cd3dddf6b5e23584dce9ba50",
+    "semantic_hash": "78398934cd3dddf6b5e23584dce9ba50"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/img.png": {
+    "mtime": 1771149877.0601332,
+    "ast_hash": "4be37c725e99db078c763d8a0531b872",
+    "semantic_hash": "4be37c725e99db078c763d8a0531b872"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/img_1.png": {
+    "mtime": 1771149877.0612235,
+    "ast_hash": "eea47eff85e671f4ab9256ad1b8a7d6a",
+    "semantic_hash": "eea47eff85e671f4ab9256ad1b8a7d6a"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/img_10.png": {
+    "mtime": 1771149877.0620072,
+    "ast_hash": "6f2dccb571064716874ee1cfed50f5d9",
+    "semantic_hash": "6f2dccb571064716874ee1cfed50f5d9"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/img_2.png": {
+    "mtime": 1771149877.062268,
+    "ast_hash": "1eec6b95974a8a2f75fbd0177f6034c3",
+    "semantic_hash": "1eec6b95974a8a2f75fbd0177f6034c3"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/img_3.png": {
+    "mtime": 1771149877.062882,
+    "ast_hash": "050bd5a57000f16574a7bd44c2e5e9e7",
+    "semantic_hash": "050bd5a57000f16574a7bd44c2e5e9e7"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/img_4.png": {
+    "mtime": 1771149877.063487,
+    "ast_hash": "e4caccad110c48d0e4521991a0cb68e5",
+    "semantic_hash": "e4caccad110c48d0e4521991a0cb68e5"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/img_5.png": {
+    "mtime": 1771149877.0639114,
+    "ast_hash": "c65ec2b810a0a99c86dd1a487ff31680",
+    "semantic_hash": "c65ec2b810a0a99c86dd1a487ff31680"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/img_6.png": {
+    "mtime": 1771149877.0649972,
+    "ast_hash": "3f7bc5de741cde18278fb9fe01068af7",
+    "semantic_hash": "3f7bc5de741cde18278fb9fe01068af7"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/img_7.png": {
+    "mtime": 1771149877.065388,
+    "ast_hash": "a5efdf9e2db4aab726f7b7ebe3a0d1ca",
+    "semantic_hash": "a5efdf9e2db4aab726f7b7ebe3a0d1ca"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/img_8.png": {
+    "mtime": 1771149877.065631,
+    "ast_hash": "9026bfb7621e027e6e6e3b5c73bb210b",
+    "semantic_hash": "9026bfb7621e027e6e6e3b5c73bb210b"
+  },
+  "/Users/radityapratama/dev/others/phastos/go/img_9.png": {
+    "mtime": 1771149877.066103,
+    "ast_hash": "4be37c725e99db078c763d8a0531b872",
+    "semantic_hash": "4be37c725e99db078c763d8a0531b872"
+  },
+  "/Users/radityapratama/dev/others/phastos/release-page-result.png": {
+    "mtime": 1779561635.0647511,
+    "ast_hash": "3ce74f0377928ac024ba629cd87066ec",
+    "semantic_hash": "3ce74f0377928ac024ba629cd87066ec"
+  }
+}
