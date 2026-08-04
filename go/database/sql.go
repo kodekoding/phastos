@@ -1053,7 +1053,9 @@ func checkInitiateWhere(_ context.Context, reqData *TableRequest, addOnBuilder *
 			fmt.Fprintf(addOnBuilder, "%s AND ", condition)
 		}
 		initWhere := addOnBuilder.String()
-		initWhere = initWhere[:len(initWhere)-5]
+		if len(initWhere) >= len(" AND ") {
+			initWhere = initWhere[:len(initWhere)-len(" AND ")]
+		}
 		*addOnParams = append(*addOnParams, reqData.InitiateWhereValues...)
 
 		addOnBuilder.Reset()

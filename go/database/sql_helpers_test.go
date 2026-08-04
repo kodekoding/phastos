@@ -293,6 +293,21 @@ func TestCheckInitiateWhere_SingleCondition(t *testing.T) {
 	assert.Equal(t, []interface{}{42}, params)
 }
 
+func TestCheckInitiateWhere_EmptyNonNilSlice(t *testing.T) {
+	req := &TableRequest{
+		InitiateWhere:       []string{},
+		InitiateWhereValues: []interface{}{},
+	}
+	var builder strings.Builder
+	var params []interface{}
+
+	require.NotPanics(t, func() {
+		checkInitiateWhere(context.Background(), req, &builder, &params)
+	})
+	assert.Empty(t, builder.String())
+	assert.Empty(t, params)
+}
+
 // --- sendNilResponse tests ---
 
 func TestSendNilResponse_NoRowsError(t *testing.T) {
