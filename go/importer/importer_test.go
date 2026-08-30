@@ -600,6 +600,44 @@ func TestProcessData_ProcessFnErrorWithData(t *testing.T) {
 	assert.Equal(t, 1, result.TotalFailed)
 }
 
+func TestProcessData_CSV_FailedListKeySanitized(t *testing.T) {
+	type TestStruct struct {
+		Name string `json:"Name"`
+	}
+
+	content := createCSVContent(
+		[]string{"Name"},
+		[]string{"Alice"},
+	)
+	file := createMultipartFile(t, content)
+
+	trx := &stubTransactions{}
+	fn := func(ctx context.Context, singleData interface{}, tx *sqlx.Tx, wi int) *api.HttpError {
+		return api.NewErr(
+			api.WithErrorMessage("some error happened"),
+			api.WithErrorData(map[string]any{"row": singleData}),
+		)
+	}
+
+	imp := New(
+		WithFile(file),
+		WithExtFile(".csv"),
+		WithStructDestination(TestStruct{}),
+		WithTransaction(trx),
+		WithProcessFn(fn),
+		WithWorker(1),
+		WithCtx(context.Background()),
+	)
+
+	result := imp.ProcessData()
+	require.NotNil(t, result)
+	require.Equal(t, 1, result.TotalFailed)
+	_, exists := result.FailedList["some_error_happened"]
+	assert.True(t, exists, "failed_list key must have spaces replaced by underscore")
+	_, existsWithSpace := result.FailedList["some error happened"]
+	assert.False(t, existsWithSpace, "raw error message must not be a failed_list key")
+}
+
 // ---------------------------------------------------------------------------
 // Tests for ProcessData with Slack notification
 // ---------------------------------------------------------------------------

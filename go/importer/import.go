@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"os"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -53,7 +54,7 @@ type (
 
 	ImportResult struct {
 		FailedList       map[string][]interface{} `json:"failed_list"`
-		SuccessList      []any                    `json:"success_list"`
+		SuccessList      []any                    `json:"success_list,omitempty"`
 		TotalData        int                      `json:"total_data"`
 		TotalFailed      int                      `json:"total_failed"`
 		TotalSuccess     int                      `json:"total_success"`
@@ -89,6 +90,12 @@ var mapFileExt = map[string]string{
 	ExcelExt:         ExcelFileType,
 	ExcelWorkbookExt: ExcelWorkbookFileType,
 	CSVExt:           CSVFileType,
+}
+
+// sanitizeGroupKey normalizes an error message into a map key usable by
+// downstream consumers (no whitespace).
+func sanitizeGroupKey(msg string) string {
+	return strings.ReplaceAll(msg, " ", "_")
 }
 
 func New(opt ...ImportOptions) *importer {
@@ -430,13 +437,14 @@ func (r *importer) ProcessPivotData() *ImportResult {
 			if failedList == nil {
 				failedList = make(map[string][]any)
 			}
-			if _, exist := failedList[pr.Error.Message]; !exist {
-				failedList[pr.Error.Message] = make([]any, 0)
+			groupKey := sanitizeGroupKey(pr.Error.Message)
+			if _, exist := failedList[groupKey]; !exist {
+				failedList[groupKey] = make([]any, 0)
 			}
 			if pr.Error.Data != nil {
-				failedList[pr.Error.Message] = append(failedList[pr.Error.Message], pr.Error.Data)
+				failedList[groupKey] = append(failedList[groupKey], pr.Error.Data)
 			} else {
-				failedList[pr.Error.Message] = append(failedList[pr.Error.Message], "failed")
+				failedList[groupKey] = append(failedList[groupKey], "failed")
 			}
 			totalFailed++
 		} else {
@@ -517,13 +525,14 @@ func (r *importer) processData(asyncContext context.Context, nrTrx *newrelic.Tra
 			if failedList == nil {
 				failedList = make(map[string][]any)
 			}
-			if _, exist := failedList[pr.Error.Message]; !exist {
-				failedList[pr.Error.Message] = make([]any, 0)
+			groupKey := sanitizeGroupKey(pr.Error.Message)
+			if _, exist := failedList[groupKey]; !exist {
+				failedList[groupKey] = make([]any, 0)
 			}
 			if pr.Error.Message != "Failed Parsed Single Data" {
-				failedList[pr.Error.Message] = append(failedList[pr.Error.Message], pr.Error.Data.(map[string]any)) //nolint:errcheck
+				failedList[groupKey] = append(failedList[groupKey], pr.Error.Data.(map[string]any)) //nolint:errcheck
 			} else {
-				failedList[pr.Error.Message] = append(failedList[pr.Error.Message], "failed")
+				failedList[groupKey] = append(failedList[groupKey], "failed")
 			}
 			totalFailed++
 		} else {
