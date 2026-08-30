@@ -206,6 +206,31 @@ func TestResponseRecorder(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rec.StatusCode)
 }
 
+func TestResponseRecorder_Flush(t *testing.T) {
+	inner := httptest.NewRecorder()
+	rec := NewResponseRecorder(inner)
+
+	// ResponseRecorder must implement http.Flusher so SSE handlers can
+	// type-assert it through the requestLogger middleware.
+	var flusher http.Flusher = rec
+	flusher.Flush()
+}
+
+func TestResponseRecorder_Flush_NonFlusherInner(t *testing.T) {
+	rec := NewResponseRecorder(&nonFlusherResponseWriter{})
+
+	var flusher http.Flusher = rec
+	assert.NotPanics(t, func() { flusher.Flush() })
+}
+
+type nonFlusherResponseWriter struct {
+	status int
+}
+
+func (w *nonFlusherResponseWriter) Header() http.Header         { return http.Header{} }
+func (w *nonFlusherResponseWriter) Write(b []byte) (int, error) { return len(b), nil }
+func (w *nonFlusherResponseWriter) WriteHeader(status int)      { w.status = status }
+
 func TestWriteJson(t *testing.T) {
 	w := httptest.NewRecorder()
 	WriteJson(w, map[string]string{"key": "value"})

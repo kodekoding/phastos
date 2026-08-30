@@ -44,6 +44,14 @@ func (r *ResponseRecorder) WriteHeader(status int) {
 	r.ResponseWriter.WriteHeader(status)
 }
 
+// Flush implements http.Flusher so SSE/streaming responses keep working
+// through the requestLogger middleware.
+func (r *ResponseRecorder) Flush() {
+	if flusher, ok := r.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
 type Response struct {
 	Message          string `json:"message,omitempty"`
 	Data             any    `json:"data,omitempty"`
